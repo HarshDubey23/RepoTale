@@ -98,7 +98,8 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
   } },
   video: { help: 'render the storyboard: MP4 with chapters, GIF, captions, poster, contact sheet (--only 2,3 to preview scenes, --fresh, --voice kokoro|elevenlabs|none, --lang hi)', async run() {
     const sb = load();
-    if (flag('voice')) sb.voice = { ...(sb.voice ?? { provider: 'kokoro' }), provider: flag('voice') as any };
+    // A voice id belongs to its provider: switching provider on the command line uses that provider's default voice.
+    if (flag('voice')) sb.voice = { ...sb.voice, provider: flag('voice') as any, voice: flag('voice') === (sb.voice?.provider ?? 'kokoro') ? sb.voice?.voice : undefined };
     const lang = flag('lang');
     if (lang && (sb.voice?.provider ?? 'kokoro') === 'kokoro') sb.voice = { provider: 'elevenlabs', voice: sb.voice?.voice?.length === 20 ? sb.voice.voice : undefined };
     const only = flag('only')?.split(',').map(Number);
