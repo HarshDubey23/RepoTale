@@ -3,3 +3,6 @@ scratch
 docs/reporeel/.work
 docs/reporeel/.cache
 .reporeel
+dist
+examples/hello/docs
+examples/hello/reporeel.json

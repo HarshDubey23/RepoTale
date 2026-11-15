@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Readable: how long will this take to read?</title>
+<style>
+  :root { --bg:#fbf7f0; --ink:#1d1a16; --mut:#6d655a; --a:#e4572e; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#16140f; --ink:#f3ede2; --mut:#a59c8e; } }
+  body { margin:0; background:var(--bg); color:var(--ink); font:18px/1.55 system-ui, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:64px 20px; }
+  h1 { font-size:clamp(40px,7vw,68px); line-height:1; letter-spacing:-.04em; margin:0 0 14px; }
+  p.lede { color:var(--mut); margin:0 0 30px; }
+  textarea { width:100%; box-sizing:border-box; min-height:180px; font:inherit; padding:16px; border-radius:14px; border:2px solid #0002; background:transparent; color:inherit; }
+  button { margin-top:14px; font:600 17px system-ui; padding:12px 22px; border:0; border-radius:999px; background:var(--a); color:#fff; cursor:pointer; }
+  #result { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:28px; }
+  #result div { border:2px solid #0001; border-radius:14px; padding:16px; }
+  #result b { display:block; font-size:34px; letter-spacing:-.03em; }
+  #result span { color:var(--mut); font-size:15px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Readable</h1>
+  <p class="lede">Paste any text. See how long it takes to read, and how hard it is.</p>
+  <textarea id="text" aria-label="Text to measure" placeholder="Paste a README, an essay, anything."></textarea>
+  <button id="measure">Measure</button>
+  <section id="result" aria-live="polite"></section>
+</main>
+<script type="module">
+  import { measure } from './readable.js';
+  document.getElementById('measure').onclick = () => {
+    const r = measure(document.getElementById('text').value);
+    document.getElementById('result').innerHTML =
+      `<div><b>${r.minutes} min</b><span>to read at 230 words a minute</span></div>` +
+      `<div><b>${r.words}</b><span>words</span></div>` +
+      `<div><b>${r.grade}</b><span>Flesch reading ease (higher is easier)</span></div>`;
+  };
+</script>
+</body>
+</html>
