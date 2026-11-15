@@ -32,7 +32,7 @@ export interface Storyboard {
   /** Folder of the project (relative to this file), or an owner/name label shown on the title card. */
   repo?: string;
   /** The running app, for web scenes. `start` is run in `repo` and awaited until `url` answers. */
-  app?: { url: string; start?: string; readyTimeoutMs?: number };
+  app?: { url: string; start?: string; readyTimeoutMs?: number; session?: string };
   voice?: { provider: 'kokoro' | 'elevenlabs' | 'none'; voice?: string; speed?: number };
   theme?: { accent?: string; captions?: boolean };
   size?: { width: number; height: number };
@@ -48,6 +48,7 @@ export function validate(sb: any): string[] {
   if (!sb || typeof sb !== 'object') return ['storyboard must be a JSON object'];
   if (typeof sb.title !== 'string' || !sb.title) errs.push('title: required');
   if (sb.app?.url !== undefined && !/^https?:/i.test(String(sb.app.url))) errs.push('app.url: must be http or https');
+  if (sb.app?.session !== undefined && (typeof sb.app.session !== 'string' || /^([a-z]+:|\/|\\)|\.\./i.test(sb.app.session))) errs.push('app.session: must be a relative path inside the project');
   if (!Array.isArray(sb.scenes) || !sb.scenes.length) errs.push('scenes: need at least one');
   (sb.scenes ?? []).forEach((s: any, i: number) => {
     const at = `scenes[${i}]`;

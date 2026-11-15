@@ -99,14 +99,15 @@ export function buildStory(model, opts = {}) {
     const tests = [...reach.keys()].filter(f => byFile.get(f)?.test);
     const pct = Math.round((reach.size / Math.max(1, model.modules.length)) * 100);
     S.push({ kind: 'blast', heading: 'If it changes', center: heart.file, reach: [...reach], tests: tests.length,
-      say: `Change ${spoken(heart.file)} and ${plural(reach.size, 'file')} can feel it, ${pct} percent of what was read. ${tests.length ? `${plural(tests.length, 'test file')} cover that path.` : 'No test file reaches it, so a change there goes untested.'}`,
+      say: `Change ${spoken(heart.file)} and ${plural(reach.size, 'file')} can feel it, ${pct} percent of what was read. ${tests.length ? `${plural(tests.length, 'test file')} cover that path.` : meta.truncated ? 'No test among the files read reaches it; this was a sample, so tests elsewhere may.' : 'No test file reaches it, so a change there goes untested.'}`,
       evidence: [...reach.keys()].slice(0, 3).map(f => ({ file: f })) });
   }
 
   const untested = core.filter(m => model.testsReaching(m.file).length === 0).slice(0, 3);
   S.push({ kind: 'health', heading: 'What to watch', cycles: cycles.slice(0, 3), untested: untested.map(m => m.file),
     say: [cycles.length ? `There ${cycles.length === 1 ? 'is one import cycle' : `are ${cycles.length} import cycles`}, the first running ${cycles[0].loop.map(spoken).join(', then ')}, and back.` : 'There are no import cycles.',
-      untested.length ? `${list(untested.map(m => spoken(m.file)))} ${untested.length === 1 ? 'has' : 'have'} no test reaching ${untested.length === 1 ? 'it' : 'them'}.` : core.length ? 'Every core module is reached by a test.' : ''].join(' '),
+      // On a sample, a missing test may simply not have been read: say what was seen, not a verdict.
+      untested.length ? (meta.truncated ? `No test among the files read reaches ${list(untested.map(m => spoken(m.file)))}, though this was a sample.` : `${list(untested.map(m => spoken(m.file)))} ${untested.length === 1 ? 'has' : 'have'} no test reaching ${untested.length === 1 ? 'it' : 'them'}.`) : core.length ? 'Every core module is reached by a test.' : ''].join(' '),
     evidence: [...(cycles[0]?.loop.slice(0, 2) ?? []), ...untested.map(m => m.file)].map(file => ({ file })) });
 
   S.push({ kind: 'end', heading: meta.name, sub: `github.com/${meta.full}`,
@@ -549,6 +550,15 @@ export class Player {
     requestAnimationFrame(this.frame);
   }
   get total() { return this.scenes.reduce((s, x) => s + x.duration, 0); }
+  get time() { return this.scenes.slice(0, this.i).reduce((s, x) => s + x.duration, 0) + this.elapsed; }
+  /** Jump to any moment of the film; the voice picks up mid-sentence when it is neural. */
+  seekTo(ms) {
+    let i = 0;
+    while (i < this.scenes.length - 1 && ms >= this.scenes[i].duration) { ms -= this.scenes[i].duration; i++; }
+    this.i = i; this.elapsed = Math.max(0, Math.min(ms, this.scene.duration)); this.t0 = performance.now() - this.elapsed;
+    if (this.playing) this.speak(); else this.hush();
+    this.draw(); this.emit();
+  }
 }
 
 /** Record the whole film to a video file in real time. With `audioContext` and every scene carrying

@@ -14,6 +14,7 @@ import { launchPosts } from './posts.ts';
 import { prStoryboard } from './pr.ts';
 import { writeReadme } from './readme.ts';
 import { render, startApp } from './render.ts';
+import { tour, tourStoryboard } from './tour.ts';
 import { detect, mermaidFor } from './stack.ts';
 import { check, formatReport, stale } from './evidence.ts';
 import { explorerHtml } from './explore.ts';
@@ -155,6 +156,22 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     writeFileSync(file, JSON.stringify({ ...sb, repo: resolve(root) }, null, 2));
     const r = await render({ ...sb, repo: resolve(root), voice: { provider: (flag('voice') as any) ?? 'kokoro' } }, file, { out: join(out, 'pr'), log, approve, sandbox });
     say(`pr video ${r.video}`);
+  } },
+  tour: { help: 'walk a running web app page by page, signed in if needed, and write a storyboard that explains each page: tour <url> [--login <url>] [--user-env NAME --pass-env NAME] [--max 8]', async run() {
+    const start = args.find(a => /^https?:\/\//.test(a) && a !== flag('login'));
+    if (!start) throw new Error('give the app address: repotale tour https://your-app.example.com');
+    const loginUrl = flag('login'), userEnv = flag('user-env', 'REPOTALE_USER')!, passEnv = flag('pass-env', 'REPOTALE_PASS')!;
+    const session = '.repotale/session.json';
+    const { pages, session: saved } = await tour(start, { loginUrl, user: process.env[userEnv], pass: process.env[passEnv], max: Number(flag('max', '8')), session: join(root, session), log });
+    if (!pages.length) throw new Error('no pages could be read; if the app needs a login, pass --login <its sign-in page>');
+    save(tourStoryboard(start, pages, saved ? session : undefined));
+    if (saved) {
+      // The session file holds live cookies: keep it out of git.
+      const gi = join(root, '.gitignore'), have = existsSync(gi) ? readFileSync(gi, 'utf8') : '';
+      if (!/^\.repotale\/?$/m.test(have)) writeFileSync(gi, have + (have && !have.endsWith('\n') ? '\n' : '') + '.repotale/\n');
+      log(`signed-in session saved to ${session} (ignored by git; delete it to sign out)`);
+    }
+    say(`wrote ${sbFile} with ${pages.length} pages; render it with: repotale video`);
   } },
   ci: { help: 'add a GitHub Action: doctor and verify on PRs, fresh media on releases', async run() { say(`wrote ${writeWorkflow(root)}`); } },
   setup: { help: 'check node, ffmpeg, Chromium and API keys (--fix installs Chromium)', async run() {

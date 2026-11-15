@@ -35,6 +35,10 @@
         },
         "readyTimeoutMs": {
           "type": "number"
+        },
+        "session": {
+          "type": "string",
+          "description": "Saved sign-in (cookies and storage) that web scenes start from, written by repotale tour. Keep it out of git."
         }
       },
       "additionalProperties": false

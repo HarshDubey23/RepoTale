@@ -109,7 +109,7 @@
     </div>
 
     <div class="panel" role="tabpanel" id="p-film" aria-labelledby="t-film" hidden data-ui>
-      <div class="film">
+      <div class="film" id="film-wrap">
         <div class="screen">
           <canvas id="film" width="1920" height="1080" aria-label="The film. Its narration is listed beside it."></canvas>
           <button class="screen-play" id="bigplay" aria-label="Play the film"><span></span></button>
@@ -118,10 +118,12 @@
           <button class="btn" id="play">Play</button>
           <button class="ctl" id="prev" aria-label="Previous scene">Back</button>
           <button class="ctl" id="next" aria-label="Next scene">Next</button>
+          <input type="range" id="seek" class="seek" min="0" max="1000" value="0" step="1" aria-label="Position in the film">
           <span class="time" id="time">0:00</span>
           <label class="sr" for="voice">Voice</label>
           <select id="voice" class="ctl"></select>
           <span class="grow"></span>
+          <button class="ctl" id="fs" aria-label="Full screen (F)">Full screen</button>
           <button class="ctl" id="rec">Download video</button>
         </div>
         <p class="voice-note" id="voice-note" aria-live="polite"></p>

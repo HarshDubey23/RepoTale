@@ -11,7 +11,7 @@ Two ways to use it:
 
 ## The website
 
-Paste `owner/name` or a github.com link. The page reads the repository in your browser, straight from GitHub: nothing is uploaded and nothing is run. You get four views:
+Paste `owner/name` or a github.com link. The page reads the repository in your browser, straight from GitHub: nothing is uploaded and nothing is run. You get five views:
 
 | View | What it shows |
 | --- | --- |
@@ -37,6 +37,20 @@ What it can and cannot claim:
 Run the website locally with any static server, for example `npx http-server web`. It has no build step and no dependencies.
 
 ## The CLI
+
+### Tour a web app, signed in
+
+`repotale tour` walks a running web app the way a visitor would, signs in first if you ask it to, reads every page it reaches (headline, sections, buttons, form fields, tables) and writes a storyboard that explains each one. `repotale video` then films it, scrolling and zooming through every page while the narration says what is there.
+
+```bash
+REPOTALE_USER=guest@example.com REPOTALE_PASS=... npx @theharshdubey/reporeel tour https://app.example.com/dashboard --login https://app.example.com/login --max 10
+```
+
+- Credentials come only from environment variables (`--user-env` and `--pass-env` rename them). They never appear in the storyboard, the video or the command line.
+- The sign-in is saved to `.repotale/session.json`, which is added to `.gitignore`; every page scene starts from it. Delete the file to sign out.
+- It never follows links that sign out, delete, remove, reset or cancel, and stays on the app's own origin.
+- Use a guest or demo account: the tour clicks nothing, but it does load every page that account can see. Forms behind a captcha cannot be signed into.
+
 
 **Your repo, explained in one command.** reporeel reads a repository and turns it into a narrated video that explains it (the live app, the architecture, the real code, a real test run), then puts that video, a diagram and a chapter list into your README, makes the social preview card, drafts the launch posts, and tells you whether your quickstart actually works.
 

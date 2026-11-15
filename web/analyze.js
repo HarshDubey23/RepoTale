@@ -333,7 +333,16 @@ export async function analyze(input, { token, progress = () => {} } = {}) {
   const tree = treeRes.tree;
   const paths = tree.filter(t => t.type === 'blob').map(t => t.path);
   const raw = p => `https://raw.githubusercontent.com/${info.full_name}/${commit.sha}/${p.split('/').map(encodeURIComponent).join('/')}`;
-  const get = async p => { try { const r = await fetch(raw(p)); return r.ok ? await r.text() : null; } catch { return null; } };
+  // raw.githubusercontent.com ignores tokens, so with a token (private repositories) files come
+  // through the contents API instead, which honours it and answers raw bytes.
+  const get = async p => {
+    try {
+      const r = token
+        ? await fetch(`${api}/contents/${p.split('/').map(encodeURIComponent).join('/')}?ref=${commit.sha}`, { headers: { Accept: 'application/vnd.github.raw', Authorization: `Bearer ${token}` } })
+        : await fetch(raw(p));
+      return r.ok ? await r.text() : null;
+    } catch { return null; }
+  };
 
   const MANIFESTS = ['package.json', 'tsconfig.json', 'jsconfig.json', 'requirements.txt', 'pyproject.toml', 'go.mod'];
   const readme = paths.find(p => /^readme(\.md|\.rst|\.txt)?$/i.test(p));

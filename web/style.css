@@ -453,3 +453,21 @@ body { font-feature-settings: "ss01", "cv11"; }
 .ctl:hover { background: var(--surface-2); }
 .screen { box-shadow: 0 2px 4px rgba(0, 0, 0, .04), 0 30px 80px -20px rgba(0, 0, 0, .18); border-radius: 22px; }
 .dz, .map, .inspect, .finding, .how-ui { border-radius: 22px; }
+
+/* ------------------------------------------------------------- film: seek bar and full screen */
+.seek { flex: 1 1 200px; min-width: 120px; height: 44px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; --fill: 0%; }
+.seek::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(var(--accent), var(--accent)) 0 / var(--fill) 100% no-repeat, var(--surface-2); }
+.seek::-moz-range-track { height: 6px; border-radius: 3px; background: var(--surface-2); }
+.seek::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent); }
+.seek::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px #fff; transition: transform .15s; }
+.seek:hover::-webkit-slider-thumb { transform: scale(1.25); }
+.seek::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: var(--accent); }
+.film:fullscreen { background: #000; padding: 20px 28px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+.film:fullscreen .screen { flex: 1; min-height: 0; display: grid; place-items: center; background: #000; border-radius: 0; box-shadow: none; }
+.film:fullscreen canvas { width: auto; height: 100%; max-width: 100%; max-height: calc(100vh - 110px); aspect-ratio: 16 / 9; object-fit: contain; }
+.film:fullscreen .controls { color: #fff; }
+.film:fullscreen .ctl, .film:fullscreen select.ctl { background-color: rgba(255,255,255,.12); color: #fff; }
+.film:fullscreen .seek::-webkit-slider-runnable-track { background: linear-gradient(var(--accent), var(--accent)) 0 / var(--fill) 100% no-repeat, rgba(255,255,255,.2); }
+.film:fullscreen .seek::-webkit-slider-thumb { box-shadow: 0 0 0 4px #000; }
+.film:fullscreen .time { color: rgba(255,255,255,.75); }
+.film:fullscreen .voice-note, .film:fullscreen .rec-note, .film:fullscreen .eleven { display: none; }

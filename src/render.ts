@@ -242,7 +242,9 @@ export async function startApp(app: NonNullable<Storyboard['app']>, cwd: string,
 interface Env { size: { width: number; height: number }; accent: string; repoDir: string; work: string }
 
 async function recordScene(browser: Browser, sb: Storyboard, s: Scene, seconds: number, clip: Clip, seg: string, env: Env): Promise<number> {
-  const ctx = await browser.newContext({ viewport: env.size, deviceScaleFactor: 1, colorScheme: 'dark' });
+  // A web scene starts from the saved sign-in, so pages behind a login render as the signed-in user sees them.
+  const session = s.type === 'web' && sb.app?.session ? join(env.repoDir, sb.app.session) : undefined;
+  const ctx = await browser.newContext({ viewport: env.size, deviceScaleFactor: 1, colorScheme: 'dark', ...(session && existsSync(session) ? { storageState: session } : {}) });
   await ctx.addInitScript(OVERLAY);
   const page = await ctx.newPage();
   mkdirSync(env.work, { recursive: true });

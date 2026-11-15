@@ -248,19 +248,31 @@ function setupFilm() {
     $('#bigplay').classList.toggle('gone', p.playing || p.i > 0 || p.elapsed > 0);
     const before = scenes.slice(0, p.i).reduce((s, x) => s + x.duration, 0);
     $('#time').textContent = `${clock(before + p.elapsed)} / ${clock(p.total)}`;
+    if (!seeking) { $('#seek').value = Math.round(((before + p.elapsed) / p.total) * 1000); $('#seek').style.setProperty('--fill', `${$('#seek').value / 10}%`); }
   };
   player.on(sync); sync(player);
   clearInterval(setupFilm.timer); setupFilm.timer = setInterval(() => player.playing && sync(player), 250);
   $('#rec-note').hidden = true;
 }
 $('#play').addEventListener('click', () => player.playing ? player.pause() : player.play());
-$('#bigplay').addEventListener('click', () => player.play());
+// The big button means "watch": it plays and fills the screen.
+$('#bigplay').addEventListener('click', () => { player.play(); fullscreen(true); });
+let seeking = false;
+$('#seek').addEventListener('input', e => { seeking = true; player.seekTo((e.target.value / 1000) * player.total); e.target.style.setProperty('--fill', `${e.target.value / 10}%`); });
+$('#seek').addEventListener('change', () => { seeking = false; });
+const fullscreen = on => { const w = $('#film-wrap'); if (on && !document.fullscreenElement) w.requestFullscreen?.().catch(() => {}); else if (!on && document.fullscreenElement) document.exitFullscreen(); };
+$('#fs').addEventListener('click', () => fullscreen(!document.fullscreenElement));
+$('#film').addEventListener('dblclick', () => fullscreen(!document.fullscreenElement));
+document.addEventListener('fullscreenchange', () => { $('#fs').textContent = document.fullscreenElement === $('#film-wrap') ? 'Exit full screen' : 'Full screen'; });
 $('#film').addEventListener('click', () => player.playing ? player.pause() : player.play());
 $('#prev').addEventListener('click', () => player.seek(player.i - 1));
 $('#next').addEventListener('click', () => player.seek(player.i + 1));
 addEventListener('keydown', e => {
   if (!player || $('#p-film').hidden || /INPUT|TEXTAREA/.test(document.activeElement?.tagName)) return;
-  if (e.key === ' ' && document.activeElement === document.body) { e.preventDefault(); player.playing ? player.pause() : player.play(); }
+  if (e.key === ' ' && (document.activeElement === document.body || document.fullscreenElement)) { e.preventDefault(); player.playing ? player.pause() : player.play(); }
+  // Watching keys: arrows skip five seconds (shift: a scene), F fills the screen, M toggles the voice.
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const d = e.key === 'ArrowRight' ? 1 : -1; e.shiftKey ? player.seek(player.i + d) : player.seekTo(Math.max(0, player.time + d * 5000)); }
+  if (e.key === 'f' || e.key === 'F') fullscreen(!document.fullscreenElement);
 });
 $('#rec').addEventListener('click', async () => {
   const btn = $('#rec'), note = $('#rec-note');
