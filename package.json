@@ -51,7 +51,10 @@
     "examples",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "!examples/*/docs",
+    "!examples/*/reporeel.json",
+    "!examples/*/package-lock.json"
   ],
   "repository": {
     "type": "git",
