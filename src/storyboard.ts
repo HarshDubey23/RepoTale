@@ -12,7 +12,8 @@ export type Action =
   | { wait: number }                           // ms
   | { waitFor: string };                       // wait until a selector is visible
 
-export type Scene = { say: string; id?: string } & (
+/** `say` is the narration; `say_hi`, `say_ta`, ... hold translations used by `--lang`. */
+export type Scene = { say: string; id?: string; [lang: `say_${string}`]: string | undefined } & (
   | { type: 'title'; heading: string; sub?: string }
   | { type: 'web'; url?: string; actions?: Action[] }
   | { type: 'code'; file: string; lines?: [number, number]; highlight?: [number, number][]; caption?: string }

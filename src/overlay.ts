@@ -8,7 +8,9 @@ export const OVERLAY = String.raw`(() => {
     + '.__rr_rip{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:3px solid var(--rr-accent,#ff7a45);animation:__rr_rip .6s ease-out forwards}'
     + '@keyframes __rr_rip{from{transform:scale(.3);opacity:1}to{transform:scale(1.4);opacity:0}}'
     + '#__rr_cap{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);max-width:min(980px,84vw);padding:10px 20px;border-radius:12px;background:#0b0b10e6;color:#8b8b99;font-size:24px;line-height:1.35;font-weight:550;text-align:center;opacity:0;transition:opacity .3s;box-shadow:0 10px 30px #0006}'
-    + '#__rr_cap b{font-weight:550;color:#fff;transition:color .15s}';
+    + '#__rr_cap b{font-weight:550;color:#fff;transition:color .15s}'
+    // Development-only badges and overlays that should never appear in a demo.
+    + 'nextjs-portal,[data-nextjs-toast],[data-next-badge-root],vite-error-overlay,#webpack-dev-server-client-overlay,.tsqd-open-btn-container,#__vconsole{display:none!important}';
   const boot = () => {
     if (document.getElementById('__rr_root')) return;
     const st = document.createElement('style'); st.textContent = css; document.documentElement.appendChild(st);

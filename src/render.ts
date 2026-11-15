@@ -2,7 +2,7 @@
 // README section. Frames come from Chrome's screencast (crisp JPEGs at full resolution), not from
 // Playwright's VP8 recorder, so text in code and UIs stays sharp.
 import { execSync, spawn, type ChildProcess } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { duration, ffmpeg } from './ffmpeg.ts';
@@ -15,11 +15,16 @@ const LEAD = 0.5, TAIL = 0.8, FPS = 30;
 const sleep = (ms: number) => new Promise(r => setTimeout(r, Math.max(0, ms)));
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/\r/g, '');
 
-export interface RenderOpts { out: string; log?: (m: string) => void; only?: number[] }
+export interface RenderOpts { out: string; log?: (m: string) => void; lang?: string }
 export interface Rendered { video: string; gif: string; srt: string; poster: string; sheet: string; readme: string; scenes: { id: string; type: string; start: number; seconds: number }[] }
 
 export async function render(sb: Storyboard, file: string, o: RenderOpts): Promise<Rendered> {
   const log = o.log ?? (() => {});
+  if (o.lang) {
+    const missing = sb.scenes.filter(s => !s[`say_${o.lang}`]).length;
+    if (missing) throw new Error(`${missing} scene(s) have no say_${o.lang}; run reporeel dub --lang ${o.lang} first`);
+    sb = { ...sb, scenes: sb.scenes.map(s => ({ ...s, say: s[`say_${o.lang}`]! })) };
+  }
   const errs = validate(sb);
   if (errs.length) throw new Error('storyboard is not valid:\n  ' + errs.join('\n  '));
   const repoDir = resolve(file, '..', sb.repo ?? '.');
@@ -50,16 +55,25 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
   }
 
   let app: ChildProcess | undefined;
-  if (sb.scenes.some(s => s.type === 'web') && sb.app?.start) app = await startApp(sb.app, repoDir, log);
+  if (sb.scenes.some(s => s.type === 'web') && sb.app?.start) {
+    try { app = await startApp(sb.app, repoDir, log); }
+    catch (e) {
+      // The rest of the video is still worth having; say clearly what was left out.
+      log(`warning: ${(e as Error).message}. Leaving out ${sb.scenes.filter(s => s.type === 'web').length} web scene(s).`);
+      const keep = sb.scenes.map(s => s.type !== 'web');
+      sb = { ...sb, scenes: sb.scenes.filter((_, i) => keep[i]) };
+      clips.splice(0, clips.length, ...clips.filter((_, i) => keep[i]));
+    }
+  }
   const browser = await chromium.launch();
   const segs: string[] = [], timeline: Rendered['scenes'] = [];
   let t = 0;
   try {
     for (const [i, s] of sb.scenes.entries()) {
-      const seconds = Math.max(s.type === 'web' ? 3.5 : 3, clips[i].seconds + LEAD + TAIL);
-      log(`recording ${i + 1}/${sb.scenes.length}: ${s.type}${s.id ? ' ' + s.id : ''} (${seconds.toFixed(1)}s)`);
+      const planned = Math.max(s.type === 'web' ? 3.5 : 3, clips[i].seconds + LEAD + TAIL);
+      log(`recording ${i + 1}/${sb.scenes.length}: ${s.type}${s.id ? ' ' + s.id : ''} (${planned.toFixed(1)}s)`);
       const seg = join(work, `seg${String(i).padStart(3, '0')}.mp4`);
-      await recordScene(browser, sb, s, seconds, clips[i], seg, { size, accent, repoDir, work: join(work, `f${i}`) });
+      const seconds = await recordScene(browser, sb, s, planned, clips[i], seg, { size, accent, repoDir, work: join(work, `f${i}`) });
       segs.push(seg);
       timeline.push({ id: s.id ?? `${i + 1}-${s.type}`, type: s.type, start: t, seconds });
       t += seconds;
@@ -70,7 +84,7 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
   }
 
   log('assembling');
-  const video = join(out, 'reporeel.mp4');
+  const video = join(out, 'reporeel.mp4');  // per-language renders go to their own --out folder
   writeFileSync(join(work, 'segs.txt'), segs.map(s => `file '${s}'`).join('\n'));
   ffmpeg(['-f', 'concat', '-safe', '0', '-i', join(work, 'segs.txt'), '-c', 'copy', '-movflags', '+faststart', video]);
 
@@ -112,7 +126,13 @@ ${sb.scenes.map((s, i) => `- **${mmss(tl[i].start)}** ${s.say}`).join('\n')}
 `;
 }
 
-async function startApp(app: NonNullable<Storyboard['app']>, cwd: string, log: (m: string) => void) {
+export async function startApp(app: NonNullable<Storyboard['app']>, cwd: string, log: (m: string) => void) {
+  // A fresh clone has no dependencies yet: install them where the start command will run.
+  const dir = resolve(cwd, app.start!.match(/^cd\s+([^\s&;]+)\s*&&/)?.[1] ?? '.');
+  if (existsSync(join(dir, 'package.json')) && !existsSync(join(dir, 'node_modules'))) {
+    log(`installing dependencies in ${dir}`);
+    execSync(existsSync(join(dir, 'package-lock.json')) ? 'npm ci' : 'npm install', { cwd: dir, stdio: 'ignore', timeout: 600_000 });
+  }
   log(`starting app: ${app.start}`);
   const p = spawn(app.start!, { cwd, shell: true, stdio: 'ignore', detached: false, env: { ...process.env, BROWSER: 'none' } });
   const until = Date.now() + (app.readyTimeoutMs ?? 90_000);
@@ -126,7 +146,7 @@ async function startApp(app: NonNullable<Storyboard['app']>, cwd: string, log: (
 
 interface Env { size: { width: number; height: number }; accent: string; repoDir: string; work: string }
 
-async function recordScene(browser: Browser, sb: Storyboard, s: Scene, seconds: number, clip: Clip, seg: string, env: Env) {
+async function recordScene(browser: Browser, sb: Storyboard, s: Scene, seconds: number, clip: Clip, seg: string, env: Env): Promise<number> {
   const ctx = await browser.newContext({ viewport: env.size, deviceScaleFactor: 1, colorScheme: 'dark' });
   await ctx.addInitScript(OVERLAY);
   const page = await ctx.newPage();
@@ -155,7 +175,10 @@ async function recordScene(browser: Browser, sb: Storyboard, s: Scene, seconds: 
   await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: env.size.width, maxHeight: env.size.height, everyNthFrame: 1 });
   const t0 = Date.now() / 1000;
   if (sb.theme?.captions !== false) setTimeout(() => page.evaluate(([txt, sec]) => (window as any).__rr.caption(txt, sec), [s.say, clip.seconds] as const).catch(() => {}), LEAD * 1000);
+  // A scene lasts as long as its narration or its actions, whichever is longer: an app that is
+  // still working when the voice stops keeps the camera on it.
   if (s.type === 'web') await play(page, s.actions ?? [], seconds);
+  seconds = Math.max(seconds, Date.now() / 1000 - t0 + TAIL);
   await sleep((t0 + seconds) * 1000 - Date.now());
   await cdp.send('Page.stopScreencast').catch(() => {});
   await sleep(100);
@@ -174,11 +197,12 @@ async function recordScene(browser: Browser, sb: Storyboard, s: Scene, seconds: 
     '-filter_complex', `[0:v]fps=${FPS},scale=${env.size.width}:${env.size.height}:flags=lanczos,format=yuv420p[v];[1:a]adelay=${Math.round(LEAD * 1000)}:all=1,apad,aresample=44100,aformat=channel_layouts=stereo[a]`,
     '-map', '[v]', '-map', '[a]', '-t', seconds.toFixed(3), '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', seg]);
   rmSync(env.work, { recursive: true, force: true });
+  return seconds;
 }
 
 /** Runs the scene's actions spread across its narration, with a visible cursor. */
 async function play(page: Page, actions: Action[], seconds: number) {
-  const timed = actions.filter(a => !('wait' in a)).length || 1;
+  const timed = actions.filter(a => !('wait' in a) && !('waitFor' in a)).length || 1;
   const slot = Math.max(900, ((seconds - LEAD - TAIL) * 1000) / timed);
   await sleep(LEAD * 1000);
   let zoomed = false;
@@ -217,7 +241,7 @@ async function play(page: Page, actions: Action[], seconds: number) {
       // A missing element should not kill a 2-minute render; it is reported and the scene goes on.
       console.warn(`  action ${JSON.stringify(a)} failed: ${(e as Error).message.split('\n')[0]}`);
     }
-    await sleep(slot - (Date.now() - start));
+    if (!('waitFor' in a)) await sleep(slot - (Date.now() - start));
     if (zoomed) { await rr('zoom', { x: 0, y: 0, width: 0, height: 0 }); zoomed = false; }
   }
 }
