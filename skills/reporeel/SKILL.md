@@ -19,7 +19,7 @@ how to run it, what the most convincing thing to *show* is, and which numbers th
 
 ## 2. Write `reporeel.json`
 
-Start the file with `"$schema": "https://raw.githubusercontent.com/HarshDubey23/reporeel/main/schema/reporeel.schema.json"`.
+Start the file with `"$schema": "https://raw.githubusercontent.com/HarshDubey23/RepoTale/main/schema/reporeel.schema.json"`.
 Shape:
 
 ```json

@@ -1,6 +1,37 @@
-# reporeel
+# RepoTale
 
-[![npm](https://img.shields.io/npm/v/@theharshdubey/reporeel?color=ff7a45&label=npm)](https://www.npmjs.com/package/@theharshdubey/reporeel) [![CI](https://github.com/HarshDubey23/reporeel/actions/workflows/ci.yml/badge.svg)](https://github.com/HarshDubey23/reporeel/actions/workflows/ci.yml) ![license](https://img.shields.io/badge/license-MIT-blue)
+[![website](https://img.shields.io/badge/try%20it-harshdubey23.github.io%2FRepoTale-ff488b)](https://harshdubey23.github.io/RepoTale/) [![npm](https://img.shields.io/npm/v/@theharshdubey/reporeel?color=ff488b&label=npm)](https://www.npmjs.com/package/@theharshdubey/reporeel) [![CI](https://github.com/HarshDubey23/RepoTale/actions/workflows/ci.yml/badge.svg)](https://github.com/HarshDubey23/RepoTale/actions/workflows/ci.yml) ![license](https://img.shields.io/badge/license-MIT-blue)
+
+**Every claim about your code, with the line that proves it.** Paste a GitHub link and RepoTale maps the architecture, tells you what a change would reach, and makes a narrated film of the repository, where every sentence links to the file and line behind it.
+
+Two ways to use it:
+
+- **The website**, for any public repository, with nothing to install: [harshdubey23.github.io/RepoTale](https://harshdubey23.github.io/RepoTale/). Open `#/owner/name` on it to share a repository's page directly.
+- **The CLI** (`reporeel`, also installed as `repotale`), for your own repository: HD video with a real voice, a live demo of your running app, README and social-card generation, and a check that your quickstart works. Everything below the website section is the CLI.
+
+## The website
+
+Paste `owner/name` or a github.com link. The page reads the repository in your browser, straight from GitHub: nothing is uploaded and nothing is run. You get four views:
+
+| View | What it shows |
+| --- | --- |
+| **Film** | A narrated film written from the code: what it is, the numbers, the stack, the architecture, the module everything depends on, one path from an entry point to it, what a change to it would reach, and what to watch (import cycles, widely used modules no test reaches). Your browser's voice reads it; the scene list beside it links each claim to its line. **Download video** records it to MP4 or WebM with captions burned in |
+| **Map** | Every file read, grouped into areas and ordered from callers to foundations. Select a file to see what it defines (with line links), what it imports, what imports it, and how many files and tests a change to it reaches. Switch on blast radius to light up every file a change could touch, by distance |
+| **Evidence** | Core modules, entry points, import cycles in import order, widely used modules with no test reaching them, the largest files, the stack with the manifest that names each part, and the packages used most |
+| **Export** | A share link, a README badge, `architecture.svg`, a Mermaid diagram GitHub renders in any markdown file, `graph.json`, and the film as a `reporeel.json` storyboard the CLI renders in HD |
+
+What it can and cannot claim:
+
+- An import is drawn only when it resolves to a file that is in the tree (relative imports, `tsconfig` path aliases, Python packages, Go modules). Anything else is listed as an outside package, never guessed.
+- Every link is pinned to the analysed commit, so it keeps pointing at the same line after the code moves on.
+- Large repositories are sampled: up to 220 source files, preferring code near the top of the tree over tests and vendored folders. The page says when it is showing a sample.
+- Imports and declarations are matched by pattern, not parsed, for JavaScript, TypeScript, Python and Go. Call graphs are not built yet.
+- Without a token GitHub allows 60 API requests an hour, and each repository uses three. A fine-grained read-only token lifts that and opens private repositories; it stays in the tab and goes only to `api.github.com`.
+- Browsers cannot record their own voice, so the downloaded video is silent with captions. For a voiced HD film, export the storyboard and render it with the CLI.
+
+Run the website locally with any static server, for example `npx http-server web`. It has no build step and no dependencies.
+
+## The CLI
 
 **Your repo, explained in one command.** reporeel reads a repository and turns it into a narrated video that explains it (the live app, the architecture, the real code, a real test run), then puts that video, a diagram and a chapter list into your README, makes the social preview card, drafts the launch posts, and tells you whether your quickstart actually works.
 

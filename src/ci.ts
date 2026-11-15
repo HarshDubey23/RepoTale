@@ -22,12 +22,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        # Keep the token out of .git/config, where commands run below could read it.
+        with: { persist-credentials: false }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npx -y @theharshdubey/reporeel doctor --min 60
       # Reads only: fails when the storyboard cites a file, line range, symbol or test this change removed.
       - run: npx -y @theharshdubey/reporeel check
-      - run: npx -y @theharshdubey/reporeel verify --run
+      # verify runs the README's setup commands, and a pull request can change the README. So they run
+      # only for branches of this repository, never for a fork's pull request.
+      - if: github.event.pull_request.head.repo.full_name == github.repository
+        run: npx -y @theharshdubey/reporeel verify --run
+      - if: github.event.pull_request.head.repo.full_name != github.repository
+        run: echo "::notice::README commands were not run, because this pull request comes from a fork."
   refresh:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest

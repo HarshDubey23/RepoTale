@@ -136,4 +136,11 @@ test('the generated workflow gives pull requests a read-only token', () => {
   assert.doesNotMatch(check, /write|secrets\./, 'the pull-request job has no write permission and no secrets');
   assert.match(refresh, /if: github\.event_name != 'pull_request'[\s\S]*permissions:\n      contents: write/);
   assert.doesNotMatch(yml, /pull_request_target/);
+  // README commands come from the pull request, so a fork's pull request must never run them, and
+  // the checkout must not leave the token on disk for them to read.
+  const steps = check.split('\n      - ');
+  const runs = steps.filter(s => /verify --run/.test(s));
+  assert.equal(runs.length, 1);
+  assert.match(runs[0], /^if: github\.event\.pull_request\.head\.repo\.full_name == github\.repository\n/);
+  assert.match(check, /actions\/checkout@v4\n {8}#[^\n]*\n {8}with: \{ persist-credentials: false \}/);
 });

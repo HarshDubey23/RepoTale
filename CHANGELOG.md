@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Renamed to RepoTale. The CLI keeps the `reporeel` command and npm package, and is also installed as `repotale`.
+- The website (`web/`, published to GitHub Pages by `.github/workflows/pages.yml`): paste a GitHub link and get a narrated film, an architecture map with blast radius, an evidence report and exports (share link, README badge, SVG, Mermaid, `graph.json`, a `reporeel.json` storyboard). It reads code in the browser and runs nothing. Imports resolve for JavaScript, TypeScript (with path aliases), Python and Go; every link is pinned to the analysed commit; import cycles are reported in import order.
+- Security: the workflow written by `reporeel ci` no longer runs README commands for pull requests from forks (a pull request can change the README), and its checkout no longer leaves the token in `.git/config`.
 - `--sandbox [image]` runs terminal scenes and `verify` steps in a Docker container: only the repository is visible, no network unless `--net`, none of your environment, bounded memory, CPU, processes and time. `app.start` is not covered.
 - `plan --audience executive|developer|architecture|walkthrough|demo` for different cuts of the same repository (Claude planner only).
 - `bench/run.ts` and `bench/RESULTS.md`: the graph, the offline draft and the evidence check on 20 real repositories. Fixed from what it found: folder imports now follow `package.json` `main`, imported stylesheets and images are no longer counted as unresolved, code quoted inside a string is no longer read as an import, and the draft is valid for a workspace root with a nameless `package.json`.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/HarshDubey23/reporeel/main/schema/reporeel.schema.json",
+  "$id": "https://raw.githubusercontent.com/HarshDubey23/RepoTale/main/schema/reporeel.schema.json",
   "title": "reporeel storyboard",
   "type": "object",
   "required": [

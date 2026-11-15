@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RepoTale — any repo, mapped and filmed</title>
+<meta name="description" content="Paste a GitHub repository. RepoTale reads its code in your browser and gives you the architecture, a narrated film, and a link to the line behind every claim.">
+<meta property="og:title" content="RepoTale — any repo, mapped and filmed">
+<meta property="og:description" content="Architecture map and a narrated film from a repo link. Every claim cites its file and line.">
+<meta name="theme-color" content="#0d060b">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d060b'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23ff488b' stroke-width='4'/%3E%3Ccircle cx='16' cy='7' r='3' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<a class="skip" href="#tell">Skip to the repository field</a>
+
+<header class="bar">
+  <a class="mark" href="#top" aria-label="RepoTale, back to top">RepoTale</a>
+  <nav aria-label="Sections">
+    <a href="#how">How</a>
+    <a href="#switches">Options</a>
+    <a href="#cli">CLI</a>
+    <a href="https://github.com/HarshDubey23/RepoTale">GitHub</a>
+  </nav>
+  <a class="btn btn-small" href="#tell">Tell a tale</a>
+</header>
+
+<main id="top">
+  <!-- The name, with its O drawn as a live import graph. -->
+  <section class="hero" aria-labelledby="hero-title">
+    <h1 id="hero-title" class="hero-name">
+      <span>Rep</span><span class="glyph" aria-hidden="true"><canvas id="glyph" width="320" height="320"></canvas></span><span class="sr">o</span><span>Tale</span>
+    </h1>
+    <div class="hero-foot">
+      <p class="hero-line">Paste any GitHub repository. Get its architecture, a narrated film, and the exact line of code behind every claim.</p>
+      <a class="btn" href="#tell">Tell a repo's tale</a>
+    </div>
+  </section>
+
+  <!-- The live thing: the headline is the input. -->
+  <section class="ask" id="tell" aria-labelledby="ask-label">
+    <form id="ask" class="ask-form" autocomplete="off" data-ui>
+      <label id="ask-label" for="repo" class="sr">GitHub repository</label>
+      <div class="ask-line">
+        <input id="repo" name="repo" class="ask-input" value="sindresorhus/ky" spellcheck="false" autocapitalize="off" aria-describedby="ask-help" required>
+        <button class="ask-go" type="submit" aria-label="Read this repository">Read</button>
+      </div>
+      <div id="ask-help" class="ask-answer" aria-live="polite">
+        <p class="ask-note">Press Enter. The code is read in your browser, straight from GitHub. Nothing is uploaded and nothing is run.</p>
+        <ol class="stages" id="stages" hidden>
+          <li data-stage="read"><span>Read the tree</span><b></b></li>
+          <li data-stage="fetch"><span>Fetch the source</span><b></b></li>
+          <li data-stage="map"><span>Map the imports</span><b></b></li>
+          <li data-stage="film"><span>Write the film</span><b></b></li>
+        </ol>
+        <p class="ask-error" id="ask-error" role="alert" hidden></p>
+      </div>
+      <div class="examples" role="group" aria-label="Try one of these">
+        <button type="button" data-repo="expressjs/express">expressjs/express</button>
+        <button type="button" data-repo="pallets/flask">pallets/flask</button>
+        <button type="button" data-repo="HarshDubey23/RepoTale">HarshDubey23/RepoTale</button>
+      </div>
+      <details class="token">
+        <summary>Private repository, or hit the rate limit?</summary>
+        <p>A fine-grained token with read-only access to contents lifts the limit from 60 to 5,000 requests an hour. It stays in this tab's memory and is sent only to api.github.com.</p>
+        <input id="token" type="password" placeholder="github_pat_…" aria-label="GitHub token" spellcheck="false">
+      </details>
+    </form>
+  </section>
+
+  <!-- The result: film, map, evidence, export. -->
+  <section class="result" id="result" hidden aria-labelledby="r-name">
+    <div class="r-head">
+      <h2 id="r-name" class="r-name"></h2>
+      <p id="r-desc" class="r-desc"></p>
+      <p id="r-meta" class="r-meta"></p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Views">
+      <button role="tab" id="t-film" aria-controls="p-film" aria-selected="true">Film</button>
+      <button role="tab" id="t-map" aria-controls="p-map" aria-selected="false" tabindex="-1">Map</button>
+      <button role="tab" id="t-evidence" aria-controls="p-evidence" aria-selected="false" tabindex="-1">Evidence</button>
+      <button role="tab" id="t-export" aria-controls="p-export" aria-selected="false" tabindex="-1">Export</button>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-film" aria-labelledby="t-film" data-ui>
+      <div class="film">
+        <div class="screen">
+          <canvas id="film" width="1920" height="1080" aria-label="The film. Its narration is listed beside it."></canvas>
+          <button class="screen-play" id="bigplay" aria-label="Play the film"><span></span></button>
+        </div>
+        <div class="controls">
+          <button class="btn" id="play">Play</button>
+          <button class="ctl" id="prev" aria-label="Previous scene">Back</button>
+          <button class="ctl" id="next" aria-label="Next scene">Next</button>
+          <span class="time" id="time">0:00</span>
+          <span class="grow"></span>
+          <button class="ctl" id="rec">Download video</button>
+        </div>
+        <p class="rec-note" id="rec-note" hidden></p>
+      </div>
+      <ol class="script" id="script" aria-label="Scenes"></ol>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-map" aria-labelledby="t-map" hidden data-ui>
+      <div class="map-tools">
+        <input id="find" type="search" placeholder="Find a file" aria-label="Find a file">
+        <label class="chk"><input type="checkbox" id="blast"> Show blast radius on select</label>
+        <span class="grow"></span>
+        <span class="legend"><i class="lg-core"></i>Core <i class="lg-entry"></i>Entry <i class="lg-test"></i>Test</span>
+      </div>
+      <div class="map-wrap">
+        <div class="map" id="map"></div>
+        <aside class="inspect" id="inspect" aria-live="polite">
+          <p class="inspect-empty">Select a file to see what it defines, what it imports, what imports it, and what a change to it could reach.</p>
+        </aside>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-evidence" aria-labelledby="t-evidence" hidden data-ui>
+      <div class="evidence" id="evidence"></div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-export" aria-labelledby="t-export" hidden data-ui>
+      <ul class="exports" id="exports"></ul>
+    </div>
+  </section>
+
+  <!-- How it works: one slider drives both fields. -->
+  <section class="how" id="how" aria-labelledby="how-title">
+    <h2 class="sr" id="how-title">How it works</h2>
+    <div class="how-fields">
+      <div class="how-text">
+        <p class="how-clause" id="how-clause">First, read the whole tree</p>
+        <p class="how-body" id="how-body">One request lists every file at the latest commit. Up to 220 source files are then read from GitHub's raw host, preferring code near the top of the tree over tests and vendored folders.</p>
+      </div>
+      <div class="how-ui" id="how-ui" data-ui></div>
+    </div>
+    <div class="how-rail">
+      <input type="range" id="how-range" min="0" max="3" step="1" value="0" aria-label="Stage" aria-valuetext="Read">
+      <ol class="how-names" aria-hidden="true"><li>Read</li><li>Map</li><li>Cite</li><li>Film</li></ol>
+    </div>
+  </section>
+
+  <!-- Options as sentences: each switch changes the result above. -->
+  <section class="switches" id="switches" aria-label="Options">
+    <div class="band" data-key="voice"><p>Read the film out loud as it plays</p><button class="toggle" role="switch" aria-checked="true" aria-label="Narrate"><i></i></button><p class="band-more">Uses your browser's own voice. Each scene waits for its sentence to finish.</p></div>
+    <div class="band" data-key="captions"><p>Burn captions into every frame</p><button class="toggle" role="switch" aria-checked="true" aria-label="Captions"><i></i></button><p class="band-more">The downloaded video is silent, so captions carry the narration.</p></div>
+    <div class="band" data-key="tests"><p>Put test files on the map</p><button class="toggle" role="switch" aria-checked="false" aria-label="Show tests"><i></i></button><p class="band-more" id="tests-more">Tests are counted either way; this only draws them.</p></div>
+    <div class="band" data-key="back"><p>Draw imports that point backward</p><button class="toggle" role="switch" aria-checked="false" aria-label="Show backward imports"><i></i></button><p class="band-more" id="back-more">A backward import goes against the flow from callers to foundations.</p></div>
+  </section>
+
+  <section class="cta" aria-labelledby="cta-title">
+    <form class="cta-form" id="cta" autocomplete="off">
+      <h2 id="cta-title" class="cta-line">Tell the tale of <label class="sr" for="cta-repo">repository</label><input id="cta-repo" placeholder="owner/repo" spellcheck="false" autocapitalize="off" required> <button type="submit">now</button></h2>
+      <p class="cta-note">It reads the repository you name, then opens the film at the top of this page.</p>
+    </form>
+  </section>
+</main>
+
+<footer class="foot" id="cli">
+  <div class="foot-top">
+    <p><b>RepoTale</b> reads code, never runs it, and cites everything it says.</p>
+    <p>For HD films with a real voice, run the CLI inside a clone.</p>
+    <a href="#top">Back to top</a>
+  </div>
+  <a class="foot-cmd" href="https://github.com/HarshDubey23/RepoTale#quickstart"><span>npx @theharshdubey/</span><span>reporeel</span></a>
+  <div class="foot-meta">
+    <span><a href="https://github.com/HarshDubey23/RepoTale">Source</a> · <a href="https://github.com/HarshDubey23/RepoTale/blob/main/LICENSE">MIT</a></span>
+    <span>Made by Harsh Dubey</span>
+    <span>2026</span>
+  </div>
+</footer>
+</body>
+</html>
