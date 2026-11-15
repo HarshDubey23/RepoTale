@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { parseRepo, importsOf, symbolsOf, resolve, buildModel, cycles, blastRadius, aliasesFrom, pickFiles, detectStack, routesOf, headingOf, liveUrl } from '../web/analyze.js';
 import { forEar } from '../web/voice.js';
-import { diagramSVG } from '../web/diagram.js';
+import { buildArch, mermaidArch, nameOf, kindOf } from '../web/arch.js';
 import { buildStory, storyboardOf, pathBetween, mermaidOf } from '../web/story.js';
 
 test('parseRepo accepts what people paste and rejects the rest', () => {
@@ -18,7 +18,9 @@ test('parseRepo accepts what people paste and rejects the rest', () => {
 
 test('imports keep their true line numbers and skip comments', () => {
   const js = `/* import x from './no'\n*/\nimport a from './a';\n// import b from './b'\nconst c = require('./c');\nexport * from "./d";`;
-  assert.deepEqual(importsOf(js, 'js'), [{ spec: './a', line: 3 }, { spec: './c', line: 5 }, { spec: './d', line: 6 }]);
+  assert.deepEqual(importsOf(js, 'js'), [{ spec: './a', line: 3, names: ['a'] }, { spec: './c', line: 5 }, { spec: './d', line: 6 }]);
+  // Named imports keep the exported name, not the local alias; types are dropped from the clause.
+  assert.deepEqual(importsOf("import Def, { run as go, type T, Job } from './q';", 'js')[0].names, ['run', 'T', 'Job', 'Def']);
   const py = `"""\nimport fake\n"""\nfrom .models import User, Post\nimport os, sys as s\n`;
   assert.deepEqual(importsOf(py, 'py'), [{ spec: '.models', line: 4, names: ['User', 'Post'] }, { spec: 'os', line: 5 }, { spec: 'sys', line: 5 }]);
   const go = `package main\n\nimport (\n\t"fmt"\n\t"example.com/m/pkg/util"\n)\n`;
@@ -87,6 +89,17 @@ test('pages: routes come from the files that define them, dynamic ones are skipp
   assert.deepEqual(aliasesFrom('{ /* c */ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["./*"] } }, // x\n "include": ["**/*.ts"] }'), [['@', '']]);
 });
 
+test('components get readable names and a kind from their path', () => {
+  assert.equal(nameOf('src/jobQueue.ts'), 'Job queue');
+  assert.equal(nameOf('src/server/index.ts'), 'Server');
+  assert.equal(nameOf('app/blog/page.tsx'), 'Blog page');
+  assert.equal(nameOf('lib/api_client.py'), 'API client');
+  assert.equal(kindOf('prisma/schema.ts'), 'data');
+  assert.equal(kindOf('src/routes/users.ts'), 'api');
+  assert.equal(kindOf('src/components/Button.tsx'), 'ui');
+  assert.equal(kindOf('src/utils/merge.ts'), 'lib');
+});
+
 test('narration is rewritten for the ear, not the eye', () => {
   assert.equal(forEar('The heart is src/core/Ky.ts, then __main__.'), 'The heart is src Ky, then main .');
 });
@@ -128,10 +141,27 @@ test('this repository, end to end: every edge resolves, every film claim cites a
   assert.ok(board.scenes.every(s => ['title', 'stats', 'diagram', 'code', 'end'].includes(s.type) && s.say));
   assert.match(mermaidOf(model), /^flowchart LR\n/);
 
-  // The diagram names every area it draws, marks the heart, and draws one arrow per forward link.
-  const svg = diagramSVG(model);
-  assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
-  assert.match(svg, />HEART</);
-  assert.ok(svg.includes(`>${model.areas.find(a => a.files.includes(model.core[0].file)).name.split('/').pop().toUpperCase()}<`));
-  assert.doesNotMatch(svg, /NaN|undefined/);
+  // The architecture: real files as components, real imports as arrows, each labelled by what it imports.
+  const arch = buildArch(model);
+  const ids = new Set(arch.nodes.map(n => n.id));
+  assert.ok(arch.nodes.length >= 6 && arch.nodes.length <= 24);
+  assert.ok(arch.nodes.every(n => paths.includes(n.file) && arch.groups.some(g => g.id === n.group)));
+  assert.ok(arch.nodes.some(n => n.heart));
+  for (const e of arch.edges.filter(e => !e.external && e.from !== 'actor')) {
+    assert.ok(ids.has(e.from) && ids.has(e.to) && e.from !== e.to);
+  }
+  // Arrows are capped and only the strongest carry words; the busiest arrow always does.
+  const inner = arch.edges.filter(e => !e.external && e.from !== 'actor');
+  assert.ok(inner.length <= 30);
+  assert.ok(inner[0].label.length > 0 && inner.slice(16).every(e => e.label === ''));
+  // A component almost everything imports wears a badge instead of drawing every arrow into it.
+  for (const n of arch.nodes.filter(n => n.usedBy)) assert.ok(!inner.some(e => e.to === n.id));
+  // cli.ts imports render.ts for real, so whatever stands for them is connected.
+  // Every drawn arrow traces back to a real import from the file it cites.
+  for (const e of arch.edges.filter(e => !e.external && e.from !== 'actor')) assert.ok(model.edges.some(m => m.from === e.at && m.line === e.line), `${e.at}:${e.line} is a real import`);
+  assert.ok(arch.services.some(s => s.title === 'Headless browser'), 'playwright shows up as a service');
+  const mer = mermaidArch(arch);
+  assert.ok(mer.startsWith('flowchart TD\n'));
+  assert.equal((mer.match(/^  subgraph /gm) ?? []).length, arch.groups.length);
+  assert.doesNotMatch(mer, /undefined|NaN/);
 });

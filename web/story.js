@@ -2,6 +2,8 @@
 // lines it talks about. The same scenes render on a canvas (play, narrate, record to a video file)
 // and export as a reporeel storyboard the CLI can render in HD with a real voice.
 import { blastRadius, permalink } from './analyze.js';
+import { archBeats, drawArchBeat } from './filmarch.js';
+import { mermaidArch } from './arch.js';
 
 const C = { bg: '#0d060b', surface: '#1b0e17', plum: '#470c35', ink: '#ffffff', muted: '#9a8f97', accent: '#ff488b' };
 const plural = (n, w, s = w + 's') => `${n.toLocaleString('en')} ${n === 1 ? w : s}`;
@@ -60,7 +62,10 @@ export function buildStory(model, opts = {}) {
     shown = top.sort((a, b) => byFile.get(a).importedBy.length - byFile.get(b).importedBy.length).map(f => ({ name: f, files: [f], tests: 0,
       out: edges.filter(e => e.from === f && top.includes(e.to)).map(e => ({ to: e.to, weight: 1 })) }));
   }
-  if (shown.length > 1) {
+  if (opts.arch) {
+    // The architecture as one continuous canvas: an overview, then the camera visits each subsystem.
+    for (const b of archBeats(opts.arch.arch, opts.arch.lay)) S.push({ kind: 'arch', ...b, arch: opts.arch.arch, lay: opts.arch.lay });
+  } else if (shown.length > 1) {
     const flat = shown[0].files.length === 1 && shown[0].name === shown[0].files[0];
     const first = shown[0].name, last = shown.at(-1).name;
     const users = shown.filter(a => a.out.some(o => o.to === last)).length;
@@ -155,19 +160,49 @@ function chrome(ctx, scene, i, n, t, opts) {
     ctx.fillStyle = C.ink; ctx.textAlign = 'left'; ctx.fillText(label, W - M - tw - 22, 73);
   }
   font(ctx, DISPLAY(22), true); ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.fillText('REPOTALE', M, 74);
-  if (opts.captions !== false) {
-    // Captions: the sentence being spoken, one band at the bottom.
-    const sentences = scene.say.split(/(?<=[.!?])\s+/);
-    const at = sentences[Math.min(sentences.length - 1, Math.floor(t * sentences.length))].trim();
-    font(ctx, TEXT(26, 500));
-    const lines = wrap(ctx, at, W - M * 2 - 48).slice(0, 2);
-    const h = lines.length * 36 + 28;
-    ctx.fillStyle = 'rgba(13,6,11,0.88)'; ctx.fillRect(M, H - 40 - h, W - M * 2, h);
-    ctx.fillStyle = C.ink; lines.forEach((l, k) => ctx.fillText(l, M + 24, H - 40 - h + 40 + k * 36));
-  }
+  if (opts.captions !== false) captions(ctx, scene, t, opts);
+}
+
+/** Captions that follow the voice word by word: the current sentence in a pill, the words already
+ *  said in full ink, the rest soft. Timing is spread over the audio by characters, which tracks
+ *  Kokoro's even pace closely. */
+function captions(ctx, scene, t, opts) {
+  const el = t * scene.duration;
+  const speak = scene.audio ? scene.audio.duration * 1000 : scene.duration - 650;
+  const spoken = opts.poster ? 1 : Math.min(1, el / Math.max(1, speak));
+  const sentences = scene.say.split(/(?<=[.!?])\s+/);
+  const total = scene.say.length, pos = spoken * total;
+  let start = 0, idx = 0;
+  for (; idx < sentences.length - 1; idx++) { if (start + sentences[idx].length >= pos) break; start += sentences[idx].length + 1; }
+  const sentence = sentences[idx], local = pos - start;
+  font(ctx, TEXT(26, 600));
+  const lines = wrap(ctx, sentence, W - M * 2 - 80).slice(0, 2);
+  const lw = Math.max(...lines.map(l => ctx.measureText(l).width)), h = lines.length * 36 + 26, x = (W - lw) / 2 - 24, y = H - 34 - h;
+  ctx.fillStyle = 'rgba(13,6,11,0.9)'; ctx.beginPath(); ctx.roundRect(x, y, lw + 48, h, 14); ctx.fill();
+  let seen = 0;
+  lines.forEach((l, k) => {
+    let cx = (W - ctx.measureText(l).width) / 2;
+    for (const word of l.split(' ')) {
+      ctx.fillStyle = seen + word.length * 0.5 <= local ? C.ink : 'rgba(255,255,255,0.42)';
+      ctx.fillText(word, cx, y + 38 + k * 36);
+      const ww = ctx.measureText(word + ' ').width; cx += ww; seen += word.length + 1;
+    }
+  });
+}
+
+/** The ground every scene stands on: a slow plum glow and a dot grid, so cuts never feel bare. */
+function ground(ctx, ms) {
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+  const gx = W * (0.78 + 0.06 * Math.sin(ms / 7000)), gy = H * (0.18 + 0.05 * Math.cos(ms / 9000));
+  const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 620);
+  g.addColorStop(0, 'rgba(255,72,139,0.16)'); g.addColorStop(0.45, 'rgba(71,12,53,0.22)'); g.addColorStop(1, 'rgba(13,6,11,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(255,255,255,0.055)';
+  for (let y = 14; y < H; y += 28) for (let x = 14; x < W; x += 28) ctx.fillRect(x, y, 2, 2);
 }
 
 const DRAW = {
+  arch(ctx, s, t, ms) { drawArchBeat(ctx, s, t, ms, t * s.duration); },
   title(ctx, s, t, ms) {
     const size = fit(ctx, s.heading.toUpperCase(), W - M * 2, 210);
     const reveal = seg(t, 0, 0.25);
@@ -204,6 +239,22 @@ const DRAW = {
     });
   },
   map(ctx, s, t, ms) {
+    if (s.image) {
+      // The real architecture diagram: it fades up whole, then the camera eases in and travels
+      // across it, so the subsystems are read one after another.
+      const img = s.image, top = 96, bot = 590, fw = W - 96, fh = bot - top;
+      const fit = Math.min(fw / img.naturalWidth, fh / img.naturalHeight);
+      const zoom = 1 + 0.9 * ease(seg(t, 0.2, 0.95)), k = fit * zoom;
+      const w = img.naturalWidth * k, h = img.naturalHeight * k;
+      const u = ease(seg(t, 0.2, 0.98));
+      const blend = ease(seg(t, 0.2, 0.45));
+      const x = 48 + (fw - w) * (0.5 + (u - 0.5) * blend), y = top + (fh - h) * (0.5 + (0.15 + 0.7 * u - 0.5) * blend);
+      ctx.save(); ctx.beginPath(); ctx.rect(48, top, fw, fh); ctx.clip();
+      ctx.globalAlpha = seg(t, 0, 0.12);
+      ctx.drawImage(img, x, y, w, h);
+      ctx.restore(); ctx.globalAlpha = 1;
+      return;
+    }
     font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading.toUpperCase(), M, 170);
     const n = s.areas.length, gap = 20, bw = (W - M * 2 - gap * (n - 1)) / n;
     const max = Math.max(...s.areas.map(a => a.files.length));
@@ -341,16 +392,16 @@ const DRAW = {
  *  after the first opens with a wipe: a plum panel led by a pink edge slides off to the right. */
 export function drawFrame(ctx, scenes, i, t, ms, opts = {}) {
   ctx.setTransform(ctx.canvas.width / W, 0, 0, ctx.canvas.height / H, 0, 0);
-  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+  ground(ctx, ms);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  DRAW[scenes[i].kind](ctx, scenes[i], t, ms);
-  chrome(ctx, scenes[i], i, scenes.length, t, opts);
+  // Scenes rise in softly; one architecture beat flows into the next through the camera instead.
   const el = t * scenes[i].duration;
-  if (i > 0 && el < 560 && !opts.poster) {
-    const x = W * ease(el / 560);
-    ctx.fillStyle = C.plum; ctx.fillRect(x, 0, W - x, H);
-    ctx.fillStyle = C.accent; ctx.fillRect(x, 0, 14, H);
-  }
+  const flows = scenes[i].kind === 'arch' && scenes[i - 1]?.kind === 'arch';
+  const enter = i === 0 || flows || opts.poster ? 1 : ease(el / 650);
+  ctx.save(); ctx.globalAlpha = enter; ctx.translate(0, (1 - enter) * 26);
+  DRAW[scenes[i].kind](ctx, scenes[i], t, ms);
+  ctx.restore(); ctx.globalAlpha = 1;
+  chrome(ctx, scenes[i], i, scenes.length, t, opts);
   if (opts.waiting) {
     font(ctx, TEXT(20, 600)); const label = 'Preparing the voice…', w = ctx.measureText(label).width + 48;
     ctx.fillStyle = C.accent; ctx.fillRect(W / 2 - w / 2, H / 2 - 26, w, 52);
@@ -499,6 +550,7 @@ export function storyboardOf(model, scenes) {
     else if (s.kind === 'map') out.push({ type: 'diagram', mermaid: mermaidOf(model), caption: 'Areas of the code and the imports between them', ...common });
     else if (s.kind === 'code') out.push({ type: 'code', file: s.file, lines: [s.from, s.from + s.lines.length - 1], highlight: [[s.from, s.from]], ...common });
     else if (s.kind === 'end') out.push({ type: 'end', heading: s.heading, links: [s.sub], ...common });
+    else if (s.kind === 'arch' && s.beat === 0) out.push({ type: 'diagram', mermaid: mermaidArch(s.arch), caption: 'The architecture', ...common });
     else if (s.kind === 'site') out.push({ type: 'web', url: s.url, actions: [{ wait: 1200 }, { scroll: 1600 }], ...common });
     else out.push({ type: 'title', heading: s.heading, sub: s.kind === 'path' ? s.chain.map(base).join(' → ') : s.kind === 'blast' ? `${s.reach.length} files reached` : s.kind === 'stack' ? s.items.map(i => i.name).join(' · ') : '', ...common });
   }

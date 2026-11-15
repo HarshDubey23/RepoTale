@@ -37,8 +37,13 @@ export function importsOf(text, lang) {
   const out = [];
   const lineAt = i => code.slice(0, i).split('\n').length;
   if (lang === 'js') {
-    for (const m of code.matchAll(/\b(?:import|export)\s+(?:type\s+)?(?:[\w$*{}\s,]+?\sfrom\s+)?['"]([^'"\n]+)['"]|\b(?:require|import)\(\s*['"]([^'"\n]+)['"]\s*\)/g))
-      out.push({ spec: (m[1] ?? m[2]).replace(/[?#].*$/, ''), line: lineAt(m.index) });
+    for (const m of code.matchAll(/\b(?:import|export)\s+(?:type\s+)?(?:([\w$*{}\s,]+?)\sfrom\s+)?['"]([^'"\n]+)['"]|\b(?:require|import)\(\s*['"]([^'"\n]+)['"]\s*\)/g)) {
+      // The names it brings in, as the other file exports them: `{ a, b as c }` gives a and b.
+      const clause = m[1] ?? '';
+      const names = [...(clause.match(/\{([^}]*)\}/)?.[1] ?? '').split(',').map(n => n.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0]).filter(n => /^[\w$]+$/.test(n)),
+        ...(clause.replace(/\{[^}]*\}/, '').match(/^\s*([A-Za-z_$][\w$]*)/) ? [clause.replace(/\{[^}]*\}/, '').trim().split(/[\s,]/)[0]] : [])].filter(n => n && n !== 'type');
+      out.push({ spec: (m[2] ?? m[3]).replace(/[?#].*$/, ''), line: lineAt(m.index), ...(names.length ? { names } : {}) });
+    }
   } else if (lang === 'py') {
     for (const m of code.matchAll(/^[ \t]*from\s+(\.*[\w.]*)\s+import[ \t]+(\([^)]*\)|[^\n]+)|^[ \t]*import[ \t]+([\w., \t]+)/gm)) {
       const line = lineAt(m.index);
@@ -191,7 +196,12 @@ export function buildModel({ meta, paths, texts, manifests }) {
     const m = { file, lang, area: areaOf(file), lines: text.split('\n').length, test: TEST.test(file), symbols: symbolsOf(text, lang), external: [], imports: [], text };
     for (const imp of imps) {
       const to = resolve(file, imp, lang, all, ctx);
-      if (to && to !== file && texts[to] !== undefined) { if (!edges.some(e => e.from === file && e.to === to)) edges.push({ from: file, to, line: imp.line }); m.imports.push(to); }
+      if (to && to !== file && texts[to] !== undefined) {
+        const e = edges.find(e => e.from === file && e.to === to);
+        if (e) e.names = [...new Set([...(e.names ?? []), ...(imp.names ?? [])])];
+        else edges.push({ from: file, to, line: imp.line, ...(imp.names?.length ? { names: imp.names } : {}) });
+        m.imports.push(to);
+      }
       else if (!to && !imp.spec.startsWith('.')) m.external.push(imp.spec.split('/').slice(0, imp.spec.startsWith('@') ? 2 : 1).join('/'));
     }
     modules.push(m);

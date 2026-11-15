@@ -5,7 +5,10 @@
 - Renamed to RepoTale. The CLI keeps the `reporeel` command and npm package, and is also installed as `repotale`.
 - The website (`web/`, published to GitHub Pages by `.github/workflows/pages.yml`): paste a GitHub link and get a narrated film, an architecture map with blast radius, an evidence report and exports (share link, README badge, SVG, Mermaid, `graph.json`, a `reporeel.json` storyboard). It reads code in the browser and runs nothing. Imports resolve for JavaScript, TypeScript (with path aliases), Python and Go; every link is pinned to the analysed commit; import cycles are reported in import order.
 - Website film: a neural voice (Kokoro-82M, in the browser, four English voices) with scene lengths fitted to the audio, and downloaded videos that carry the voice; the live site's pages, photographed and scrolled through, each tied to the file that defines its route; wipe transitions between scenes.
-- Website map: an architecture diagram (areas by dependency, weighted arrows, busiest files, heart and entry markers, stack), downloadable as SVG and PNG.
+- Website architecture view: components in subsystems, outside services and the user, laid out by ELK with orthogonal arrows labelled by what each import brings in; "used by N" badges instead of fan-in tangles; pan, zoom, pinch, hover tracing, click to code; SVG, PNG (dark or light) and Mermaid.
+- Film: the architecture on one continuous canvas, built up and then visited subsystem by subsystem by the camera; captions that follow the voice word by word; a moving glow and dot-grid ground; soft entrances between scenes.
+- Voice: studio-quality Kokoro on WebGPU when there is a graphics card, and ElevenLabs with your own key.
+- Imports now record the names they bring in.
 - Fixed: a `"**/*.ts"` in `tsconfig.json` was read as the end of a comment, which dropped every path alias and most imports in projects that use `@/`.
 - Security: the workflow written by `reporeel ci` no longer runs README commands for pull requests from forks (a pull request can change the README), and its checkout no longer leaves the token in `.git/config`.
 - `--sandbox [image]` runs terminal scenes and `verify` steps in a Docker container: only the repository is visible, no network unless `--net`, none of your environment, bounded memory, CPU, processes and time. `app.start` is not covered.

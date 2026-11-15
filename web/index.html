@@ -83,13 +83,32 @@
       <p id="r-meta" class="r-meta"></p>
     </div>
     <div class="tabs" role="tablist" aria-label="Views">
-      <button role="tab" id="t-film" aria-controls="p-film" aria-selected="true">Film</button>
-      <button role="tab" id="t-map" aria-controls="p-map" aria-selected="false" tabindex="-1">Map</button>
+      <button role="tab" id="t-arch" aria-controls="p-arch" aria-selected="true">Architecture</button>
+      <button role="tab" id="t-film" aria-controls="p-film" aria-selected="false" tabindex="-1">Film</button>
+      <button role="tab" id="t-map" aria-controls="p-map" aria-selected="false" tabindex="-1">Files</button>
       <button role="tab" id="t-evidence" aria-controls="p-evidence" aria-selected="false" tabindex="-1">Evidence</button>
       <button role="tab" id="t-export" aria-controls="p-export" aria-selected="false" tabindex="-1">Export</button>
     </div>
 
-    <div class="panel" role="tabpanel" id="p-film" aria-labelledby="t-film" data-ui>
+    <div class="panel" role="tabpanel" id="p-arch" aria-labelledby="t-arch" data-ui>
+      <div class="dz-wrap" id="dz-wrap">
+        <div class="dz-tools" role="toolbar" aria-label="Diagram">
+          <button type="button" class="ctl" id="dz-in" aria-label="Zoom in">+</button>
+          <button type="button" class="ctl" id="dz-out" aria-label="Zoom out">−</button>
+          <button type="button" class="ctl" id="dz-fit">Fit</button>
+          <button type="button" class="ctl" id="dz-full">Full screen</button>
+          <span class="grow"></span>
+          <button type="button" class="ctl" id="dz-theme" aria-pressed="false">Light</button>
+          <button type="button" class="ctl" id="dz-png">PNG</button>
+          <button type="button" class="ctl" id="dz-svg">SVG</button>
+          <button type="button" class="btn" id="dz-mermaid">Copy Mermaid</button>
+        </div>
+        <div class="dz" id="dz" tabindex="0" aria-label="Architecture diagram. Drag to move, scroll or pinch to zoom, select a component to open its code."></div>
+        <p class="dz-note" id="dz-note">Drag to move, scroll to zoom. Select a component to open its code on GitHub; hover to trace what it talks to.</p>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-film" aria-labelledby="t-film" hidden data-ui>
       <div class="film">
         <div class="screen">
           <canvas id="film" width="1920" height="1080" aria-label="The film. Its narration is listed beside it."></canvas>
@@ -106,6 +125,10 @@
           <button class="ctl" id="rec">Download video</button>
         </div>
         <p class="voice-note" id="voice-note" aria-live="polite"></p>
+        <div class="eleven" id="eleven" hidden>
+          <label for="eleven-key">ElevenLabs API key</label>
+          <input id="eleven-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk_…">
+        </div>
         <p class="rec-note" id="rec-note" hidden></p>
       </div>
       <ol class="script" id="script" aria-label="Scenes"></ol>
@@ -113,14 +136,12 @@
 
     <div class="panel" role="tabpanel" id="p-map" aria-labelledby="t-map" hidden data-ui>
       <div class="map-tools">
-        <div class="seg" role="group" aria-label="Map view"><button type="button" id="v-diagram" aria-pressed="true">Diagram</button><button type="button" id="v-files" aria-pressed="false">Files</button></div>
         <input id="find" type="search" placeholder="Find a file" aria-label="Find a file">
         <label class="chk"><input type="checkbox" id="blast"> Show blast radius on select</label>
         <span class="grow"></span>
         <span class="legend"><i class="lg-core"></i>Core <i class="lg-entry"></i>Entry <i class="lg-test"></i>Test</span>
       </div>
-      <div class="diagram" id="diagram"></div>
-      <div class="map-wrap" id="map-wrap" hidden>
+      <div class="map-wrap" id="map-wrap">
         <div class="map" id="map"></div>
         <aside class="inspect" id="inspect" aria-live="polite">
           <p class="inspect-empty">Select a file to see what it defines, what it imports, what imports it, and what a change to it could reach.</p>

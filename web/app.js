@@ -1,8 +1,8 @@
 // The page: ask for a repository, read it, then show the film, the map, the evidence and the exports.
 import { analyze, parseRepo, permalink, blastRadius, RepoError, shot } from './analyze.js';
-import { diagramSVG } from './diagram.js';
-import { VoicePool, VOICES } from './voice.js';
-import { buildStory, Player, record, storyboardOf, mermaidOf, graphOf } from './story.js';
+import { buildArch, layoutArch, renderArch, mermaidArch, loadElk } from './arch.js';
+import { VoicePool, VOICES, ELEVEN, elevenSay } from './voice.js';
+import { buildStory, Player, record, storyboardOf, graphOf } from './story.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -18,9 +18,11 @@ const clock = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 
 const store = { get(k, d) { try { const v = localStorage.getItem('repotale.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('repotale.' + k, JSON.stringify(v)); } catch {} } };
 
 const opts = { voice: store.get('voice', true), voiceName: store.get('voiceName', 'af_heart'), captions: store.get('captions', true), tests: store.get('tests', false), back: store.get('back', false) };
-const pool = new VoicePool();
+// repotale.studio = false keeps the voice on the 90 MB CPU model, for machines short of disk.
+const pool = new VoicePool({ studio: store.get('studio', true) });
 let audioContext = null, voiceJob = 0;
 let model = null, scenes = null, player = null, selected = null, recording = null;
+let arch = null, archLay = null, archTheme = 'dark';
 
 // ------------------------------------------------------------- the O in the name: a live import graph
 (function glyph() {
@@ -83,8 +85,12 @@ async function run(value) {
       progress: (s, d, t) => stage(s, s === 'fetch' ? `${d} / ${t}` : '', t ? d / t : 0),
     });
     const shots = await photograph(model, $('#live').value.trim());
-    stage('film', '', 0.5);
-    scenes = buildStory(model, { shots });
+    stage('film', 'laying out the architecture', 0.3);
+    // The diagram and the film's architecture beats share one layout.
+    arch = null; archLay = null;
+    try { const elk = await loadElk(); arch = buildArch(model); archLay = await layoutArch(arch, elk); } catch (e) { console.warn('layout', e); }
+    stage('film', '', 0.7);
+    scenes = buildStory(model, { shots, arch: arch && archLay ? { arch, lay: archLay } : null });
     stage('film', '', 1);
     $$('#stages li').forEach(li => { li.dataset.state = 'done'; li.style.setProperty('--p', 1); li.querySelector('b').textContent = ''; });
     history.replaceState(null, '', '#/' + model.meta.full);
@@ -127,6 +133,7 @@ function prepareVoice() {
   const job = ++voiceJob;
   pool.clear();
   for (const s of scenes) s.audio = null;
+  if (opts.voice && opts.voiceName.startsWith('eleven:')) return prepareEleven(job);
   if (!opts.voice || opts.voiceName === 'browser') { voiceNote(opts.voice ? 'Using your browser’s own voice. Pick a neural voice for a natural one, and for a video with sound.' : 'Narration is off.'); return; }
   audioContext ??= new AudioContext();
   let ready = 0;
@@ -135,7 +142,7 @@ function prepareVoice() {
   pool.onstatus = st => {
     if (job !== voiceJob) return;
     if (st.loading != null && !ready) voiceNote(`Neural voice <b>${label}</b>: loading the model, ${Math.round(st.loading * 100)}%.`);
-    if (st.ready === 1 && !ready) voiceNote(`Neural voice <b>${label}</b>: model loaded, speaking the first scene.`);
+    if (st.ready === 1 && !ready) voiceNote(`Neural voice <b>${label}</b>: ${st.mode === 'studio' ? 'studio quality on your graphics card' : 'standard quality on your processor'}, speaking the first scene.`);
     if (st.error) voiceNote(`The neural voice could not start here (${st.error}). Choose “Browser voice” instead.`);
   };
   scenes.forEach(s => pool.say(s.say, opts.voiceName).then(({ audio, rate }) => {
@@ -148,13 +155,41 @@ function prepareVoice() {
     player?.emit();
   }, () => {}));
 }
+/** ElevenLabs with the visitor's key: the most natural voice, made in the cloud. */
+function prepareEleven(job) {
+  audioContext ??= new AudioContext();
+  const key = $('#eleven-key').value.trim(), voice = opts.voiceName.slice(7);
+  $('#eleven').hidden = false;
+  if (!key) { voiceNote('Paste an ElevenLabs API key below to use its voices. It stays in this tab and goes only to api.elevenlabs.io.'); return; }
+  let ready = 0;
+  voiceNote('ElevenLabs: voicing the film…');
+  const next = async i => {
+    if (job !== voiceJob || i >= scenes.length) return;
+    const s = scenes[i];
+    try {
+      const buf = await audioContext.decodeAudioData(await elevenSay(s.say, voice, key));
+      if (job !== voiceJob) return;
+      s.audio = buf; s.duration = Math.max(3200, Math.round(buf.duration * 1000) + 650);
+      ready++; voiceNote(ready === scenes.length ? 'ElevenLabs: ready. Download video now includes the narration.' : `ElevenLabs: ${ready} of ${scenes.length} scenes ready.`);
+      player?.emit();
+      next(i + 1);
+    } catch (e) { voiceNote(`${e.message} Choose another voice, or check the key.`); }
+  };
+  next(0);
+}
+$('#eleven-key').addEventListener('change', () => { if (scenes && opts.voiceName.startsWith('eleven:')) { player.pause(); prepareVoice(); } });
+
 function fillVoices() {
-  $('#voice').replaceChildren(...VOICES.map(v => h('option', { value: v.id }, `${v.label} · neural`)), h('option', { value: 'browser' }, 'Browser voice'));
+  $('#voice').replaceChildren(
+    h('optgroup', { label: 'Neural, in your browser, free' }, ...VOICES.map(v => h('option', { value: v.id }, v.label))),
+    h('optgroup', { label: 'ElevenLabs, your API key' }, ...ELEVEN.map(v => h('option', { value: 'eleven:' + v.id }, v.label))),
+    h('optgroup', { label: 'Instant' }, h('option', { value: 'browser' }, 'Browser voice')));
   $('#voice').value = opts.voiceName;
 }
 fillVoices();
 $('#voice').addEventListener('change', e => {
   opts.voiceName = e.target.value; store.set('voiceName', opts.voiceName);
+  $('#eleven').hidden = !opts.voiceName.startsWith('eleven:');
   if (!scenes) return;
   player.pause(); player.opts.voiceName = opts.voiceName; prepareVoice(); player.draw();
 });
@@ -163,6 +198,7 @@ $('#voice').addEventListener('change', e => {
 function show() {
   const { meta, totals } = model;
   $('#result').hidden = false;
+  document.body.classList.add('has-result');
   $('#r-name').textContent = meta.name;
   $('#r-desc').textContent = meta.description || `${totals.languages[0]?.[0] ?? 'A'} project by ${meta.owner}.`;
   $('#r-meta').replaceChildren(
@@ -170,8 +206,8 @@ function show() {
     h('a', { href: `https://github.com/${meta.full}/tree/${meta.sha}` }, `${meta.ref}@${meta.sha.slice(0, 7)}`),
     ` · read ${fmt(totals.code + totals.tests)} of ${fmt(totals.files)} files`);
   document.title = `${meta.name} — RepoTale`;
-  selectTab('film');
-  setupFilm(); drawMap(); drawEvidence(); drawExports(); drawHow(); syncBands();
+  selectTab('arch');
+  setupFilm(); drawMap(); drawEvidence(); drawExports(); drawHow(); syncBands(); drawArch();
   $('#result').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
@@ -183,6 +219,7 @@ function selectTab(name) {
     $('#' + t.getAttribute('aria-controls')).hidden = !on;
   });
   if (name !== 'film') player?.pause();
+  if (name === 'arch' && arch) requestAnimationFrame(fitArch);
 }
 $$('.tabs [role="tab"]').forEach((t, i, all) => {
   t.addEventListener('click', () => selectTab(t.id.slice(2)));
@@ -291,7 +328,6 @@ function drawMap() {
   }
   svg.append(edgeLayer, nodeLayer);
   $('#map').replaceChildren(svg);
-  $('#diagram').innerHTML = diagramSVG(model);
   if (selected && pos.has(selected)) select(selected, false); else { selected = null; inspectEmpty(); }
 }
 function inspectEmpty() { $('#inspect').replaceChildren(h('p', { class: 'inspect-empty' }, 'Select a file to see what it defines, what it imports, what imports it, and what a change to it could reach.')); }
@@ -362,16 +398,13 @@ function drawExports() {
   const { meta } = model;
   const share = `${location.origin}${location.pathname}#/${meta.full}`;
   const badge = `[![Explained by RepoTale](https://img.shields.io/badge/explained%20by-RepoTale-ff488b)](${share})`;
-  const mer = mermaidOf(model);
   const item = (title, note, action, pre) => h('li', {}, h('div', {}, h('h3', {}, title), h('p', {}, note)), action, pre ? h('pre', {}, pre) : null);
   const btn = (label, fn) => h('button', { class: 'ctl', type: 'button', onclick: fn }, label);
   const copy = text => async e => { const b = e.currentTarget, was = b.textContent; try { await navigator.clipboard.writeText(text); b.textContent = 'Copied'; } catch { b.textContent = 'Select and copy below'; } setTimeout(() => b.textContent = was, 1600); };
   $('#exports').replaceChildren(
     item('Share link', 'Opens this page and reads the same repository.', btn('Copy link', copy(share)), share),
     item('README badge', 'Paste into the README so visitors can open the film and the map.', btn('Copy markdown', copy(badge)), badge),
-    item('Architecture.svg', 'The architecture diagram as a standalone picture, for docs and slides.', btn('Download', () => download(new Blob([diagramSVG(model)], { type: 'image/svg+xml' }), `${meta.name}-architecture.svg`))),
-    item('Architecture.png', 'The same diagram at twice its size, for places that do not take SVG.', btn('Download', async () => download(await diagramPNG(), `${meta.name}-architecture.png`))),
-    item('Mermaid', 'The areas and the imports between them. GitHub renders this inside any markdown file.', btn('Copy', copy('```mermaid\n' + mer + '\n```')), mer),
+    item('Architecture diagram', 'SVG, PNG and Mermaid, in dark or light, from the toolbar above the diagram.', btn('Open the diagram', () => selectTab('arch'))),
     item('Storyboard', 'The film as reporeel.json. Run the CLI inside a clone to render it in HD with a local voice, and to check every citation against the code.', btn('Download', () => json(storyboardOf(model, scenes), 'reporeel.json')), `git clone ${meta.url}.git && cd ${meta.name}\n# put reporeel.json in the root, then:\nnpx @theharshdubey/reporeel video`),
     item('Graph.json', `Every module, symbol and import, pinned to commit ${meta.sha.slice(0, 7)}.`, btn('Download', () => json(graphOf(model), `${meta.name}-graph.json`))),
   );
@@ -423,36 +456,145 @@ $$('.band').forEach(b => b.addEventListener('click', () => {
 }));
 syncBands();
 
-// ------------------------------------------------------------- diagram
-function mapView(diagram) {
-  $('#v-diagram').setAttribute('aria-pressed', diagram); $('#v-files').setAttribute('aria-pressed', !diagram);
-  $('#diagram').hidden = !diagram; $('#map-wrap').hidden = diagram;
-  $('.map-tools').classList.toggle('diagram-mode', diagram);
-}
-$('#v-diagram').addEventListener('click', () => mapView(true));
-$('#v-files').addEventListener('click', () => mapView(false));
-mapView(true);
+// ------------------------------------------------------------- architecture diagram
+const view = { x: 0, y: 0, k: 1 };
 
-/** The diagram as a PNG. Fonts inside an SVG image cannot load from the web, so the page's own
- *  Archivo is embedded into the SVG first when it can be fetched. */
-async function diagramPNG() {
-  let svg = diagramSVG(model);
+/** The page's own Archivo, embedded so the diagram keeps its type as an image or a PNG. */
+let fontData = null;
+async function withFont(svg) {
   try {
-    const css = await (await fetch('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap')).text();
-    const url = [...css.matchAll(/url\((https:[^)]+)\)/g)].at(-1)?.[1];
-    if (url) {
+    fontData ??= (async () => {
+      const css = await (await fetch('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap')).text();
+      const url = [...css.matchAll(/url\((https:[^)]+)\)/g)].at(-1)?.[1];
       const b = new Uint8Array(await (await fetch(url)).arrayBuffer());
       let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
-      svg = svg.replace('<defs>', `<defs><style>@font-face{font-family:Archivo;src:url(data:font/woff2;base64,${btoa(bin)}) format('woff2');font-weight:100 900;font-stretch:62% 125%}</style>`);
-    }
-  } catch {}
+      return btoa(bin);
+    })();
+    const data = await fontData;
+    return svg.replace('<defs>', `<defs><style>@font-face{font-family:Archivo;src:url(data:font/woff2;base64,${data}) format('woff2');font-weight:100 900;font-stretch:62% 125%}</style>`);
+  } catch { return svg; }
+}
+async function svgImage(svg) {
   const img = new Image();
-  img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  img.src = URL.createObjectURL(new Blob([await withFont(svg)], { type: 'image/svg+xml' }));
   await img.decode();
-  const c = Object.assign(document.createElement('canvas'), { width: img.naturalWidth * 2, height: img.naturalHeight * 2 });
+  return img;
+}
+async function svgPNG(svg, scale = 2) {
+  const img = await svgImage(svg);
+  const c = Object.assign(document.createElement('canvas'), { width: img.naturalWidth * scale, height: img.naturalHeight * scale });
   c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
+
+function drawArch() {
+  if (!arch || !archLay) { $('#dz').replaceChildren(h('p', { class: 'dz-wait' }, 'The layout engine could not load, so the diagram is missing. The Files view still works.')); return; }
+  // Painted after the tab is visible, so fitting it measures a real size.
+  requestAnimationFrame(paintArch);
+}
+
+function paintArch() {
+  const dz = $('#dz');
+  dz.innerHTML = renderArch(arch, archLay, { theme: archTheme });
+  const svg = dz.querySelector('svg');
+  svg.removeAttribute('width'); svg.removeAttribute('height');
+  const [, , W, H] = svg.getAttribute('viewBox').split(' ').map(Number);
+  svg.style.width = W + 'px'; svg.style.height = H + 'px';
+  dz.classList.toggle('light', archTheme === 'light');
+  fitArch();
+  for (const n of $$('.node', svg)) {
+    const id = n.dataset.id;
+    n.addEventListener('mouseenter', () => trace(svg, id));
+    n.addEventListener('mouseleave', () => trace(svg, null));
+    n.addEventListener('focus', () => trace(svg, id));
+    n.addEventListener('blur', () => trace(svg, null));
+    const file = n.dataset.file;
+    if (file) {
+      const open = () => { if (!dragged) window.open(permalink(model.meta, file), '_blank', 'noopener'); };
+      n.addEventListener('click', open);
+      n.addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
+    }
+  }
+}
+
+/** Light up a component, its arrows and its neighbours; dim the rest. */
+function trace(svg, id) {
+  svg.classList.toggle('tracing', !!id);
+  if (!id) { for (const el of $$('.on', svg)) el.classList.remove('on'); return; }
+  const near = new Set([id]);
+  for (const e of $$('.edge, .elabel', svg)) {
+    const on = e.dataset.from === id || e.dataset.to === id;
+    e.classList.toggle('on', on);
+    if (on) { near.add(e.dataset.from); near.add(e.dataset.to); }
+  }
+  for (const n of $$('.node', svg)) n.classList.toggle('on', near.has(n.dataset.id));
+}
+
+function applyView() { const svg = $('#dz svg'); if (svg) svg.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.k})`; }
+function fitArch() {
+  const dz = $('#dz'), svg = dz.querySelector('svg'); if (!svg) return;
+  const [, , W, H] = svg.getAttribute('viewBox').split(' ').map(Number);
+  const k = Math.min(dz.clientWidth / W, dz.clientHeight / H, 1.2);
+  Object.assign(view, { k, x: (dz.clientWidth - W * k) / 2, y: Math.max(0, (dz.clientHeight - H * k) / 2) });
+  applyView();
+}
+function zoomAt(f, cx, cy) {
+  const k = Math.min(4, Math.max(0.08, view.k * f));
+  view.x = cx - (cx - view.x) * (k / view.k); view.y = cy - (cy - view.y) * (k / view.k); view.k = k;
+  applyView();
+}
+let dragged = false;
+{
+  const dz = $('#dz');
+  let start = null;
+  const pts = new Map();
+  dz.addEventListener('wheel', e => { e.preventDefault(); const r = dz.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  dz.addEventListener('pointerdown', e => { pts.set(e.pointerId, [e.clientX, e.clientY]); start = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, d: null }; dragged = false; });
+  dz.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2) {
+      // Pinch: zoom by the change in distance between the two fingers.
+      const [[x1, y1], [x2, y2]] = [...pts.values()], d = Math.hypot(x2 - x1, y2 - y1), r = dz.getBoundingClientRect();
+      if (start.d) zoomAt(d / start.d, (x1 + x2) / 2 - r.left, (y1 + y2) / 2 - r.top);
+      start.d = d; dragged = true; return;
+    }
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) { dragged = true; dz.classList.add('grabbing'); dz.setPointerCapture(e.pointerId); }
+    if (dragged) { view.x = start.vx + dx; view.y = start.vy + dy; applyView(); }
+  });
+  const end = e => { pts.delete(e.pointerId); dz.classList.remove('grabbing'); if (!pts.size) setTimeout(() => { dragged = false; }, 0); };
+  dz.addEventListener('pointerup', end); dz.addEventListener('pointercancel', end);
+  dz.addEventListener('dblclick', e => { const r = dz.getBoundingClientRect(); zoomAt(1.6, e.clientX - r.left, e.clientY - r.top); });
+  dz.addEventListener('keydown', e => {
+    const step = 60, map = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] };
+    if (map[e.key]) { e.preventDefault(); view.x += map[e.key][0]; view.y += map[e.key][1]; applyView(); }
+    if (e.key === '+' || e.key === '=') zoomAt(1.25, dz.clientWidth / 2, dz.clientHeight / 2);
+    if (e.key === '-') zoomAt(0.8, dz.clientWidth / 2, dz.clientHeight / 2);
+    if (e.key === '0') fitArch();
+  });
+}
+$('#dz-in').addEventListener('click', () => zoomAt(1.3, $('#dz').clientWidth / 2, $('#dz').clientHeight / 2));
+$('#dz-out').addEventListener('click', () => zoomAt(1 / 1.3, $('#dz').clientWidth / 2, $('#dz').clientHeight / 2));
+$('#dz-fit').addEventListener('click', fitArch);
+$('#dz-full').addEventListener('click', () => { const w = $('#dz-wrap'); document.fullscreenElement ? document.exitFullscreen() : w.requestFullscreen?.(); });
+document.addEventListener('fullscreenchange', () => { $('#dz-full').textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'; setTimeout(fitArch, 60); });
+addEventListener('resize', () => { if (arch && !$('#p-arch').hidden) fitArch(); });
+$('#dz-theme').addEventListener('click', e => {
+  archTheme = archTheme === 'dark' ? 'light' : 'dark';
+  e.currentTarget.textContent = archTheme === 'dark' ? 'Light' : 'Dark';
+  e.currentTarget.setAttribute('aria-pressed', archTheme === 'light');
+  if (arch) paintArch();
+});
+const archName = ext => `${model.meta.name}-architecture${archTheme === 'light' ? '-light' : ''}.${ext}`;
+$('#dz-svg').addEventListener('click', () => arch && download(new Blob([renderArch(arch, archLay, { theme: archTheme })], { type: 'image/svg+xml' }), archName('svg')));
+$('#dz-png').addEventListener('click', async e => { if (!arch) return; const b = e.currentTarget; b.disabled = true; download(await svgPNG(renderArch(arch, archLay, { theme: archTheme })), archName('png')); b.disabled = false; });
+$('#dz-mermaid').addEventListener('click', async e => {
+  if (!arch) return;
+  const b = e.currentTarget;
+  try { await navigator.clipboard.writeText('```mermaid\n' + mermaidArch(arch) + '\n```'); b.textContent = 'Copied'; } catch { b.textContent = 'Copy failed'; }
+  setTimeout(() => { b.textContent = 'Copy Mermaid'; }, 1600);
+});
 
 // ------------------------------------------------------------- deep links: #/owner/name
 const fromHash = () => { const m = location.hash.match(/^#\/([\w.-]+\/[\w.-]+)/); if (m) { input.value = m[1]; run(m[1]); } };
