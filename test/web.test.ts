@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { parseRepo, importsOf, symbolsOf, resolve, buildModel, cycles, blastRadius, aliasesFrom, pickFiles, detectStack, routesOf, headingOf, liveUrl } from '../web/analyze.js';
+import { parseRepo, importsOf, symbolsOf, resolve, buildModel, cycles, blastRadius, aliasesFrom, pickFiles, detectStack, routesOf, headingOf, liveUrl, pageFacts } from '../web/analyze.js';
 import { forEar } from '../web/voice.js';
 import { buildArch, mermaidArch, nameOf, kindOf } from '../web/arch.js';
 import { buildStory, storyboardOf, pathBetween, mermaidOf } from '../web/story.js';
@@ -98,6 +98,27 @@ test('components get readable names and a kind from their path', () => {
   assert.equal(kindOf('src/routes/users.ts'), 'api');
   assert.equal(kindOf('src/components/Button.tsx'), 'ui');
   assert.equal(kindOf('src/utils/merge.ts'), 'lib');
+});
+
+test('a live page is read for its headline, its sections and its first sentence, not its menus', () => {
+  const md = `Title: Express - Node.js web framework
+
+URL Source: https://x
+
+Markdown Content:
+[Skip](https://x)
+## Main menu
+### Guide
+# Fast, **minimalist** web framework
+Express is a [minimal](https://x) and flexible Node.js framework for web and mobile applications.
+## Clarity over complexity. For every developer.
+## Getting started
+## Routing
+## Middleware
+`;
+  assert.deepEqual(pageFacts(md), { title: 'Express - Node.js web framework', h1: 'Fast, minimalist web framework', sections: ['Getting started', 'Routing', 'Middleware'],
+    lead: 'Express is a minimal and flexible Node.js framework for web and mobile applications.' });
+  assert.deepEqual(pageFacts('Markdown Content:\nnothing here'), { title: null, h1: null, sections: [], lead: null });
 });
 
 test('narration is rewritten for the ear, not the eye', () => {

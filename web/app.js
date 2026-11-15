@@ -1,5 +1,5 @@
 // The page: ask for a repository, read it, then show the film, the map, the evidence and the exports.
-import { analyze, parseRepo, permalink, blastRadius, RepoError, shot } from './analyze.js';
+import { analyze, parseRepo, permalink, blastRadius, RepoError, shot, readPage } from './analyze.js';
 import { buildArch, layoutArch, renderArch, mermaidArch, loadElk } from './arch.js';
 import { VoicePool, VOICES, ELEVEN, elevenSay } from './voice.js';
 import { buildStory, Player, record, storyboardOf, graphOf } from './story.js';
@@ -17,14 +17,15 @@ const fmt = n => Number(n).toLocaleString('en');
 const clock = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 const store = { get(k, d) { try { const v = localStorage.getItem('repotale.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('repotale.' + k, JSON.stringify(v)); } catch {} } };
 
-const opts = { voice: store.get('voice', true), voiceName: store.get('voiceName', 'af_heart'), captions: store.get('captions', true), tests: store.get('tests', false), back: store.get('back', false) };
+const savedVoice = store.get('voiceName', 'af_heart');
+const opts = { voice: store.get('voice', true), voiceName: savedVoice === 'browser' ? 'af_heart' : savedVoice, captions: store.get('captions', true), tests: store.get('tests', false), back: store.get('back', false) };
 // repotale.studio = false keeps the voice on the 90 MB CPU model, for machines short of disk.
 const pool = new VoicePool({ studio: store.get('studio', true) });
 let audioContext = null, voiceJob = 0;
 let model = null, scenes = null, player = null, selected = null, recording = null;
 let arch = null, archLay = null, archTheme = 'light';
 // The film draws its type on a canvas, which only sees fonts the page has already loaded.
-for (const f of ["italic 40px 'Instrument Serif'", "40px 'Instrument Serif'", "400 16px 'Inter Tight'", "600 16px 'Inter Tight'"]) document.fonts?.load(f);
+for (const f of ["700 40px 'Inter Tight'", "400 16px 'Inter Tight'", "600 16px 'Inter Tight'"]) document.fonts?.load(f);
 document.fonts?.ready.then(() => player?.draw());
 
 // ------------------------------------------------------------- the O in the name: a live import graph
@@ -34,20 +35,20 @@ document.fonts?.ready.then(() => player?.draw());
   const links = [[0, 5], [0, 9], [2, 7], [3, 11], [4, 12], [6, 13], [8, 1], [10, 3], [12, 6], [1, 9]];
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const draw = ms => {
-    ctx.fillStyle = '#f2eee6'; ctx.fillRect(0, 0, 320, 320);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 320, 320);
     ctx.lineWidth = 3;
     links.forEach(([a, b], k) => {
       const lit = Math.floor(ms / 700) % links.length === k;
-      ctx.strokeStyle = lit ? '#2b44ff' : '#c9bfac';
+      ctx.strokeStyle = lit ? '#0071e3' : '#d2d2d7';
       ctx.beginPath(); ctx.moveTo(...nodes[a]); ctx.quadraticCurveTo(160, 160, ...nodes[b]); ctx.stroke();
       if (lit) {
         const u = (ms % 700) / 700, [x1, y1] = nodes[a], [x2, y2] = nodes[b];
         const x = (1 - u) ** 2 * x1 + 2 * (1 - u) * u * 160 + u * u * x2, y = (1 - u) ** 2 * y1 + 2 * (1 - u) * u * 160 + u * u * y2;
-        ctx.fillStyle = '#2b44ff'; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fill();
+        ctx.fillStyle = '#0071e3'; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fill();
       }
     });
-    ctx.strokeStyle = '#15130f'; ctx.lineWidth = 22; ctx.beginPath(); ctx.ellipse(160, 160, 136, 146, 0, 0, 7); ctx.stroke();
-    nodes.forEach(([x, y], i) => { ctx.fillStyle = i % 4 === 0 ? '#2b44ff' : '#f2eee6'; ctx.fillRect(x - 9, y - 9, 18, 18); });
+    ctx.strokeStyle = '#1d1d1f'; ctx.lineWidth = 22; ctx.beginPath(); ctx.ellipse(160, 160, 136, 146, 0, 0, 7); ctx.stroke();
+    nodes.forEach(([x, y], i) => { ctx.fillStyle = i % 4 === 0 ? '#0071e3' : '#ffffff'; ctx.fillRect(x - 9, y - 9, 18, 18); });
     if (!still) requestAnimationFrame(draw);
   };
   requestAnimationFrame(draw);
@@ -121,7 +122,7 @@ async function photograph(model, override) {
     stage('site', `${k} / ${want.length}`, k / want.length);
     const url = new URL(p.route.replace(/^\//, ''), live).href;
     for (let attempt = 0; attempt < 2; attempt++) {
-      try { got.push({ ...p, url, img: await shot(url, 40000) }); break; }
+      try { const [img, read] = await Promise.all([shot(url, 40000), readPage(url)]); got.push({ ...p, url, img, read }); break; }
       catch { await new Promise(r => setTimeout(r, 1500)); }
     }
   }
@@ -185,8 +186,7 @@ $('#eleven-key').addEventListener('change', () => { if (scenes && opts.voiceName
 function fillVoices() {
   $('#voice').replaceChildren(
     h('optgroup', { label: 'Neural, in your browser, free' }, ...VOICES.map(v => h('option', { value: v.id }, v.label))),
-    h('optgroup', { label: 'ElevenLabs, your API key' }, ...ELEVEN.map(v => h('option', { value: 'eleven:' + v.id }, v.label))),
-    h('optgroup', { label: 'Instant' }, h('option', { value: 'browser' }, 'Browser voice')));
+    h('optgroup', { label: 'ElevenLabs, your API key' }, ...ELEVEN.map(v => h('option', { value: 'eleven:' + v.id }, v.label))));
   $('#voice').value = opts.voiceName;
 }
 fillVoices();
@@ -302,12 +302,12 @@ function drawMap() {
   areas.forEach((a, k) => a.files.forEach((f, r) => pos.set(f, { x: PAD + k * (CW + GAP), y: TOP + r * RH, col: k })));
   const W = PAD * 2 + areas.length * (CW + GAP) - GAP, H = TOP + Math.max(...areas.map(a => a.files.length)) * RH + PAD;
   const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Architecture of ${model.meta.full}: ${areas.length} areas, ${model.edges.length} imports` });
-  svg.append(s('rect', { width: W, height: H, fill: '#e8e2d5' }));
+  svg.append(s('rect', { width: W, height: H, fill: '#f5f5f7' }));
   const edgeLayer = s('g'), nodeLayer = s('g');
   areas.forEach((a, k) => {
     const x = PAD + k * (CW + GAP);
-    svg.append(s('text', { x, y: 40, fill: '#15130f', 'font-family': 'Instrument Serif', 'font-size': 30 }, base(a.name).slice(0, 18)));
-    svg.append(s('text', { x, y: 62, fill: '#6a6357', 'font-family': 'Inter Tight', 'font-size': 13 }, `${a.name === base(a.name) ? '' : a.name + ' · '}${a.files.length} file${a.files.length === 1 ? '' : 's'}`));
+    svg.append(s('text', { x, y: 40, fill: '#1d1d1f', 'font-family': 'Inter Tight', 'font-weight': 700, 'font-size': 24 }, base(a.name).slice(0, 18)));
+    svg.append(s('text', { x, y: 62, fill: '#6e6e73', 'font-family': 'Inter Tight', 'font-size': 13 }, `${a.name === base(a.name) ? '' : a.name + ' · '}${a.files.length} file${a.files.length === 1 ? '' : 's'}`));
   });
   for (const e of model.edges) {
     const A = pos.get(e.from), B = pos.get(e.to); if (!A || !B) continue;
@@ -321,10 +321,10 @@ function drawMap() {
     const m = byFile.get(f);
     const g = s('g', { class: 'node', transform: `translate(${p.x} ${p.y})`, tabindex: 0, role: 'button', 'data-file': f, 'aria-label': `${f}, imported by ${m.importedBy.length}` });
     g.append(s('title', {}, f));
-    g.append(s('rect', { width: CW, height: 24, fill: '#ded6c5' }));
-    g.append(s('rect', { width: 5, height: 24, fill: core.has(f) ? '#2b44ff' : entry.has(f) ? '#15130f' : m.test ? '#6a6357' : '#ded6c5' }));
-    g.append(s('text', { x: 14, y: 16.5, fill: m.test ? '#6a6357' : '#15130f', 'font-family': 'Inter Tight', 'font-size': 13 }, base(f).length > 24 ? base(f).slice(0, 23) + '…' : base(f)));
-    if (m.importedBy.length) g.append(s('text', { x: CW - 8, y: 16.5, fill: '#6a6357', 'font-family': 'Inter Tight', 'font-size': 12, 'text-anchor': 'end' }, m.importedBy.length));
+    g.append(s('rect', { width: CW, height: 24, fill: '#e8e8ed' }));
+    g.append(s('rect', { width: 5, height: 24, fill: core.has(f) ? '#0071e3' : entry.has(f) ? '#1d1d1f' : m.test ? '#6e6e73' : '#e8e8ed' }));
+    g.append(s('text', { x: 14, y: 16.5, fill: m.test ? '#6e6e73' : '#1d1d1f', 'font-family': 'Inter Tight', 'font-size': 13 }, base(f).length > 24 ? base(f).slice(0, 23) + '…' : base(f)));
+    if (m.importedBy.length) g.append(s('text', { x: CW - 8, y: 16.5, fill: '#6e6e73', 'font-family': 'Inter Tight', 'font-size': 12, 'text-anchor': 'end' }, m.importedBy.length));
     g.addEventListener('click', () => select(f));
     g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(f); } });
     nodeLayer.append(g);
@@ -467,7 +467,7 @@ let fontData = null;
 async function withFont(svg) {
   try {
     fontData ??= (async () => {
-      const css = await (await fetch('https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter+Tight:wght@400;600;700&display=swap')).text();
+      const css = await (await fetch('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;600;700&display=swap')).text();
       // Only the latin subsets: the diagram's text is file names and English.
       const blocks = css.split('/*').filter(b => b.startsWith(' latin */')).map(b => b.slice(10));
       const out = [];

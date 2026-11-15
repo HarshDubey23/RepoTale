@@ -49,7 +49,7 @@ const SERVICES = [
 ];
 
 // Twelve hues that read on the dark ground, each with a deep tint for its subsystem's field.
-const HUES = ['#2b44ff', '#e5484d', '#12a594', '#f76b15', '#8e4ec6', '#0090ff', '#d6409f', '#46a758', '#ad7f58', '#3e63dd', '#e0a400', '#00a2c7'];
+const HUES = ['#0071e3', '#e5484d', '#12a594', '#f76b15', '#8e4ec6', '#0090ff', '#d6409f', '#46a758', '#ad7f58', '#3e63dd', '#e0a400', '#00a2c7'];
 
 /** Pick the components, group them, and connect them. Pure: no layout, no DOM. */
 export function buildArch(model, { max = 24 } = {}) {
@@ -242,8 +242,8 @@ const ICON = {
 /** The whole diagram as an SVG string. `theme` is 'dark' (the page) or 'light' (READMEs). */
 export function renderArch(arch, lay, { theme = 'light', title = true } = {}) {
   const T = theme === 'dark'
-    ? { bg: '#15130f', dot: '#2a2620', ink: '#f2eee6', muted: '#a39c8e', node: '#1f1c17', node2: '#35302a', edge: '#8a8274', labelBg: '#15130f' }
-    : { bg: '#f2eee6', dot: '#ddd5c4', ink: '#15130f', muted: '#6a6357', node: '#fffdf8', node2: '#e8e2d5', edge: '#8a8274', labelBg: '#f2eee6' };
+    ? { bg: '#1d1d1f', dot: '#2c2c2e', ink: '#ffffff', muted: '#a1a1a6', node: '#2c2c2e', node2: '#3a3a3c', edge: '#86868b', labelBg: '#1d1d1f' }
+    : { bg: '#ffffff', dot: '#e8e8ed', ink: '#1d1d1f', muted: '#6e6e73', node: '#ffffff', node2: '#f5f5f7', edge: '#86868b', labelBg: '#ffffff' };
   const head = title ? 120 : 0;
   const W = Math.ceil(lay.width), H = Math.ceil(lay.height) + head + 40;
   const color = new Map([...arch.groups.map(g => [g.id, g.color]), ...arch.nodes.map(n => [n.id, n.color])]);
@@ -254,7 +254,7 @@ export function renderArch(arch, lay, { theme = 'light', title = true } = {}) {
   for (const c of new Set([...color.values(), T.edge])) o.push(`<marker id="m${c.slice(1)}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 1L10 5L0 9z" fill="${c}"/></marker>`);
   o.push(`</defs><rect width="${W}" height="${H}" fill="${T.bg}"/><rect width="${W}" height="${H}" fill="url(#dots)"/>`);
   if (title) {
-    o.push(`<text x="56" y="76" font-size="56" font-family="'Instrument Serif', serif" font-style="italic" letter-spacing="-1" fill="${T.ink}">${esc(arch.meta.name)}</text>`);
+    o.push(`<text x="56" y="76" font-size="56" font-weight="700" letter-spacing="-1.6" fill="${T.ink}">${esc(arch.meta.name)}</text>`);
     o.push(`<text x="56" y="100" font-size="15" fill="${T.muted}">${esc(`${arch.meta.full} @ ${arch.meta.sha.slice(0, 7)} · ${arch.nodes.length} components in ${arch.groups.length} subsystems${arch.hidden > 0 ? ` · ${arch.hidden} smaller files folded into them` : ''}`)}</text>`);
   }
   o.push(`<g transform="translate(0 ${head})">`);

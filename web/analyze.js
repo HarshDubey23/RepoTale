@@ -417,6 +417,34 @@ export function headingOf(text) {
   return m ? m[1].trim() : null;
 }
 
+/** What a live page says, from its rendered text: its title, its main headline, the sections it
+ *  walks through, and its first real sentence. Read through r.jina.ai, which loads the page in a
+ *  browser and returns Markdown.
+ *  shortcut: Jina's free tier, 20 pages a minute without a key; add a key header past that. */
+export async function readPage(url, timeout = 25000) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeout);
+  try {
+    const r = await fetch('https://r.jina.ai/' + url, { headers: { 'X-Return-Format': 'markdown' }, signal: ctl.signal });
+    return r.ok ? pageFacts(await r.text()) : null;
+  } catch { return null; } finally { clearTimeout(t); }
+}
+
+/** Pure: the facts in a Jina Markdown page. */
+export function pageFacts(md) {
+  const title = md.match(/^Title: (.+)$/m)?.[1]?.trim() ?? null;
+  const body = md.split(/^Markdown Content:\s*$/m)[1] ?? md;
+  const clean = h => h.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim();
+  const nav = /^(main menu|menu|navigation|skip|search|table of contents|on this page|contents|footer|sign in|log in)$/i;
+  const heads = [...body.matchAll(/^(#{1,3}) (.+)$/gm)].map(m => ({ level: m[1].length, text: clean(m[2]), at: m.index })).filter(h => h.text.length > 2 && h.text.length < 90 && !nav.test(h.text));
+  const h1 = heads.find(h => h.level === 1) ?? null;
+  const after = heads.filter(h => h !== h1 && h.level > 1 && (!h1 || h.at > h1.at));
+  // A section is a name ("Routing"); a heading that is a sentence or two is a tagline and reads badly in a list.
+  const named = hs => hs.map(h => h.text.replace(/[.!:]$/, '')).filter(t => !/[.!?] /.test(t) && t.split(' ').length <= 6);
+  const sections = [...new Set(named(after).length >= 2 ? named(after) : named(heads.filter(h => h !== h1)))].slice(0, 4);
+  const lead = body.split('\n').map(l => clean(l)).find(l => l.length > 60 && l.length < 260 && /[a-z]/.test(l) && !/^(!|\||http)/.test(l) && /[.!?]$/.test(l)) ?? null;
+  return { title, h1: h1?.text ?? null, sections, lead };
+}
+
 /** A screenshot of one page, as an image the canvas may record (the service sends CORS headers).
  *  shortcut: thum.io's free tier, unauthenticated. If it throttles, add a key or self-host Playwright. */
 export function shot(url, timeout = 45000) {

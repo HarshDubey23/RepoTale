@@ -5,7 +5,7 @@ import { blastRadius, permalink } from './analyze.js';
 import { archBeats, drawArchBeat } from './filmarch.js';
 import { mermaidArch } from './arch.js';
 
-const C = { bg: '#f2eee6', surface: '#e8e2d5', plum: '#ded6c5', ink: '#15130f', muted: '#6a6357', accent: '#2b44ff' };
+const C = { bg: '#ffffff', surface: '#f5f5f7', plum: '#e8e8ed', ink: '#1d1d1f', muted: '#6e6e73', accent: '#0071e3' };
 const plural = (n, w, s = w + 's') => `${n.toLocaleString('en')} ${n === 1 ? w : s}`;
 const list = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a.at(-1);
 const base = f => f.split('/').pop();
@@ -35,12 +35,14 @@ export function buildStory(model, opts = {}) {
   (opts.shots ?? []).forEach((p, k) => {
     const host = new URL(p.url).host.replace(/^www\./, '');
     const where = p.route === '/' ? 'home page' : `${p.route.replace(/^\/|\.html$/g, '').replace(/[/_-]+/g, ' ')} page`;
-    const head = p.heading ? `, which opens with “${p.heading.replace(/[“”"]/g, '')}”` : '';
+    const said = p.read?.h1 ?? p.heading ?? p.read?.title;
+    const head = said ? `, which leads with “${said.replace(/[“”"]/g, '')}”` : '';
+    const tour = p.read?.sections?.length > 1 ? ` It walks through ${list(p.read.sections.slice(0, 3).map(x => x.toLowerCase()))}.` : p.read?.lead ? ` ${p.read.lead}` : '';
     // app/blog/page.tsx is "app/blog": the folder is the page's name, the file name says nothing.
     const from = p.file?.replace(/\/(?:\+?page|index)\.[a-z]+$/, '').replace(/\.[a-z]+$/, '');
     S.push({ kind: 'site', heading: p.route, url: p.url, img: p.img,
-      say: k === 0 ? `Here it is, running live at ${host}. This is the ${where}${head}.${from ? ` It is defined in ${from}.` : ''}`
-        : `Next, the ${where}${head}${from ? `, defined in ${from}` : ''}.`,
+      say: k === 0 ? `Here it is, running live at ${host}. This is the ${where}${head}.${tour}${from ? ` It is defined in ${from}.` : ''}`
+        : `Next, the ${where}${head}.${tour}${from ? ` It is defined in ${from}.` : ''}`,
       evidence: p.file ? [{ file: p.file }] : [] });
   });
 
@@ -124,7 +126,7 @@ export function buildStory(model, opts = {}) {
 const W = 1280, H = 720, M = 72;
 const ease = t => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 const seg = (t, a, b) => ease((t - a) / (b - a));
-const DISPLAY = s => `italic 400 ${Math.round(s * 1.08)}px 'Instrument Serif'`;
+const DISPLAY = s => `700 ${s}px 'Inter Tight'`;
 const TEXT = (s, w = 400) => `${w} ${s}px 'Inter Tight'`;
 
 function font(ctx, f) { ctx.font = f; }
@@ -178,12 +180,12 @@ function captions(ctx, scene, t, opts) {
   font(ctx, TEXT(26, 600));
   const lines = wrap(ctx, sentence, W - M * 2 - 80).slice(0, 2);
   const lw = Math.max(...lines.map(l => ctx.measureText(l).width)), h = lines.length * 36 + 26, x = (W - lw) / 2 - 24, y = H - 34 - h;
-  ctx.fillStyle = 'rgba(21,19,15,0.92)'; ctx.beginPath(); ctx.roundRect(x, y, lw + 48, h, 14); ctx.fill();
+  ctx.fillStyle = 'rgba(29,29,31,0.92)'; ctx.beginPath(); ctx.roundRect(x, y, lw + 48, h, 14); ctx.fill();
   let seen = 0;
   lines.forEach((l, k) => {
     let cx = (W - ctx.measureText(l).width) / 2;
     for (const word of l.split(' ')) {
-      ctx.fillStyle = seen + word.length * 0.5 <= local ? '#f2eee6' : 'rgba(242,238,230,0.42)';
+      ctx.fillStyle = seen + word.length * 0.5 <= local ? '#ffffff' : 'rgba(255,255,255,0.42)';
       ctx.fillText(word, cx, y + 38 + k * 36);
       const ww = ctx.measureText(word + ' ').width; cx += ww; seen += word.length + 1;
     }
@@ -245,9 +247,9 @@ function ground(ctx, ms) {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
   const gx = W * (0.78 + 0.06 * Math.sin(ms / 7000)), gy = H * (0.18 + 0.05 * Math.cos(ms / 9000));
   const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 620);
-  g.addColorStop(0, 'rgba(43,68,255,0.13)'); g.addColorStop(0.5, 'rgba(247,107,21,0.05)'); g.addColorStop(1, 'rgba(242,238,230,0)');
+  g.addColorStop(0, 'rgba(0,113,227,0.13)'); g.addColorStop(0.5, 'rgba(247,107,21,0.05)'); g.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = 'rgba(21,19,15,0.07)';
+  ctx.fillStyle = 'rgba(29,29,31,0.07)';
   for (let y = 14; y < H; y += 28) for (let x = 14; x < W; x += 28) ctx.fillRect(x, y, 2, 2);
 }
 
@@ -414,7 +416,7 @@ const DRAW = {
     [C.accent, C.muted, C.muted].forEach((c, k) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 24 + k * 22, y + bar / 2, 6, 0, 7); ctx.fill(); });
     ctx.fillStyle = C.bg; ctx.fillRect(x + 100, y + 9, w - 200, bar - 18);
     font(ctx, TEXT(16, 500)); ctx.fillStyle = C.ink; ctx.fillText(s.url.replace(/^https?:\/\//, '').slice(0, 90), x + 116, y + 28);
-    ctx.save(); ctx.shadowColor = 'rgba(21,19,15,0.22)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 18;
+    ctx.save(); ctx.shadowColor = 'rgba(29,29,31,0.22)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 18;
     ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y + bar, w, h - bar); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(x, y + bar, w, h - bar); ctx.clip();
     const cam = camera(s.img, t, w / (h - bar));

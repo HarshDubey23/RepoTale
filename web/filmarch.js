@@ -5,7 +5,7 @@
 
 import { shapeOf, textTop } from './arch.js';
 
-const C = { bg: '#f2eee6', node: '#fffdf8', node2: '#e8e2d5', ink: '#15130f', muted: '#6a6357', edge: '#8a8274', accent: '#2b44ff' };
+const C = { bg: '#ffffff', node: '#ffffff', node2: '#f5f5f7', ink: '#1d1d1f', muted: '#6e6e73', edge: '#86868b', accent: '#0071e3' };
 const W = 1280, H = 720;
 const ease = t => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 const seg = (t, a, b) => ease((t - a) / (b - a));
@@ -149,7 +149,7 @@ export function drawArchBeat(ctx, s, t, ms, el) {
       return;
     }
     const sh = shapeOf(n.kind, b.x, b.y + lift, b.w, b.h), body = new Path2D(sh.body);
-    ctx.save(); ctx.shadowColor = 'rgba(21,19,15,0.10)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; ctx.fillStyle = svc ? C.node2 : C.node; ctx.fill(body); ctx.restore();
+    ctx.save(); ctx.shadowColor = 'rgba(29,29,31,0.10)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; ctx.fillStyle = svc ? C.node2 : C.node; ctx.fill(body); ctx.restore();
     ctx.strokeStyle = svc ? C.ink : col; ctx.lineWidth = n.heart ? 3 : 1.8; ctx.setLineDash(svc && n.kind !== 'cloud' ? [6, 5] : []); ctx.stroke(body); ctx.setLineDash([]);
     if (sh.lines) { ctx.lineCap = 'round'; ctx.stroke(new Path2D(sh.lines)); ctx.lineCap = 'butt'; }
     const ty = b.y + textTop(n.kind) + lift;
@@ -164,7 +164,7 @@ export function drawArchBeat(ctx, s, t, ms, el) {
   if (s.beat > 0) {
     const a = seg(el / 1000, 0.6, 1.2);
     ctx.globalAlpha = a;
-    ctx.font = "italic 400 64px 'Instrument Serif'";
+    ctx.font = "700 52px 'Inter Tight'";
     ctx.fillStyle = C.ink; ctx.fillText(s.heading, 72, 150);
     ctx.globalAlpha = 1;
   }
