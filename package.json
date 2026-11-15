@@ -11,11 +11,12 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p .",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p .",
     "prepublishOnly": "npm run build && npm test",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node --test test/doctor.test.ts test/readme.test.ts test/schema.test.ts"
+    "test:unit": "node --test test/doctor.test.ts test/readme.test.ts test/schema.test.ts",
+    "prepare": "npm run build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
