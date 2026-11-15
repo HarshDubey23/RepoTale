@@ -41,10 +41,20 @@
 ## Quickstart
 
 ```bash
-npx reporeel
+npx @iamharshdubey/reporeel
 ```
 
 Run it in any repository. It prints a first-impression score, does the work, and prints the score again.
+
+Or install it once and use the short command everywhere:
+
+```bash
+npm i -g @iamharshdubey/reporeel
+```
+
+```bash
+reporeel
+```
 
 ## Why
 
@@ -104,9 +114,9 @@ Generated storyboards start with `"$schema"`, so VS Code and other editors autoc
 ### A fast loop
 
 ```bash
-npx reporeel video --only 3      # preview scene 3 alone, in docs/reporeel/preview.mp4
-npx reporeel video               # everything; scenes you did not touch are reused
-npx reporeel video --fresh       # record every scene again
+npx @iamharshdubey/reporeel video --only 3      # preview scene 3 alone, in docs/reporeel/preview.mp4
+npx @iamharshdubey/reporeel video               # everything; scenes you did not touch are reused
+npx @iamharshdubey/reporeel video --fresh       # record every scene again
 ```
 
 ## Use it from Claude Code or Codex
@@ -128,13 +138,13 @@ Narration is cached by its text, so re-rendering after a visual fix does not reg
 Node 22.18 or newer and a Chromium for Playwright. ffmpeg is used from your PATH, from `REPOREEL_FFMPEG`, or from the bundled `ffmpeg-static`. Run this once:
 
 ```bash
-npx reporeel setup --fix
+npx @iamharshdubey/reporeel setup --fix
 ```
 
 ## Use it as a library
 
 ```js
-import { doctor, draft, render } from 'reporeel';
+import { doctor, draft, render } from '@iamharshdubey/reporeel';
 
 const report = doctor('.');                       // { score, grade, checks, secrets }
 const storyboard = draft('.');                    // or write your own

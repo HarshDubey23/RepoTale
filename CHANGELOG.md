@@ -9,7 +9,7 @@
 - Videos carry chapters, and scenes dip through black between each other.
 - `social` also makes vertical (9:16) and square (1:1) cuts for Reels, Shorts, TikTok and LinkedIn.
 - JSON schema for the storyboard (`schema/reporeel.schema.json`), stamped into generated storyboards for editor autocomplete.
-- Library API (`import { render, doctor } from 'reporeel'`) with type declarations.
+- Library API (`import { render, doctor } from '@iamharshdubey/reporeel'`) with type declarations.
 - End-to-end render test in CI.
 
 ## 0.1.0

@@ -11,7 +11,7 @@ storyboard, because you can read the code and click through the app. No API key 
 ## 1. Look before you write
 
 ```bash
-npx -y reporeel doctor
+npx -y @iamharshdubey/reporeel doctor
 ```
 
 Then read the README, the manifests and the entry points. Work out: what problem it solves, for whom,
@@ -52,11 +52,11 @@ Rules that make the video good:
 ## 3. Render and review
 
 ```bash
-npx -y reporeel video
+npx -y @iamharshdubey/reporeel video
 ```
 
 Open `docs/reporeel/sheet.png` (one frame per scene) and look at it. To check one scene quickly,
-`npx -y reporeel video --only 4` writes `docs/reporeel/preview.mp4`; unchanged scenes are reused from
+`npx -y @iamharshdubey/reporeel video --only 4` writes `docs/reporeel/preview.mp4`; unchanged scenes are reused from
 the cache on the next full render. Fix what is wrong in the
 storyboard (blank web scene, wrong selector, code that is not the interesting part, a caption
 covering content) and render again. Narration is cached, so re-renders are fast. Watch the warnings:
@@ -65,12 +65,12 @@ a failed action is reported and skipped, not fatal.
 ## 4. Ship it
 
 ```bash
-npx -y reporeel diagram && npx -y reporeel social && npx -y reporeel readme && npx -y reporeel doctor
+npx -y @iamharshdubey/reporeel diagram && npx -y @iamharshdubey/reporeel social && npx -y @iamharshdubey/reporeel readme && npx -y @iamharshdubey/reporeel doctor
 ```
 
-Then run `npx -y reporeel verify` and fix the README if its quickstart is broken. Tell the user the
+Then run `npx -y @iamharshdubey/reporeel verify` and fix the README if its quickstart is broken. Tell the user the
 score before and after, show them the GIF, and point them to `docs/reporeel/LAUNCH.md` (drafts only:
 never post anything for them). If they want another language: add `say_hi` (etc.) to every scene
-yourself and run `npx -y reporeel video --lang hi` (needs `ELEVENLABS_API_KEY`).
+yourself and run `npx -y @iamharshdubey/reporeel video --lang hi` (needs `ELEVENLABS_API_KEY`).
 
-For a pull request: `npx -y reporeel pr --base main`.
+For a pull request: `npx -y @iamharshdubey/reporeel pr --base main`.
