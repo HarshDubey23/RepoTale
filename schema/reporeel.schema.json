@@ -1,0 +1,531 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/HarshDubey23/reporeel/main/schema/reporeel.schema.json",
+  "title": "reporeel storyboard",
+  "type": "object",
+  "required": [
+    "title",
+    "scenes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "repo": {
+      "type": "string",
+      "description": "Folder of the project relative to this file, or an owner/name label for the title card"
+    },
+    "app": {
+      "type": "object",
+      "required": [
+        "url"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "start": {
+          "type": "string",
+          "description": "Command that starts the app; run in the repo folder"
+        },
+        "readyTimeoutMs": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "voice": {
+      "type": "object",
+      "required": [
+        "provider"
+      ],
+      "properties": {
+        "provider": {
+          "enum": [
+            "kokoro",
+            "elevenlabs",
+            "none"
+          ]
+        },
+        "voice": {
+          "type": "string",
+          "description": "Kokoro voice name (am_michael, af_heart, bm_george...) or ElevenLabs voice id"
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "theme": {
+      "type": "object",
+      "properties": {
+        "accent": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "captions": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "size": {
+      "type": "object",
+      "required": [
+        "width",
+        "height"
+      ],
+      "properties": {
+        "width": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "A title card: the hook.",
+            "required": [
+              "type",
+              "say",
+              "heading"
+            ],
+            "properties": {
+              "type": {
+                "const": "title"
+              },
+              "say": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The narration for this scene, spoken aloud. Write for the ear."
+              },
+              "id": {
+                "type": "string"
+              },
+              "heading": {
+                "type": "string"
+              },
+              "sub": {
+                "type": "string"
+              }
+            },
+            "patternProperties": {
+              "^say_[a-z]{2,3}$": {
+                "type": "string",
+                "description": "Translated narration, used by --lang"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "The running app, driven with a visible cursor.",
+            "required": [
+              "type",
+              "say"
+            ],
+            "properties": {
+              "type": {
+                "const": "web"
+              },
+              "say": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The narration for this scene, spoken aloud. Write for the ear."
+              },
+              "id": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "description": "Path on app.url, or an absolute URL"
+              },
+              "actions": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "click"
+                      ],
+                      "properties": {
+                        "click": {
+                          "type": "string",
+                          "description": "A Playwright selector: text=Sign in, #id, [data-testid=x], .class"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "array",
+                          "prefixItems": [
+                            {
+                              "type": "string",
+                              "description": "A Playwright selector: text=Sign in, #id, [data-testid=x], .class"
+                            },
+                            {
+                              "type": "string"
+                            }
+                          ],
+                          "items": false,
+                          "minItems": 2,
+                          "maxItems": 2,
+                          "description": "[selector, text to type]"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "press"
+                      ],
+                      "properties": {
+                        "press": {
+                          "type": "string",
+                          "description": "A key, e.g. Enter"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "hover"
+                      ],
+                      "properties": {
+                        "hover": {
+                          "type": "string",
+                          "description": "A Playwright selector: text=Sign in, #id, [data-testid=x], .class"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "scroll"
+                      ],
+                      "properties": {
+                        "scroll": {
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "description": "A Playwright selector: text=Sign in, #id, [data-testid=x], .class"
+                            },
+                            {
+                              "type": "number",
+                              "description": "pixels"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "zoom"
+                      ],
+                      "properties": {
+                        "zoom": {
+                          "type": "string",
+                          "description": "Move the camera onto this element, then back out"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "wait"
+                      ],
+                      "properties": {
+                        "wait": {
+                          "type": "number",
+                          "minimum": 0,
+                          "description": "milliseconds"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "waitFor"
+                      ],
+                      "properties": {
+                        "waitFor": {
+                          "type": "string",
+                          "description": "Wait until this is visible (up to 30 s)"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            },
+            "patternProperties": {
+              "^say_[a-z]{2,3}$": {
+                "type": "string",
+                "description": "Translated narration, used by --lang"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Real lines from a file, syntax highlighted.",
+            "required": [
+              "type",
+              "say",
+              "file"
+            ],
+            "properties": {
+              "type": {
+                "const": "code"
+              },
+              "say": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The narration for this scene, spoken aloud. Write for the ear."
+              },
+              "id": {
+                "type": "string"
+              },
+              "file": {
+                "type": "string",
+                "description": "Path relative to the repo"
+              },
+              "lines": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "[first, last] line shown (at most ~30)"
+              },
+              "highlight": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "description": "Line ranges lit up one after another"
+              },
+              "caption": {
+                "type": "string"
+              }
+            },
+            "patternProperties": {
+              "^say_[a-z]{2,3}$": {
+                "type": "string",
+                "description": "Translated narration, used by --lang"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "A Mermaid diagram that appears as it is narrated.",
+            "required": [
+              "type",
+              "say",
+              "mermaid"
+            ],
+            "properties": {
+              "type": {
+                "const": "diagram"
+              },
+              "say": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The narration for this scene, spoken aloud. Write for the ear."
+              },
+              "id": {
+                "type": "string"
+              },
+              "mermaid": {
+                "type": "string",
+                "description": "Mermaid source, e.g. flowchart LR"
+              },
+              "caption": {
+                "type": "string"
+              }
+            },
+            "patternProperties": {
+              "^say_[a-z]{2,3}$": {
+                "type": "string",
+                "description": "Translated narration, used by --lang"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Commands that really run before recording; their real output is shown.",
+            "required": [
+              "type",
+              "say",
+              "commands"
+            ],
+            "properties": {
+              "type": {
+                "const": "terminal"
+              },
+              "say": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The narration for this scene, spoken aloud. Write for the ear."
+              },
+              "id": {
+                "type": "string"
+              },
+              "commands": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "cwd": {
+                "type": "string"
+              },
+              "timeoutMs": {
+                "type": "number"
+              }
+            },
+            "patternProperties": {
+              "^say_[a-z]{2,3}$": {
+                "type": "string",
+                "description": "Translated narration, used by --lang"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Big numbers that count up. Only numbers the repo states.",
+            "required": [
+              "type",
+              "say",
+              "items"
+            ],
+            "properties": {
+              "type": {
+                "const": "stats"
+              },
+              "say": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The narration for this scene, spoken aloud. Write for the ear."
+              },
+              "id": {
+                "type": "string"
+              },
+              "heading": {
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "value",
+                    "label"
+                  ],
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "patternProperties": {
+              "^say_[a-z]{2,3}$": {
+                "type": "string",
+                "description": "Translated narration, used by --lang"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "The closing card.",
+            "required": [
+              "type",
+              "say",
+              "heading"
+            ],
+            "properties": {
+              "type": {
+                "const": "end"
+              },
+              "say": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The narration for this scene, spoken aloud. Write for the ear."
+              },
+              "id": {
+                "type": "string"
+              },
+              "heading": {
+                "type": "string"
+              },
+              "links": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "patternProperties": {
+              "^say_[a-z]{2,3}$": {
+                "type": "string",
+                "description": "Translated narration, used by --lang"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  }
+}

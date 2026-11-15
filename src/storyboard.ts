@@ -23,7 +23,11 @@ export type Scene = { say: string; id?: string; [lang: `say_${string}`]: string 
   | { type: 'end'; heading: string; links?: string[] }
 );
 
+export const SCHEMA_URL = 'https://raw.githubusercontent.com/HarshDubey23/reporeel/main/schema/reporeel.schema.json';
+
 export interface Storyboard {
+  /** Editors use this for autocomplete and checking; reporeel ignores it. */
+  $schema?: string;
   title: string;
   /** Folder of the project (relative to this file), or an owner/name label shown on the title card. */
   repo?: string;

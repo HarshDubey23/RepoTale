@@ -19,7 +19,8 @@ how to run it, what the most convincing thing to *show* is, and which numbers th
 
 ## 2. Write `reporeel.json`
 
-Shape (full schema in the reporeel README):
+Start the file with `"$schema": "https://raw.githubusercontent.com/HarshDubey23/reporeel/main/schema/reporeel.schema.json"`.
+Shape:
 
 ```json
 {
@@ -54,7 +55,9 @@ Rules that make the video good:
 npx -y reporeel video
 ```
 
-Open `docs/reporeel/sheet.png` (one frame per scene) and look at it. Fix what is wrong in the
+Open `docs/reporeel/sheet.png` (one frame per scene) and look at it. To check one scene quickly,
+`npx -y reporeel video --only 4` writes `docs/reporeel/preview.mp4`; unchanged scenes are reused from
+the cache on the next full render. Fix what is wrong in the
 storyboard (blank web scene, wrong selector, code that is not the interesting part, a caption
 covering content) and render again. Narration is cached, so re-renders are fast. Watch the warnings:
 a failed action is reported and skipped, not fatal.

@@ -3,6 +3,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { writeWorkflow } from './ci.ts';
+import { cut, FORMATS, type Format } from './cuts.ts';
+import { checkSetup, formatSetup } from './setup.ts';
 import { doctor, format } from './doctor.ts';
 import { diagram, shots, socialCard } from './media.ts';
 import { draft, planWithClaude, translate } from './plan.ts';
@@ -11,7 +13,7 @@ import { prStoryboard } from './pr.ts';
 import { writeReadme } from './readme.ts';
 import { render, startApp } from './render.ts';
 import { detect, mermaidFor } from './stack.ts';
-import type { Storyboard } from './storyboard.ts';
+import { SCHEMA_URL, type Storyboard } from './storyboard.ts';
 import { verify } from './verify.ts';
 
 const args = process.argv.slice(2);
@@ -28,7 +30,7 @@ const load = (): Storyboard => {
   if (!existsSync(sbFile)) throw new Error(`no storyboard at ${sbFile}; run reporeel plan first`);
   return JSON.parse(readFileSync(sbFile, 'utf8'));
 };
-const save = (sb: Storyboard) => writeFileSync(sbFile, JSON.stringify(sb, null, 2) + '\n');
+const save = (sb: Storyboard) => writeFileSync(sbFile, JSON.stringify({ $schema: SCHEMA_URL, ...sb }, null, 2) + '\n');
 const repoSlug = () => { try { const p = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')); const u = typeof p.repository === 'string' ? p.repository : p.repository?.url; return u?.match(/github\.com[/:]([^/]+\/[^/.]+)/)?.[1] ?? basename(root); } catch { return basename(root); } };
 
 const commands: Record<string, { help: string; run: () => Promise<unknown> }> = {
@@ -59,13 +61,14 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     save(sb);
     say(`wrote ${sbFile}: ${sb.scenes.length} scenes${useClaude ? '' : ' (offline draft: edit it, or set ANTHROPIC_API_KEY, or ask your coding agent to use the reporeel skill)'}`);
   } },
-  video: { help: 'render the storyboard: MP4, GIF, captions, poster, contact sheet (--voice kokoro|elevenlabs|none, --lang hi)', async run() {
+  video: { help: 'render the storyboard: MP4 with chapters, GIF, captions, poster, contact sheet (--only 2,3 to preview scenes, --fresh, --voice kokoro|elevenlabs|none, --lang hi)', async run() {
     const sb = load();
     if (flag('voice')) sb.voice = { ...(sb.voice ?? { provider: 'kokoro' }), provider: flag('voice') as any };
     const lang = flag('lang');
     if (lang && (sb.voice?.provider ?? 'kokoro') === 'kokoro') sb.voice = { provider: 'elevenlabs', voice: sb.voice?.voice?.length === 20 ? sb.voice.voice : undefined };
-    const r = await render(sb, sbFile, { out: lang ? join(out, lang) : out, log, lang });
-    say(`video ${r.video}\ngif   ${r.gif}\nsheet ${r.sheet}`);
+    const only = flag('only')?.split(',').map(Number);
+    const r = await render(sb, sbFile, { out: lang ? join(out, lang) : out, log, lang, only, fresh: on('fresh') });
+    say(only ? `preview ${r.video}` : `video ${r.video}\ngif   ${r.gif}\nsheet ${r.sheet}`);
   } },
   dub: { help: 'add a translated narration (--lang hi) with Claude, then render it with ElevenLabs', async run() {
     const lang = flag('lang');
@@ -87,7 +90,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     const r = await diagram(m?.mermaid ?? mermaidFor(detect(root)), out, sb?.theme?.accent);
     say(`diagram ${r.svg}`);
   } },
-  social: { help: 'GitHub social preview (1280x640) and launch-post drafts', async run() {
+  social: { help: 'GitHub social preview (1280x640), vertical and square cuts of the video, and launch-post drafts (--cuts vertical,square|none)', async run() {
     const sb = existsSync(sbFile) ? load() : draft(root);
     const title = sb.scenes.find(s => s.type === 'title') as { heading: string; sub?: string; say: string } | undefined;
     const stats = (sb.scenes.find(s => s.type === 'stats') as { items: { value: string; label: string }[] } | undefined)?.items.map(i => `${i.value} ${i.label}`) ?? [];
@@ -97,6 +100,12 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     await socialCard({ title: sb.title, tagline, repo: repoSlug(), accent: sb.theme?.accent, image: shot, stats }, join(out, 'social.png'));
     writeFileSync(join(out, 'LAUNCH.md'), launchPosts(sb, { url: `https://github.com/${repoSlug()}`, tagline, stats }));
     say(`social ${join(out, 'social.png')}  (upload it under Settings → Social preview)\nposts  ${join(out, 'LAUNCH.md')}`);
+    const wanted = (flag('cuts', 'vertical,square')!).split(',').filter(f => f in FORMATS) as Format[];
+    const video = join(out, 'reporeel.mp4');
+    if (wanted.length && existsSync(video)) for (const f of wanted) {
+      log(`cutting ${f}`);
+      say(`${f.padEnd(6)} ${await cut(video, f, { title: sb.title, tagline, link: `github.com/${repoSlug()}`, accent: sb.theme?.accent, out })}`);
+    }
   } },
   readme: { help: 'put the video, chapters and diagram into README.md (between markers; safe to re-run)', async run() {
     say(`updated ${writeReadme(root, out)}`);
@@ -110,6 +119,11 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     say(`pr video ${r.video}`);
   } },
   ci: { help: 'add a GitHub Action: doctor and verify on PRs, fresh media on releases', async run() { say(`wrote ${writeWorkflow(root)}`); } },
+  setup: { help: 'check node, ffmpeg, Chromium and API keys (--fix installs Chromium)', async run() {
+    const items = await checkSetup({ fix: on('fix'), log });
+    say(formatSetup(items));
+    if (items.some(i => i.required && !i.ok)) process.exitCode = 1;
+  } },
   help: { help: 'this list', async run() {
     say(`reporeel: make your repository understood\n\n  reporeel            everything, with the score before and after\n${Object.entries(commands).filter(([k]) => k !== 'go').map(([k, v]) => `  reporeel ${k.padEnd(10)} ${v.help}`).join('\n')}\n\n  common: --dir <repo> --out <folder, default docs/reporeel> --storyboard <file, default reporeel.json>\n`);
   } },

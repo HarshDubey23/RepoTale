@@ -15,8 +15,19 @@
 - **0:33** Web scenes drive the real app, with a cursor that glides, clicks that ripple, and a camera that zooms in on what matters.
 - **0:43** Everything lives in one storyboard file. Title cards, live web, real code, diagrams, terminal runs and numbers. A coding agent writes it, or Claude does, or you do.
 - **0:56** The narration is spoken by a free local voice, or by ElevenLabs in Hindi and many other languages. Chrome records sharp frames, and ffmpeg puts it all together.
-- **1:08** It also checks that your quickstart really works on a clean checkout, makes videos of pull requests, and keeps everything fresh on every release.
-- **1:17** reporeel. Make your repo understood. This video was made by reporeel, from this storyboard.
+- **1:08** It also checks that your quickstart really works on a clean checkout, makes videos of pull requests, cuts vertical versions for Reels and LinkedIn, and keeps everything fresh on every release.
+- **1:20** reporeel. Make your repo understood. This video was made by reporeel, from this storyboard.
+
+### Chapters
+
+0:00 Your repo, explained in one command.
+0:11 $ node bin/reporeel.js doctor --dir examples/hello | head -1
+0:21 $ node bin/reporeel.js --dir examples/hello --voice none 2>/
+0:33 Web scenes drive the real app, with…
+0:43 the whole contract
+0:56 How it works
+1:08 One tool, thirteen jobs
+1:20 npx reporeel
 
 </details>
 
@@ -47,14 +58,15 @@ A visitor decides about a repository from its README in a few seconds. Most READ
 | `reporeel doctor` | A first-impression score out of 100 with the fix for each gap: README, one-line description, demo media above the fold, quickstart, license, tests, CI, broken links, **committed secrets and `.env` files**, huge files |
 | `reporeel verify` | Runs the commands in your README's setup section on a clean clone and tells you the first one that breaks |
 | `reporeel plan` | Writes `reporeel.json`, the storyboard. With `ANTHROPIC_API_KEY` Claude reads the repo and writes it; without one you get an offline draft from your manifests and README |
-| `reporeel video` | Renders the storyboard: MP4 with voice, a silent GIF for the README, `.srt` captions, a poster frame and a contact sheet |
+| `reporeel video` | Renders the storyboard: MP4 with voice and chapters, a silent GIF for the README, `.srt` captions, a poster frame and a contact sheet. Unchanged scenes come from a cache; `--only 3` previews one scene in seconds |
 | `reporeel diagram` | Architecture diagram as SVG and PNG, from the storyboard or straight from your manifests |
 | `reporeel shots` | Screenshots of the running app: desktop and phone, dark and light |
-| `reporeel social` | The 1280x640 GitHub social preview card and `LAUNCH.md` with drafts for Show HN, LinkedIn, X and Reddit. Drafts only: it never posts |
+| `reporeel social` | The 1280x640 GitHub social preview card, **vertical (9:16) and square cuts** of the video for Reels, Shorts and the LinkedIn feed, and `LAUNCH.md` with drafts for Show HN, LinkedIn, X and Reddit. Drafts only: it never posts |
 | `reporeel readme` | Puts the GIF, the video link, the chapters and the diagram into your README between markers. Re-running replaces its own block and touches nothing else |
 | `reporeel pr` | A short video of what the current branch changes: the commit, the size, the changed lines lit up in the code, and the tests run on it |
 | `reporeel dub --lang hi` | Translates the narration (Claude) and re-voices the video (ElevenLabs) in Hindi or any other language |
 | `reporeel ci` | A GitHub Action that runs `doctor` and `verify` on pull requests and refreshes the media on every release |
+| `reporeel setup` | Checks Node, ffmpeg, Chromium and your keys, and tells you how to fix each one; `--fix` installs Chromium |
 
 ## The storyboard
 
@@ -87,6 +99,16 @@ Everything the video says and shows lives in `reporeel.json`, so it can be revie
 
 Any scene can carry `say_hi`, `say_ta` and so on; `reporeel video --lang hi` uses them.
 
+Generated storyboards start with `"$schema"`, so VS Code and other editors autocomplete every field and underline mistakes. The schema is [`schema/reporeel.schema.json`](schema/reporeel.schema.json); a complete example is [`examples/hello/reporeel.example.json`](examples/hello/reporeel.example.json).
+
+### A fast loop
+
+```bash
+npx reporeel video --only 3      # preview scene 3 alone, in docs/reporeel/preview.mp4
+npx reporeel video               # everything; scenes you did not touch are reused
+npx reporeel video --fresh       # record every scene again
+```
+
 ## Use it from Claude Code or Codex
 
 Copy `skills/reporeel` into your skills folder (for Claude Code, `~/.claude/skills/`) and ask *"make a demo video of this repo"*. The agent reads the code, starts the app, finds real selectors, writes the storyboard, renders, looks at the contact sheet and fixes what is wrong. No API key is needed, because the agent is the one doing the thinking.
@@ -103,11 +125,29 @@ Narration is cached by its text, so re-rendering after a visual fix does not reg
 
 ## Requirements
 
-Node 22.18 or newer, `ffmpeg` on your PATH, and a Chromium for Playwright (`npx playwright install chromium`).
+Node 22.18 or newer and a Chromium for Playwright. ffmpeg is used from your PATH, from `REPOREEL_FFMPEG`, or from the bundled `ffmpeg-static`. Run this once:
+
+```bash
+npx reporeel setup --fix
+```
+
+## Use it as a library
+
+```js
+import { doctor, draft, render } from 'reporeel';
+
+const report = doctor('.');                       // { score, grade, checks, secrets }
+const storyboard = draft('.');                    // or write your own
+await render(storyboard, './reporeel.json', { out: 'docs/reporeel' });
+```
+
+Type declarations are included.
 
 ## How it is built
 
 - Frames come from Chrome's screencast (full-resolution JPEGs), not Playwright's VP8 recorder, so code and UI text stay sharp.
+- Each scene is cached by everything that changes how it looks or sounds (its JSON, its narration audio, the code file it shows, the theme), so only edited scenes are recorded again. Web scenes show a live app and are always recorded.
+- Chapters are written into the MP4, so players can jump between scenes.
 - Built-in scenes are small HTML pages that animate themselves for exactly the length of their narration, recorded the same way as your app.
 - A failed web action is reported and skipped instead of killing a two-minute render; an app that will not start drops its web scenes with a warning, and the rest of the video is still made.
 - `doctor` and `verify` never run anything from your working tree: `verify` uses a fresh clone, `doctor` only reads files.
@@ -121,7 +161,7 @@ Node 22.18 or newer, `ffmpeg` on your PATH, and a Chromium for Playwright (`npx 
 
 ## Contributing
 
-Issues and pull requests are welcome. `npm test` runs the unit tests; `node bin/reporeel.js video` in this repository re-renders the video at the top of this README, which is the end-to-end test.
+Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). `npm test` runs the unit tests and an end-to-end render of the example app. `node bin/reporeel.js video` in this repository re-renders the video at the top of this README.
 
 ## License
 

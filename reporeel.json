@@ -1,27 +1,108 @@
 {
+  "$schema": "https://raw.githubusercontent.com/HarshDubey23/reporeel/main/schema/reporeel.schema.json",
   "title": "reporeel",
   "repo": "HarshDubey23/reporeel",
-  "app": { "url": "http://localhost:4321/", "start": "node examples/hello/server.js" },
-  "voice": { "provider": "elevenlabs", "voice": "JBFqnCBsd6RMkjVDRZzb", "speed": 1.05 },
-  "theme": { "accent": "#ff7a45" },
+  "app": {
+    "url": "http://localhost:4321/",
+    "start": "node examples/hello/server.js"
+  },
+  "voice": {
+    "provider": "elevenlabs",
+    "voice": "JBFqnCBsd6RMkjVDRZzb",
+    "speed": 1.05
+  },
+  "theme": {
+    "accent": "#ff7a45"
+  },
   "scenes": [
-    { "type": "title", "heading": "Your repo, explained in one command.", "sub": "A narrated video, a better README and a launch kit, from any repository.",
-      "say": "Most repositories never get understood. A visitor gives the README a few seconds, sees a wall of text, and leaves. reporeel fixes that with one command." },
-    { "type": "terminal", "commands": ["node bin/reporeel.js doctor --dir examples/hello | head -16"],
-      "say": "First it scores the repo the way a visitor sees it. This little app gets a D: no demo, no license, no way to know what it does." },
-    { "type": "terminal", "commands": ["node bin/reporeel.js --dir examples/hello --voice none 2>/dev/null | tail -4"], "timeoutMs": 400000,
-      "say": "Then run reporeel with no arguments. It writes a storyboard, records a narrated video, draws the architecture, makes a social card and updates the README. The score goes up on its own." },
-    { "type": "web", "url": "/", "actions": [{ "type": ["#text", "Paste any text. See how long it takes to read, and how hard it is. Short sentences help."] }, { "click": "#measure" }, { "zoom": "#result" }],
-      "say": "Web scenes drive the real app, with a cursor that glides, clicks that ripple, and a camera that zooms in on what matters." },
-    { "type": "code", "file": "src/storyboard.ts", "lines": [5, 28], "highlight": [[16, 24]], "caption": "the whole contract",
-      "say": "Everything lives in one storyboard file. Title cards, live web, real code, diagrams, terminal runs and numbers. A coding agent writes it, or Claude does, or you do." },
-    { "type": "diagram", "caption": "How it works",
+    {
+      "type": "title",
+      "heading": "Your repo, explained in one command.",
+      "sub": "A narrated video, a better README and a launch kit, from any repository.",
+      "say": "Most repositories never get understood. A visitor gives the README a few seconds, sees a wall of text, and leaves. reporeel fixes that with one command."
+    },
+    {
+      "type": "terminal",
+      "commands": [
+        "node bin/reporeel.js doctor --dir examples/hello | head -16"
+      ],
+      "say": "First it scores the repo the way a visitor sees it. This little app gets a D: no demo, no license, no way to know what it does."
+    },
+    {
+      "type": "terminal",
+      "commands": [
+        "node bin/reporeel.js --dir examples/hello --voice none 2>/dev/null | tail -4"
+      ],
+      "timeoutMs": 400000,
+      "say": "Then run reporeel with no arguments. It writes a storyboard, records a narrated video, draws the architecture, makes a social card and updates the README. The score goes up on its own."
+    },
+    {
+      "type": "web",
+      "url": "/",
+      "actions": [
+        {
+          "type": [
+            "#text",
+            "Paste any text. See how long it takes to read, and how hard it is. Short sentences help."
+          ]
+        },
+        {
+          "click": "#measure"
+        },
+        {
+          "zoom": "#result"
+        }
+      ],
+      "say": "Web scenes drive the real app, with a cursor that glides, clicks that ripple, and a camera that zooms in on what matters."
+    },
+    {
+      "type": "code",
+      "file": "src/storyboard.ts",
+      "lines": [
+        5,
+        28
+      ],
+      "highlight": [
+        [
+          16,
+          24
+        ]
+      ],
+      "caption": "the whole contract",
+      "say": "Everything lives in one storyboard file. Title cards, live web, real code, diagrams, terminal runs and numbers. A coding agent writes it, or Claude does, or you do."
+    },
+    {
+      "type": "diagram",
+      "caption": "How it works",
       "mermaid": "flowchart LR\n  R[Your repo] --> P[plan: agent or Claude]\n  P --> S[reporeel.json]\n  S --> V[voice: Kokoro or ElevenLabs]\n  S --> B[Chrome screencast]\n  V --> F[ffmpeg]\n  B --> F\n  F --> O[MP4, GIF, captions]\n  O --> D[README, social card, launch posts]",
-      "say": "The narration is spoken by a free local voice, or by ElevenLabs in Hindi and many other languages. Chrome records sharp frames, and ffmpeg puts it all together." },
-    { "type": "stats", "heading": "One tool, twelve jobs",
-      "items": [{ "value": "12", "label": "commands, from doctor to pull request videos" }, { "value": "7", "label": "scene types" }, { "value": "0", "label": "API keys needed with the default voice" }],
-      "say": "It also checks that your quickstart really works on a clean checkout, makes videos of pull requests, and keeps everything fresh on every release." },
-    { "type": "end", "heading": "npx reporeel", "links": ["github.com/HarshDubey23/reporeel"],
-      "say": "reporeel. Make your repo understood. This video was made by reporeel, from this storyboard." }
+      "say": "The narration is spoken by a free local voice, or by ElevenLabs in Hindi and many other languages. Chrome records sharp frames, and ffmpeg puts it all together."
+    },
+    {
+      "type": "stats",
+      "heading": "One tool, thirteen jobs",
+      "items": [
+        {
+          "value": "13",
+          "label": "commands, from doctor to pull request videos"
+        },
+        {
+          "value": "7",
+          "label": "scene types"
+        },
+        {
+          "value": "0",
+          "label": "API keys needed with the default voice"
+        }
+      ],
+      "say": "It also checks that your quickstart really works on a clean checkout, makes videos of pull requests, cuts vertical versions for Reels and LinkedIn, and keeps everything fresh on every release."
+    },
+    {
+      "type": "end",
+      "heading": "npx reporeel",
+      "links": [
+        "github.com/HarshDubey23/reporeel"
+      ],
+      "say": "reporeel. Make your repo understood. This video was made by reporeel, from this storyboard."
+    }
   ]
 }

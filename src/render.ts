@@ -2,7 +2,8 @@
 // README section. Frames come from Chrome's screencast (crisp JPEGs at full resolution), not from
 // Playwright's VP8 recorder, so text in code and UIs stays sharp.
 import { execSync, spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { duration, ffmpeg } from './ffmpeg.ts';
@@ -11,12 +12,43 @@ import { validate, type Action, type Scene, type Storyboard } from './storyboard
 import { sceneHtml } from './templates.ts';
 import { speak, type Clip } from './voice.ts';
 
-const LEAD = 0.5, TAIL = 0.8, FPS = 30;
+const LEAD = 0.5, TAIL = 0.8, FPS = 30, FADE = 0.2;
+/** Bump when recording changes in a way that should invalidate cached scenes. */
+const CACHE_VERSION = 3;
 const sleep = (ms: number) => new Promise(r => setTimeout(r, Math.max(0, ms)));
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/\r/g, '');
 
-export interface RenderOpts { out: string; log?: (m: string) => void; lang?: string }
-export interface Rendered { video: string; gif: string; srt: string; poster: string; sheet: string; readme: string; scenes: { id: string; type: string; start: number; seconds: number }[] }
+export interface RenderOpts {
+  out: string;
+  log?: (m: string) => void;
+  /** Use the say_<lang> narration of every scene. */
+  lang?: string;
+  /** 1-based scene numbers: render only these into preview.mp4, leaving the full outputs alone. */
+  only?: number[];
+  /** Ignore cached scenes and record everything again. */
+  fresh?: boolean;
+}
+export interface Rendered { video: string; gif: string; srt: string; poster: string; sheet: string; readme: string; scenes: { id: string; type: string; title: string; start: number; seconds: number }[] }
+
+/** What a scene is called in chapters and the README. */
+function chapterTitle(s: Scene, i: number): string {
+  if (s.type === 'title' || s.type === 'end') return s.heading;
+  if (s.type === 'code') return s.caption ?? s.file;
+  if (s.type === 'diagram') return s.caption ?? 'How it works';
+  if (s.type === 'stats') return s.heading ?? 'Numbers';
+  if (s.type === 'terminal') return `$ ${s.commands[0]}`.slice(0, 60);
+  const words = s.say.split(/\s+/).slice(0, 7).join(' ');
+  return words.replace(/[.,;:]$/, '') + (s.say.split(/\s+/).length > 7 ? '…' : '') || `Scene ${i + 1}`;
+}
+
+/** Everything that changes how a non-web scene looks or sounds. */
+function sceneKey(sb: Storyboard, s: Scene, clip: Clip, env: { size: object; accent: string; repoDir: string }): string {
+  const h = createHash('sha256');
+  h.update(JSON.stringify([CACHE_VERSION, s, clip, env.size, env.accent, sb.title, sb.repo, sb.theme?.captions]));
+  if (clip.file && existsSync(clip.file)) h.update(readFileSync(clip.file));
+  if (s.type === 'code' && existsSync(join(env.repoDir, s.file))) h.update(readFileSync(join(env.repoDir, s.file)));
+  return h.digest('hex').slice(0, 20);
+}
 
 export async function render(sb: Storyboard, file: string, o: RenderOpts): Promise<Rendered> {
   const log = o.log ?? (() => {});
@@ -27,6 +59,8 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
   }
   const errs = validate(sb);
   if (errs.length) throw new Error('storyboard is not valid:\n  ' + errs.join('\n  '));
+  const bad = (o.only ?? []).filter(n => !(n >= 1 && n <= sb.scenes.length));
+  if (bad.length) throw new Error(`--only ${bad.join(',')}: the storyboard has scenes 1 to ${sb.scenes.length}`);
   // `repo` is a folder relative to the storyboard, or an owner/name label; a label means "this folder".
   const candidate = resolve(file, '..', sb.repo ?? '.');
   const repoDir = existsSync(candidate) ? candidate : resolve(file, '..');
@@ -67,28 +101,60 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
       clips.splice(0, clips.length, ...clips.filter((_, i) => keep[i]));
     }
   }
-  const browser = await chromium.launch();
+  let browser: Browser;
+  try { browser = await chromium.launch(); }
+  catch (e) { app?.kill('SIGTERM'); throw new Error(`Playwright could not start Chromium. Run \`reporeel setup --fix\`.\n${(e as Error).message.split('\n')[0]}`); }
   const segs: string[] = [], timeline: Rendered['scenes'] = [];
-  let t = 0;
+  const cacheDir = join(out, '.cache', 'scenes');
+  mkdirSync(cacheDir, { recursive: true });
+  let t = 0, reused = 0;
   try {
     for (const [i, s] of sb.scenes.entries()) {
+      if (o.only && !o.only.includes(i + 1)) continue;
       const planned = Math.max(s.type === 'web' ? 3.5 : 3, clips[i].seconds + LEAD + TAIL);
-      log(`recording ${i + 1}/${sb.scenes.length}: ${s.type}${s.id ? ' ' + s.id : ''} (${planned.toFixed(1)}s)`);
       const seg = join(work, `seg${String(i).padStart(3, '0')}.mp4`);
-      const seconds = await recordScene(browser, sb, s, planned, clips[i], seg, { size, accent, repoDir, work: join(work, `f${i}`) });
+      // A scene that looks and sounds the same as last time is reused. Web scenes show a live
+      // app, so they are always recorded again.
+      const key = s.type === 'web' ? undefined : sceneKey(sb, s, clips[i], { size, accent, repoDir });
+      const hit = key && !o.fresh && existsSync(join(cacheDir, key + '.mp4')) && existsSync(join(cacheDir, key + '.json'));
+      let seconds: number;
+      if (hit) {
+        copyFileSync(join(cacheDir, key + '.mp4'), seg);
+        seconds = JSON.parse(readFileSync(join(cacheDir, key + '.json'), 'utf8')).seconds;
+        reused++;
+        log(`reusing   ${i + 1}/${sb.scenes.length}: ${s.type} (unchanged)`);
+      } else {
+        log(`recording ${i + 1}/${sb.scenes.length}: ${s.type}${s.id ? ' ' + s.id : ''} (${planned.toFixed(1)}s)`);
+        seconds = await recordScene(browser, sb, s, planned, clips[i], seg, { size, accent, repoDir, work: join(work, `f${i}`) });
+        if (key) { copyFileSync(seg, join(cacheDir, key + '.mp4')); writeFileSync(join(cacheDir, key + '.json'), JSON.stringify({ seconds })); }
+      }
       segs.push(seg);
-      timeline.push({ id: s.id ?? `${i + 1}-${s.type}`, type: s.type, start: t, seconds });
+      timeline.push({ id: s.id ?? `${i + 1}-${s.type}`, type: s.type, title: chapterTitle(s, i), start: t, seconds });
       t += seconds;
     }
   } finally {
     await browser.close();
     app?.kill('SIGTERM');
   }
+  if (reused) log(`reused ${reused} unchanged scene(s); pass --fresh to record everything again`);
+
+  if (o.only) {
+    const preview = join(out, 'preview.mp4');
+    writeFileSync(join(work, 'segs.txt'), segs.map(s => `file '${s}'`).join('\n'));
+    ffmpeg(['-f', 'concat', '-safe', '0', '-i', join(work, 'segs.txt'), '-c', 'copy', '-movflags', '+faststart', preview]);
+    rmSync(work, { recursive: true, force: true });
+    log(`preview of scene(s) ${o.only.join(', ')}: ${preview}`);
+    return { video: preview, gif: '', srt: '', poster: '', sheet: '', readme: '', scenes: timeline };
+  }
 
   log('assembling');
   const video = join(out, 'reporeel.mp4');  // per-language renders go to their own --out folder
   writeFileSync(join(work, 'segs.txt'), segs.map(s => `file '${s}'`).join('\n'));
-  ffmpeg(['-f', 'concat', '-safe', '0', '-i', join(work, 'segs.txt'), '-c', 'copy', '-movflags', '+faststart', video]);
+  // Chapters, so players (and YouTube, from the description) can jump to each scene.
+  const esc = (x: string) => x.replace(/[=;#\\\n]/g, m => (m === '\n' ? ' ' : '\\' + m));
+  writeFileSync(join(work, 'chapters.txt'), ';FFMETADATA1\ntitle=' + esc(sb.title) + '\n' + timeline.map(c =>
+    `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.round(c.start * 1000)}\nEND=${Math.round((c.start + c.seconds) * 1000)}\ntitle=${esc(c.title)}`).join('\n') + '\n');
+  ffmpeg(['-f', 'concat', '-safe', '0', '-i', join(work, 'segs.txt'), '-i', join(work, 'chapters.txt'), '-map', '0', '-map_metadata', '1', '-map_chapters', '1', '-c', 'copy', '-movflags', '+faststart', video]);
 
   const srt = join(out, 'reporeel.srt');
   const ts = (x: number) => new Date(Math.round(x * 1000)).toISOString().slice(11, 23).replace('.', ',');
@@ -125,6 +191,10 @@ function readmeSection(sb: Storyboard, tl: Rendered['scenes'], clips: Clip[]) {
 ### What the video covers
 
 ${sb.scenes.map((s, i) => `- **${mmss(tl[i].start)}** ${s.say}`).join('\n')}
+
+### Chapters
+
+${tl.map(c => `${mmss(c.start)} ${c.title}`).join('\n')}
 `;
 }
 
@@ -196,7 +266,8 @@ async function recordScene(browser: Browser, sb: Storyboard, s: Scene, seconds: 
   writeFileSync(join(env.work, 'frames.txt'), list);
   const audio = clip.file ? ['-i', clip.file] : ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo'];
   ffmpeg(['-f', 'concat', '-safe', '0', '-i', join(env.work, 'frames.txt'), ...audio,
-    '-filter_complex', `[0:v]fps=${FPS},scale=${env.size.width}:${env.size.height}:flags=lanczos,format=yuv420p[v];[1:a]adelay=${Math.round(LEAD * 1000)}:all=1,apad,aresample=44100,aformat=channel_layouts=stereo[a]`,
+    // A short dip between scenes; the audio gets a few milliseconds of fade so cuts never click.
+    '-filter_complex', `[0:v]fps=${FPS},scale=${env.size.width}:${env.size.height}:flags=lanczos,format=yuv420p,fade=t=in:st=0:d=${FADE},fade=t=out:st=${(seconds - FADE).toFixed(3)}:d=${FADE}[v];[1:a]adelay=${Math.round(LEAD * 1000)}:all=1,apad,aresample=44100,aformat=channel_layouts=stereo,afade=t=in:d=0.03,afade=t=out:st=${(seconds - 0.05).toFixed(3)}:d=0.05[a]`,
     '-map', '[v]', '-map', '[a]', '-t', seconds.toFixed(3), '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', seg]);
   rmSync(env.work, { recursive: true, force: true });
   return seconds;

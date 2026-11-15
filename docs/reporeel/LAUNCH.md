@@ -21,7 +21,7 @@ First comment (the HN convention: who you are, why you built it, what is rough):
     A narrated video, a better README and a launch kit, from any repository.
 
     I just open-sourced reporeel.
-    • 12 commands, from doctor to pull request videos
+    • 13 commands, from doctor to pull request videos
     • 7 scene types
     • 0 API keys needed with the default voice
 

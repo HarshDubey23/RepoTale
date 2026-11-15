@@ -1,0 +1,7 @@
+name: Idea
+description: A scene type, a voice, a format, a check for doctor
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes: { label: What should reporeel do, description: "And for which kind of repository." }
+    validations: { required: true }

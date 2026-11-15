@@ -6,3 +6,8 @@ docs/reporeel/.cache
 dist
 examples/hello/docs
 examples/hello/reporeel.json
+docs/reporeel/reporeel-vertical.mp4
+docs/reporeel/reporeel-square.mp4
+docs/reporeel/preview.mp4
+docs/reporeel/.frame-*.png
+examples/hello/package-lock.json

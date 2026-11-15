@@ -3,11 +3,16 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
+      - run: npx playwright install --with-deps chromium
       - run: npm run typecheck
+      - run: node bin/reporeel.js setup
+      # Unit tests, plus an end-to-end render of the example app with the bundled ffmpeg.
       - run: npm test
-      - run: node bin/reporeel.js doctor --min 80
+      - run: node bin/reporeel.js doctor --min 90
+      - run: npm run build && npm pack --dry-run
