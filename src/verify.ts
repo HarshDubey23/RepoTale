@@ -4,7 +4,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { childEnv, mustApprove, type Approve } from './exec.ts';
+import { childEnv, dockerArgs, mustApprove, type Approve, type Sandbox } from './exec.ts';
 
 export interface Step { cmd: string; ok: boolean; seconds: number; note: string; tail: string }
 
@@ -32,13 +32,18 @@ export function commandsFrom(md: string): string[] {
 }
 
 /** Runs one command; a server that is still up after `serveAfter` ms counts as started. */
-function run(cmd: string, cwd: string, timeoutMs: number, serveAfter: number): Promise<Omit<Step, 'cmd'>> {
+function run(cmd: string, cwd: string, timeoutMs: number, serveAfter: number, sandbox?: Sandbox): Promise<Omit<Step, 'cmd'>> {
   return new Promise(done => {
-    const t0 = Date.now(), p = spawn(cmd, { cwd, shell: true, detached: true, env: childEnv({ CI: '1', BROWSER: 'none' }) });
+    const looksLikeServer = /\b(dev|start|serve|preview|up|runserver|uvicorn|flask run|streamlit run)\b/.test(cmd);
+    const env = { CI: '1', BROWSER: 'none' };
+    // In a sandbox each command gets a fresh container; what one step installs reaches the next through the mounted checkout.
+    const t0 = Date.now(), p = sandbox
+      ? spawn('docker', dockerArgs(cmd, cwd, { ...sandbox, env, timeoutMs: looksLikeServer ? serveAfter + 5000 : timeoutMs }), { detached: true })
+      : spawn(cmd, { cwd, shell: true, detached: true, env: childEnv(env) });
     let out = '';
     const grab = (d: Buffer) => { out = (out + d.toString()).slice(-4000); };
     p.stdout.on('data', grab); p.stderr.on('data', grab);
-    const looksLikeServer = /\b(dev|start|serve|preview|up|runserver|uvicorn|flask run|streamlit run)\b/.test(cmd);
+    p.on('error', e => { clearTimeout(timer); done({ ok: false, seconds: 0, note: sandbox ? `could not start docker: ${e.message}` : e.message, tail: '' }); });
     const kill = () => { try { process.kill(-p.pid!, 'SIGTERM'); } catch {} };
     const timer = setTimeout(() => {
       kill();
@@ -52,7 +57,7 @@ function run(cmd: string, cwd: string, timeoutMs: number, serveAfter: number): P
   });
 }
 
-export async function verify(root: string, o: { timeoutMs?: number; log?: (m: string) => void; keep?: boolean; approve?: Approve } = {}) {
+export async function verify(root: string, o: { timeoutMs?: number; log?: (m: string) => void; keep?: boolean; approve?: Approve; sandbox?: Sandbox } = {}) {
   const log = o.log ?? (() => {});
   const readme = ['README.md', 'readme.md'].map(f => join(root, f)).find(f => { try { readFileSync(f); return true; } catch { return false; } });
   if (!readme) throw new Error('no README.md');
@@ -68,7 +73,7 @@ export async function verify(root: string, o: { timeoutMs?: number; log?: (m: st
     for (const cmd of cmds) {
       if (SKIP.test(cmd)) { steps.push({ cmd, ok: true, seconds: 0, note: 'skipped (needs a person or your machine)', tail: '' }); continue; }
       log(`$ ${cmd}`);
-      const r = await run(cmd, dir, o.timeoutMs ?? 600_000, 25_000);
+      const r = await run(cmd, dir, o.timeoutMs ?? 600_000, 25_000, o.sandbox);
       steps.push({ cmd, ...r });
       log(`  ${r.ok ? '✓' : '✗'} ${r.note} (${r.seconds.toFixed(1)}s)`);
       if (!r.ok) break;

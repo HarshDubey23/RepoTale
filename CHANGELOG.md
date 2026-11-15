@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `--sandbox [image]` runs terminal scenes and `verify` steps in a Docker container: only the repository is visible, no network unless `--net`, none of your environment, bounded memory, CPU, processes and time. `app.start` is not covered.
+- `plan --audience executive|developer|architecture|walkthrough|demo` for different cuts of the same repository (Claude planner only).
+- `bench/run.ts` and `bench/RESULTS.md`: the graph, the offline draft and the evidence check on 20 real repositories. Fixed from what it found: folder imports now follow `package.json` `main`, imported stylesheets and images are no longer counted as unresolved, code quoted inside a string is no longer read as an import, and the draft is valid for a workspace root with a nameless `package.json`.
+- This repository's own storyboard cites evidence for every claim, and `.github/workflows/media.yml` re-renders its video on demand.
 - `reporeel graph`: modules, top-level symbols and resolved imports for TypeScript, JavaScript and Python, as `graph.json` and a clickable `explore.html`. Static: nothing is run.
 - Scenes can cite `evidence` (file, line range, symbol, test). `reporeel check` reports each scene as observed, grounded, unsupported or broken; `video` refuses a storyboard with a broken citation, including a code scene whose lines are not in the file.
 - Every render writes `evidence.json` (commit and a hash of each cited range); `check` names the scenes that are out of date with the code.

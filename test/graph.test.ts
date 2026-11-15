@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import { check, stale } from '../src/evidence.ts';
 import { explorerHtml } from '../src/explore.ts';
 import { analyze, impact } from '../src/graph.ts';
+import { draft } from '../src/plan.ts';
 import { validate, type Storyboard } from '../src/storyboard.ts';
 
 const FILES: Record<string, string> = {
@@ -42,6 +43,27 @@ test('imports become edges only when they resolve to a file; the rest stay unres
   assert.deepEqual(mod(g, 'tests/test_api.py').imports, ['app/__init__.py', 'app/api.py']);
   assert.deepEqual(g.modules.filter(m => m.test).map(m => m.file), ['test/auth.test.ts', 'tests/test_api.py']);
   assert.equal(g.commit, null, 'not a git checkout, so no commit is claimed');
+});
+
+// Each of these was a wrong answer on a real repository in bench/RESULTS.md before it was fixed.
+test('folder imports follow package.json main, assets are not misses, and quoted code is not an import', () => {
+  const g = analyze(repo({
+    'pkg/package.json': '{ "main": "lib/entry" }', 'pkg/lib/entry.js': 'module.exports = 1;\n',
+    'pkg/test/main.test.js': "const pkg = require('..');\nconst missing = require('../nowhere');\n",
+    'web/app.js': "import './app.css?inline';\nimport logo from './logo.svg';\nimport gone from './gone.png';\nconst cmd = \"node -e \\\"require('leftpad')\\\"\";\nconst real = require('rightpad');\n",
+    'web/app.css': 'a{}', 'web/logo.svg': '<svg/>',
+  }));
+  assert.deepEqual([mod(g, 'pkg/test/main.test.js').imports, mod(g, 'pkg/test/main.test.js').unresolved], [['pkg/lib/entry.js'], ['../nowhere']]);
+  const app = mod(g, 'web/app.js');
+  assert.deepEqual([app.imports, app.unresolved, app.external], [[], ['./gone.png'], ['rightpad']]);
+});
+
+test('a draft for a repository with a nameless package.json and nothing detectable is still a valid storyboard', () => {
+  const dir = repo({ 'package.json': '{ "private": true }' });
+  const d = draft(dir);
+  assert.deepEqual(validate(d), []);
+  assert.doesNotMatch(JSON.stringify(d), /undefined|0 parts/);
+  assert.deepEqual(check(d, dir).scenes.flatMap(s => s.problems), []);
 });
 
 test('top-level symbols are listed with their real line, kind and visibility; nested ones are not', () => {

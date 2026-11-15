@@ -1,0 +1,52 @@
+# Re-renders this repository's own video, diagram and social card from reporeel.json, with the code
+# on the branch it is run from. Started by hand only. By default the result is attached to the run
+# so it can be watched first; tick "commit" to put it on the branch.
+name: media
+on:
+  workflow_dispatch:
+    inputs:
+      voice:
+        description: elevenlabs needs the ELEVENLABS_API_KEY secret; kokoro is free and local
+        type: choice
+        options: [elevenlabs, kokoro, none]
+        default: elevenlabs
+      commit:
+        description: Commit the new media to this branch
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Fails here, before any recording, if the storyboard cites something that is not in the repo.
+      - run: node bin/reporeel.js check
+      - run: node bin/reporeel.js video --run --fresh --voice "$VOICE"
+        env:
+          VOICE: ${{ inputs.voice }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      - run: node bin/reporeel.js diagram && node bin/reporeel.js social && node bin/reporeel.js readme && node bin/reporeel.js graph
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reporeel-media
+          path: docs/reporeel
+      - name: Commit the refreshed media
+        if: ${{ inputs.commit }}
+        env:
+          ACTOR: ${{ github.actor }}
+          ACTOR_ID: ${{ github.actor_id }}
+        run: |
+          git config user.name "$ACTOR"
+          git config user.email "$ACTOR_ID+$ACTOR@users.noreply.github.com"
+          # Only the media: the terminal scenes also run reporeel on examples/hello, and that stays out.
+          git add docs/reporeel README.md
+          git diff --cached --quiet || { git commit -m "docs: refresh reporeel media" && git push; }

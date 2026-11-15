@@ -31,7 +31,7 @@
     {
       "type": "terminal",
       "commands": [
-        "node bin/reporeel.js --dir examples/hello --voice none 2>/dev/null | tail -4"
+        "node bin/reporeel.js --dir examples/hello --voice none --run 2>/dev/null | tail -4"
       ],
       "timeoutMs": 400000,
       "say": "Then run reporeel with no arguments. It writes a storyboard, records a narrated video, draws the architecture, makes a social card and updates the README. The score goes up on its own."
@@ -75,14 +75,44 @@
       "type": "diagram",
       "caption": "How it works",
       "mermaid": "flowchart LR\n  R[Your repo] --> P[plan: agent or Claude]\n  P --> S[reporeel.json]\n  S --> V[voice: Kokoro or ElevenLabs]\n  S --> B[Chrome screencast]\n  V --> F[ffmpeg]\n  B --> F\n  F --> O[MP4, GIF, captions]\n  O --> D[README, social card, launch posts]",
-      "say": "The narration is spoken by a free local voice, or by ElevenLabs in Hindi and many other languages. Chrome records sharp frames, and ffmpeg puts it all together."
+      "say": "The narration is spoken by a free local voice, or by ElevenLabs in Hindi and many other languages. Chrome records sharp frames, and ffmpeg puts it all together.",
+      "evidence": [
+        {
+          "kind": "symbol",
+          "id": "src/plan.ts#planWithClaude"
+        },
+        {
+          "kind": "symbol",
+          "id": "src/voice.ts#speak"
+        },
+        {
+          "kind": "symbol",
+          "id": "src/render.ts#render"
+        },
+        {
+          "kind": "symbol",
+          "id": "src/ffmpeg.ts#ffmpeg"
+        },
+        {
+          "kind": "symbol",
+          "id": "src/readme.ts#writeReadme"
+        },
+        {
+          "kind": "symbol",
+          "id": "src/media.ts#socialCard"
+        },
+        {
+          "kind": "symbol",
+          "id": "src/posts.ts#launchPosts"
+        }
+      ]
     },
     {
       "type": "stats",
-      "heading": "One tool, thirteen jobs",
+      "heading": "One tool, fifteen jobs",
       "items": [
         {
-          "value": "13",
+          "value": "15",
           "label": "commands, from doctor to pull request videos"
         },
         {
@@ -94,7 +124,21 @@
           "label": "API keys needed with the default voice"
         }
       ],
-      "say": "It also checks that your quickstart really works on a clean checkout, makes videos of pull requests, cuts vertical versions for Reels and LinkedIn, and keeps everything fresh on every release."
+      "say": "It also checks that your quickstart really works on a clean checkout, makes videos of pull requests, cuts vertical versions for Reels and LinkedIn, and keeps everything fresh on every release.",
+      "evidence": [
+        {
+          "kind": "symbol",
+          "id": "src/cli.ts#commands"
+        },
+        {
+          "kind": "symbol",
+          "id": "src/storyboard.ts#Scene"
+        },
+        {
+          "kind": "symbol",
+          "id": "src/voice.ts#speak"
+        }
+      ]
     },
     {
       "type": "end",

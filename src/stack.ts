@@ -1,7 +1,7 @@
 // Reads manifests to work out what a project is built with. Used for the default architecture
 // diagram and the first draft of a storyboard. Deterministic: no model involved.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 
 export interface Part { dir: string; name: string; kind: 'frontend' | 'backend' | 'cli' | 'library' | 'ml' | 'contracts' | 'infra' | 'tests' | 'docs'; tech: string[] }
 export interface Stack { name: string; parts: Part[]; stores: string[]; services: string[]; dev?: { cmd: string; port: number; dir: string } }
@@ -51,7 +51,8 @@ function part(root: string, rel: string): Part | undefined {
 }
 
 export function detect(root: string): Stack {
-  const name = (() => { try { return JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).name; } catch { return root.split('/').pop()!; } })();
+  // A workspace root often has a package.json with no name; the folder name is the honest fallback.
+  const name: string = (() => { try { const n = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).name; if (typeof n === 'string' && n) return n; } catch {} return basename(resolve(root)); })();
   const subdirs = readdirSync(root, { withFileTypes: true }).filter(e => e.isDirectory() && !e.name.startsWith('.') && !['node_modules', 'dist', 'build', 'docs'].includes(e.name)).map(e => e.name);
   const parts = [part(root, ''), ...subdirs.map(s => part(root, s))].filter((p): p is Part => !!p);
   const all = [root, ...subdirs.map(s => join(root, s))].flatMap(d => deps(d).names);

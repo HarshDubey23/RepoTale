@@ -189,6 +189,10 @@ Every render writes `evidence.json` next to the video: the commit, and a hash of
 
 What this does and does not prove: a `grounded` scene cites something that exists at that commit. It does not prove the narration describes it correctly. The graph is built by matching declarations and imports, not by parsing: it lists top-level symbols and imports that resolve to a file, and it does not trace calls.
 
+With `ANTHROPIC_API_KEY` set, `reporeel plan --audience executive|developer|architecture|walkthrough|demo` asks Claude for a different cut of the same repository: a 30-second pitch, a first-day introduction, a deep dive, one feature end to end, or the product with no code. The evidence rules are the same for all of them.
+
+The static parts were run on 20 real repositories (Express, Vite, Django, FastAPI and others): [bench/RESULTS.md](bench/RESULTS.md) has the numbers, the commits, and what they do not measure. `node bench/run.ts` reproduces it.
+
 ## What reporeel runs, and when
 
 A README and a storyboard are input, and a storyboard may have been written by a model that read someone else's repository. So:
@@ -197,7 +201,8 @@ A README and a storyboard are input, and a storyboard may have been written by a
 - `video`, `pr`, `shots` and `verify` list the exact commands they need (terminal scenes, `app.start`, README setup blocks) and ask before running any of them. `--run` approves up front, for CI. With no terminal and no `--run`, they refuse.
 - Those commands do not see environment variables that look like credentials (`*KEY*`, `*TOKEN*`, `*SECRET*`, `*PASSWORD*`, `*AUTH*`). `REPOREEL_PASS_ENV=NAME,NAME` lets named ones through.
 - Code scenes can only show files inside the repository, and web scenes only `http`/`https` pages.
-- This is consent, not a sandbox: an approved command has your user's file and network access. For a repository you do not trust, run reporeel in a container or a throwaway VM.
+- Approval alone is consent, not a sandbox: an approved command has your user's file and network access. For a repository you do not trust, add `--sandbox` (needs Docker). Terminal scenes and `verify` steps then run in a throwaway container that sees the repository and nothing else of your machine, has no network unless you add `--net`, gets none of your environment, and is limited in memory, CPU, processes and time. `--sandbox python:3.12-slim` picks another image; the default is `node:22-slim`.
+- What `--sandbox` does not cover: `app.start` still runs on your machine, because the browser has to reach it, and the container can write to the mounted repository. A container is not a VM.
 
 ## Limits
 

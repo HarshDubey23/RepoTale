@@ -1,13 +1,13 @@
 // Hostile input: a README, a storyboard and an environment that try to make reporeel run or reveal
 // something nobody approved.
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { writeWorkflow } from '../src/ci.ts';
-import { childEnv, mustApprove } from '../src/exec.ts';
+import { childEnv, dockerArgs, mustApprove } from '../src/exec.ts';
 import { render } from '../src/render.ts';
 import { validate } from '../src/storyboard.ts';
 import { verify } from '../src/verify.ts';
@@ -48,6 +48,48 @@ test('an approved README command runs, and cannot read a token from our environm
   try {
     const r = await verify(dir, { approve: () => true });
     assert.deepEqual(r.steps.map(s => [s.ok, s.note]), [[true, 'ok']]);
+  } finally { had === undefined ? delete process.env.GITHUB_TOKEN : (process.env.GITHUB_TOKEN = had); }
+});
+
+test('the sandbox command line shares the repo and nothing else', () => {
+  const had = [process.env.REPOREEL_PASS_ENV, process.env.GITHUB_TOKEN];
+  process.env.REPOREEL_PASS_ENV = 'NPM_TOKEN'; process.env.GITHUB_TOKEN = 'ghp_x';
+  try {
+    const a = dockerArgs('npm test && echo "a b"', '/repo/dir', { image: 'node:22-slim', workdir: 'packages\\app', timeoutMs: 90_500, env: { CI: '1' } });
+    const after = (flag: string) => a.flatMap((x, i) => (x === flag ? [a[i + 1]] : []));
+    assert.deepEqual(after('--network'), ['none'], 'no network unless asked');
+    assert.deepEqual(after('-v'), ['/repo/dir:/work'], 'exactly one mount: the repo');
+    assert.deepEqual(after('-w'), ['/work/packages/app']);
+    // The only environment is what we name: no host variable is copied by value, and a passed one is named, not inlined.
+    assert.deepEqual(after('-e'), ['HOME=/tmp', 'CI=1', 'NPM_TOKEN']);
+    assert.ok(!a.join(' ').includes('ghp_x') && !a.includes('--privileged') && !a.includes('--env-file'));
+    assert.deepEqual(after('--cap-drop'), ['ALL']);
+    assert.deepEqual(after('--security-opt'), ['no-new-privileges']);
+    // The command is one argument to sh, so its quotes and && cannot leak into docker's own flags; the limit is rounded up.
+    assert.deepEqual(a.slice(a.indexOf('node:22-slim')), ['node:22-slim', 'timeout', '91', 'sh', '-c', 'npm test && echo "a b"']);
+    assert.deepEqual(dockerArgs('x', '/r', { image: 'i', network: true, timeoutMs: 1000 }).flatMap((x, i, all) => (x === '--network' ? [all[i + 1]] : [])), ['bridge']);
+  } finally { for (const [k, v] of [['REPOREEL_PASS_ENV', had[0]], ['GITHUB_TOKEN', had[1]]] as const) v === undefined ? delete process.env[k] : (process.env[k] = v); }
+});
+
+test('in the sandbox a README command sees the checkout, but not this machine, its secrets or the network', { timeout: 240_000 }, async t => {
+  if (spawnSync('docker', ['info'], { stdio: 'ignore' }).status !== 0) return t.skip('docker is not running here');
+  const dir = tmp(), outside = join(tmp(), 'host-only.txt');
+  writeFileSync(outside, 'x');
+  const node = (js: string) => `node -e "${js}"`;
+  writeFileSync(join(dir, 'README.md'), ['# x', '', '## Install', '', '```bash',
+    node("process.exit(require('fs').existsSync('/work/README.md') ? 0 : 1)"),
+    node(`process.exit(require('fs').existsSync('${outside.replaceAll('\\', '/')}') ? 1 : 0)`),
+    node("process.exit(process.env.GITHUB_TOKEN ? 1 : 0)"),
+    node("fetch('https://example.com').then(() => process.exit(1), () => process.exit(0))"),
+    node("require('fs').writeFileSync('/work/made-inside', 'x')"),
+    node("process.exit(require('fs').existsSync('/work/made-inside') ? 0 : 1)"),
+    '```', ''].join('\n'));
+  for (const a of [['init', '-q'], ['add', '.'], ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'x']]) execFileSync('git', a, { cwd: dir });
+  const had = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'ghp_should_not_leak';
+  try {
+    const r = await verify(dir, { approve: () => true, sandbox: { image: 'node:22-slim' } });
+    assert.deepEqual(r.steps.map(s => `${s.ok} ${s.note}`), Array(6).fill('true ok'), r.steps.map(s => s.tail).join('\n'));
   } finally { had === undefined ? delete process.env.GITHUB_TOKEN : (process.env.GITHUB_TOKEN = had); }
 });
 

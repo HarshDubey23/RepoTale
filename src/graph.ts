@@ -54,10 +54,25 @@ function pySymbols(file: string, lines: string[]): Sym[] {
   return out;
 }
 
+/** Does this start of a line end inside a quoted string? Strings that span lines are not followed. */
+function inString(before: string): boolean {
+  let open = '';
+  for (let i = 0; i < before.length; i++) {
+    const c = before[i];
+    if (c === '\\') i++;
+    else if (open ? c === open : c === "'" || c === '"' || c === '`') open = open ? '' : c;
+  }
+  return open !== '';
+}
+
 /** Import specifiers as written, comments removed first so commented-out imports do not count. */
 function jsSpecs(text: string): string[] {
   const code = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-  return [...code.matchAll(/\b(?:import|export)\s+(?:type\s+)?(?:[\w$*{}\s,]+?\sfrom\s+)?['"]([^'"\n]+)['"]|\b(?:require|import)\(\s*['"]([^'"\n]+)['"]\s*\)/g)].map(m => m[1] ?? m[2]);
+  return [...code.matchAll(/\b(?:import|export)\s+(?:type\s+)?(?:[\w$*{}\s,]+?\sfrom\s+)?['"]([^'"\n]+)['"]|\b(?:require|import)\(\s*['"]([^'"\n]+)['"]\s*\)/g)]
+    // A require(...) written inside a string on the same line is text, not an import.
+    .filter(m => m[1] !== undefined || !inString(code.slice(code.lastIndexOf('\n', m.index) + 1, m.index)))
+    // "./a.css?inline" names the file ./a.css.
+    .map(m => (m[1] ?? m[2]).replace(/[?#].*$/, ''));
 }
 
 /** Each entry is one import statement as a list of candidates: `from pkg import a` may mean the
@@ -74,7 +89,8 @@ function pySpecs(text: string): string[][] {
 }
 
 export function analyze(root: string): Graph {
-  const all = files(root).filter(f => CODE.test(f) && !SKIP.test(f)).sort();
+  const everything = new Set(files(root));
+  const all = [...everything].filter(f => CODE.test(f) && !SKIP.test(f)).sort();
   const have = new Set(all);
   const pick = (cands: string[]) => cands.map(c => posix.normalize(c)).find(c => have.has(c));
   const modules: Mod[] = [], symbols: Sym[] = [];
@@ -86,8 +102,12 @@ export function analyze(root: string): Graph {
     if (lang === 'js') for (const spec of jsSpecs(text)) {
       if (spec.startsWith('.')) {
         const base = posix.join(dir, spec), bare = base.replace(/\.(js|jsx|mjs|cjs)$/, '');
-        const hit = pick([base, ...JS_EXT.map(e => bare + e), ...JS_EXT.map(e => base + e), ...JS_EXT.map(e => posix.join(base, 'index' + e))]);
-        hit ? imports.add(hit) : unresolved.add(spec);
+        // A folder import goes through that folder's package.json "main" before index.*, as Node does.
+        let main: string[] = [];
+        if (everything.has(posix.join(base, 'package.json'))) try { const m = JSON.parse(readFileSync(join(root, base, 'package.json'), 'utf8')).main; if (typeof m === 'string') main = [posix.join(base, m), ...JS_EXT.map(e => posix.join(base, m + e)), posix.join(base, m, 'index.js')]; } catch {}
+        const hit = pick([base, ...JS_EXT.map(e => bare + e), ...JS_EXT.map(e => base + e), ...main, ...JS_EXT.map(e => posix.join(base, 'index' + e))]);
+        // A stylesheet, image or JSON file that exists is a real import, just not of a module: no edge, and not a miss.
+        if (hit) imports.add(hit); else if (!everything.has(posix.normalize(base))) unresolved.add(spec);
       } else if (!spec.startsWith('node:')) external.add(spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : spec.split('/')[0]);
     } else for (const alts of pySpecs(text)) {
       const hits = alts.flatMap(spec => {

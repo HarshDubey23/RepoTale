@@ -9,7 +9,7 @@ import { checkSetup, formatSetup } from './setup.ts';
 import { doctor, format } from './doctor.ts';
 import { mustApprove } from './exec.ts';
 import { diagram, shots, socialCard } from './media.ts';
-import { draft, planWithClaude, translate } from './plan.ts';
+import { AUDIENCES, draft, planWithClaude, translate } from './plan.ts';
 import { launchPosts } from './posts.ts';
 import { prStoryboard } from './pr.ts';
 import { writeReadme } from './readme.ts';
@@ -31,6 +31,8 @@ const sbFile = resolve(root, flag('storyboard', 'reporeel.json')!);
 const log = (m: string) => process.stderr.write(m + '\n');
 const say = (m: string) => process.stdout.write(m + '\n');
 
+// --sandbox [image] runs approved commands in a container with no network (--net allows it) and nothing of this machine but the repo.
+const sandbox = on('sandbox') ? { image: (v => (v && !v.startsWith('--') ? v : 'node:22-slim'))(flag('sandbox')), network: on('net') } : undefined;
 // --run approves up front; at a terminal you are shown the commands and asked; otherwise they are refused.
 const approve = async (cmds: string[]) => {
   if (on('run')) return true;
@@ -63,7 +65,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     if (flag('min') && r.score < +flag('min')!) process.exitCode = 1;
   } },
   verify: { help: 'run the README setup commands on a clean checkout (asks first; --run to allow)', async run() {
-    const r = await verify(root, { log, keep: on('keep'), approve });
+    const r = await verify(root, { log, keep: on('keep'), approve, sandbox });
     say(r.found ? `\n  ${r.ok ? 'quickstart works' : 'quickstart is broken'}: ${r.steps.filter(s => s.ok).length}/${r.steps.length} steps passed` : '\n  no setup commands found in the README');
     const bad = r.steps.find(s => !s.ok);
     if (bad) say(`  failed: $ ${bad.cmd}  (${bad.note})\n${bad.tail.split('\n').map(l => '    ' + l).join('\n')}`);
@@ -85,9 +87,12 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     say(on('json') ? JSON.stringify({ ...r, stale: old?.stale ?? null }, null, 1) : formatReport(r, old));
     if (r.scenes.some(s => s.status === 'broken') || (on('strict') && (r.scenes.some(s => s.status === 'unsupported') || old?.stale.length))) process.exitCode = 1;
   } },
-  plan: { help: 'write reporeel.json (Claude if ANTHROPIC_API_KEY is set, otherwise an offline draft)', async run() {
+  plan: { help: 'write reporeel.json (Claude if ANTHROPIC_API_KEY is set, otherwise an offline draft; --audience executive|developer|architecture|walkthrough|demo shapes what Claude writes)', async run() {
     const useClaude = !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) && !on('offline');
-    const sb = useClaude ? await planWithClaude(root, { model: flag('model'), log }) : draft(root);
+    const audience = flag('audience') as keyof typeof AUDIENCES | undefined;
+    if (audience && !(audience in AUDIENCES)) throw new Error(`--audience is one of: ${Object.keys(AUDIENCES).join(', ')}`);
+    if (audience && !useClaude) log('note: --audience shapes what Claude writes; the offline draft is the same for every audience');
+    const sb = useClaude ? await planWithClaude(root, { model: flag('model'), audience, log }) : draft(root);
     save(sb);
     say(`wrote ${sbFile}: ${sb.scenes.length} scenes${useClaude ? '' : ' (offline draft: edit it, or set ANTHROPIC_API_KEY, or ask your coding agent to use the reporeel skill)'}`);
   } },
@@ -97,7 +102,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     const lang = flag('lang');
     if (lang && (sb.voice?.provider ?? 'kokoro') === 'kokoro') sb.voice = { provider: 'elevenlabs', voice: sb.voice?.voice?.length === 20 ? sb.voice.voice : undefined };
     const only = flag('only')?.split(',').map(Number);
-    const r = await render(sb, sbFile, { out: lang ? join(out, lang) : out, log, lang, only, fresh: on('fresh'), approve });
+    const r = await render(sb, sbFile, { out: lang ? join(out, lang) : out, log, lang, only, fresh: on('fresh'), approve, sandbox });
     say(only ? `preview ${r.video}` : `video ${r.video}\ngif   ${r.gif}\nsheet ${r.sheet}`);
   } },
   dub: { help: 'add a translated narration (--lang hi) with Claude, then render it with ElevenLabs', async run() {
@@ -147,7 +152,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     const file = join(out, 'pr', 'storyboard.json');
     mkdirSync(join(out, 'pr'), { recursive: true });
     writeFileSync(file, JSON.stringify({ ...sb, repo: resolve(root) }, null, 2));
-    const r = await render({ ...sb, repo: resolve(root), voice: { provider: (flag('voice') as any) ?? 'kokoro' } }, file, { out: join(out, 'pr'), log, approve });
+    const r = await render({ ...sb, repo: resolve(root), voice: { provider: (flag('voice') as any) ?? 'kokoro' } }, file, { out: join(out, 'pr'), log, approve, sandbox });
     say(`pr video ${r.video}`);
   } },
   ci: { help: 'add a GitHub Action: doctor and verify on PRs, fresh media on releases', async run() { say(`wrote ${writeWorkflow(root)}`); } },
@@ -157,7 +162,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     if (items.some(i => i.required && !i.ok)) process.exitCode = 1;
   } },
   help: { help: 'this list', async run() {
-    say(`reporeel: make your repository understood\n\n  reporeel            everything, with the score before and after\n${Object.entries(commands).filter(([k]) => k !== 'go').map(([k, v]) => `  reporeel ${k.padEnd(10)} ${v.help}`).join('\n')}\n\n  common: --run (allow the commands a storyboard or README asks for, without the prompt) --dir <repo> --out <folder, default docs/reporeel> --storyboard <file, default reporeel.json>\n`);
+    say(`reporeel: make your repository understood\n\n  reporeel            everything, with the score before and after\n${Object.entries(commands).filter(([k]) => k !== 'go').map(([k, v]) => `  reporeel ${k.padEnd(10)} ${v.help}`).join('\n')}\n\n  common: --run (allow the commands a storyboard or README asks for, without the prompt) --sandbox [image] (run them in a Docker container, no network unless --net) --dir <repo> --out <folder, default docs/reporeel> --storyboard <file, default reporeel.json>\n`);
   } },
 };
 

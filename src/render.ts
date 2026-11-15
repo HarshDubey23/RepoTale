@@ -1,13 +1,13 @@
 // storyboard.json -> narrated MP4, silent GIF preview, captions (.srt), poster, contact sheet and a
 // README section. Frames come from Chrome's screencast (crisp JPEGs at full resolution), not from
 // Playwright's VP8 recorder, so text in code and UIs stays sharp.
-import { execSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, execSync, spawn, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { check } from './evidence.ts';
-import { childEnv, mustApprove, type Approve } from './exec.ts';
+import { childEnv, dockerArgs, mustApprove, type Approve, type Sandbox } from './exec.ts';
 import { duration, ffmpeg } from './ffmpeg.ts';
 import { OVERLAY } from './overlay.ts';
 import { validate, type Action, type Scene, type Storyboard } from './storyboard.ts';
@@ -31,6 +31,8 @@ export interface RenderOpts {
   fresh?: boolean;
   /** Asked once, with every terminal-scene command and app.start, before anything runs. Without it they are refused. */
   approve?: Approve;
+  /** Run terminal-scene commands in a container. `app.start` still runs on this machine: the browser has to reach it. */
+  sandbox?: Sandbox;
 }
 export interface Rendered { video: string; gif: string; srt: string; poster: string; sheet: string; readme: string; scenes: { id: string; type: string; title: string; start: number; seconds: number }[] }
 
@@ -95,7 +97,11 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
   for (const s of sb.scenes) if (s.type === 'terminal') {
     (s as any).__runs = s.commands.map(cmd => {
       let outp: string;
-      try { outp = execSync(cmd, { cwd: resolve(repoDir, s.cwd ?? '.'), timeout: s.timeoutMs ?? 120_000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: childEnv({ FORCE_COLOR: '0', CI: '1' }) }); }
+      const env = { FORCE_COLOR: '0', CI: '1' }, timeout = s.timeoutMs ?? 120_000, io: { encoding: 'utf8'; stdio: ['ignore', 'pipe', 'pipe'] } = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] };
+      try {
+        outp = o.sandbox ? execFileSync('docker', dockerArgs(cmd, repoDir, { ...o.sandbox, workdir: s.cwd, env, timeoutMs: timeout }), { ...io, timeout: timeout + 30_000 })
+          : execSync(cmd, { ...io, cwd: resolve(repoDir, s.cwd ?? '.'), timeout, env: childEnv(env) });
+      }
       catch (e: any) { outp = (e.stdout ?? '') + (e.stderr ?? ''); }
       const lines = stripAnsi(outp).trimEnd().split('\n');
       log(`  ran: ${cmd} (${lines.length} lines)`);
@@ -105,6 +111,7 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
 
   let app: ChildProcess | undefined;
   if (sb.scenes.some(s => s.type === 'web') && sb.app?.start) {
+    if (o.sandbox) log('warning: app.start runs on this machine, outside the sandbox, so the browser can reach it');
     try { app = await startApp(sb.app, repoDir, log); }
     catch (e) {
       // The rest of the video is still worth having; say clearly what was left out.
