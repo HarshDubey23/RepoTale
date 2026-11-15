@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `doctor` reports a private key only when key material follows the header, so tests that guard against keys are no longer flagged.
 - `doctor` finds the one-line description when badges, images or HTML come first.
 
 ## 0.2.0

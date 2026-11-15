@@ -39,3 +39,13 @@ test('badges above the description do not hide it', async () => {
   assert.ok(oneLiner('# x\n\n[![npm](https://img.shields.io/npm/v/x)](https://npm.im/x) ![ci](b.svg)\n\n**x** turns any repo into a narrated video.\n'));
   assert.ok(!oneLiner('# x\n\n[![npm](https://img.shields.io/npm/v/x)](https://npm.im/x)\n\n## Install\n'));
 });
+
+test('a private-key header with no key under it is not reported', () => {
+  const body = 'MIIEowIBAAKCAQEA' + 'q'.repeat(48);
+  const r = doctor(repo({
+    'tests/guard.py': 'assert "-----BEGIN RSA PRIVATE KEY-----" not in content\n',
+    'deploy/key.pem': `-----BEGIN RSA PRIVATE KEY-----\n${body}\n-----END RSA PRIVATE KEY-----\n`,
+    'README.md': '# x',
+  }));
+  assert.deepEqual(r.secrets.map(s => s.file), ['deploy/key.pem']);
+});

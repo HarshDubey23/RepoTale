@@ -61,7 +61,15 @@ export function doctor(dir: string): Report {
     if (st.size > 2_000_000 || /\.(png|jpe?g|gif|webp|mp4|zip|gz|woff2?|ttf|pdf|ico|wasm|zkey|lock)$/i.test(f)) continue;
     const text = readFileSync(p, 'utf8');
     if (text.includes('\0')) continue;
-    text.split('\n').forEach((line, i) => { for (const [kind, re] of SECRETS) if (re.test(line)) secrets.push({ file: f, line: i + 1, kind }); });
+    const lines = text.split('\n');
+    lines.forEach((line, i) => {
+      for (const [kind, re] of SECRETS) {
+        if (!re.test(line)) continue;
+        // A key header alone (in a test that looks for keys, or in docs) is not a key: require key material after it.
+        if (kind === 'private key' && !/^[A-Za-z0-9+/=]{40,}\s*$/.test(lines[i + 1] ?? '')) continue;
+        secrets.push({ file: f, line: i + 1, kind });
+      }
+    });
   }
   const envFiles = all.filter(f => /(^|\/)\.env(\.[\w-]+)?$/.test(f) && !/\.(example|sample|template)$/.test(f));
   const bigFiles = all.filter(f => { try { return statSync(join(dir, f)).size > 25_000_000; } catch { return false; } });
