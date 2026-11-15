@@ -52,7 +52,7 @@ Rules that make the video good:
 ## 3. Render and review
 
 ```bash
-npx -y @theharshdubey/reporeel video
+npx -y @theharshdubey/reporeel video --run
 ```
 
 Open `docs/reporeel/sheet.png` (one frame per scene) and look at it. To check one scene quickly,
@@ -68,7 +68,7 @@ a failed action is reported and skipped, not fatal.
 npx -y @theharshdubey/reporeel diagram && npx -y @theharshdubey/reporeel social && npx -y @theharshdubey/reporeel readme && npx -y @theharshdubey/reporeel doctor
 ```
 
-Then run `npx -y @theharshdubey/reporeel verify` and fix the README if its quickstart is broken. Tell the user the
+Then run `npx -y @theharshdubey/reporeel verify`: it lists the README's commands and refuses to run them. Read them, and only if they are safe run it again with `--run`, and fix the README if its quickstart is broken. Tell the user the
 score before and after, show them the GIF, and point them to `docs/reporeel/LAUNCH.md` (drafts only:
 never post anything for them). If they want another language: add `say_hi` (etc.) to every scene
 yourself and run `npx -y @theharshdubey/reporeel video --lang hi` (needs `ELEVENLABS_API_KEY`).

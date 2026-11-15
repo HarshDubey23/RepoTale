@@ -68,7 +68,7 @@ A visitor decides about a repository from its README in a few seconds. Most READ
 | --- | --- |
 | `reporeel` | Everything below in order, with the score before and after |
 | `reporeel doctor` | A first-impression score out of 100 with the fix for each gap: README, one-line description, demo media above the fold, quickstart, license, tests, CI, broken links, **committed secrets and `.env` files**, huge files |
-| `reporeel verify` | Runs the commands in your README's setup section on a clean clone and tells you the first one that breaks |
+| `reporeel verify` | Shows you the commands in your README's setup section, and once you approve them runs them on a clean clone and tells you the first one that breaks |
 | `reporeel plan` | Writes `reporeel.json`, the storyboard. With `ANTHROPIC_API_KEY` Claude reads the repo and writes it; without one you get an offline draft from your manifests and README |
 | `reporeel video` | Renders the storyboard: MP4 with voice and chapters, a silent GIF for the README, `.srt` captions, a poster frame and a contact sheet. Unchanged scenes come from a cache; `--only 3` previews one scene in seconds |
 | `reporeel diagram` | Architecture diagram as SVG and PNG, from the storyboard or straight from your manifests |
@@ -77,7 +77,7 @@ A visitor decides about a repository from its README in a few seconds. Most READ
 | `reporeel readme` | Puts the GIF, the video link, the chapters and the diagram into your README between markers. Re-running replaces its own block and touches nothing else |
 | `reporeel pr` | A short video of what the current branch changes: the commit, the size, the changed lines lit up in the code, and the tests run on it |
 | `reporeel dub --lang hi` | Translates the narration (Claude) and re-voices the video (ElevenLabs) in Hindi or any other language |
-| `reporeel ci` | A GitHub Action that runs `doctor` and `verify` on pull requests and refreshes the media on every release |
+| `reporeel ci` | A GitHub Action that runs `doctor` and `verify` on pull requests with a read-only token, and refreshes the media on every release |
 | `reporeel setup` | Checks Node, ffmpeg, Chromium and your keys, and tells you how to fix each one; `--fix` installs Chromium |
 
 ## The storyboard
@@ -105,7 +105,7 @@ Everything the video says and shows lives in `reporeel.json`, so it can be revie
 | `web` | Your running app | Actions: `click`, `type`, `press`, `hover`, `scroll`, `zoom`, `wait`, `waitFor`. The cursor glides, clicks ripple, `zoom` moves the camera onto an element. A scene lasts as long as its narration or its actions, whichever is longer |
 | `code` | Real lines from a file | Syntax-highlighted; `highlight` ranges are lit up one after another |
 | `diagram` | A Mermaid diagram | Nodes appear as they are talked about |
-| `terminal` | Commands and their output | The commands **really run** before recording; a failing test shows as failing |
+| `terminal` | Commands and their output | The commands **really run** before recording, after you approve them; a failing test shows as failing |
 | `stats` | Big numbers | They count up |
 | `end` | Closing card with links | |
 
@@ -150,7 +150,7 @@ import { doctor, draft, render } from '@theharshdubey/reporeel';
 
 const report = doctor('.');                       // { score, grade, checks, secrets }
 const storyboard = draft('.');                    // or write your own
-await render(storyboard, './reporeel.json', { out: 'docs/reporeel' });
+await render(storyboard, './reporeel.json', { out: 'docs/reporeel', approve: cmds => true }); // approve gets the commands it will run
 ```
 
 Type declarations are included.
@@ -164,10 +164,20 @@ Type declarations are included.
 - A failed web action is reported and skipped instead of killing a two-minute render; an app that will not start drops its web scenes with a warning, and the rest of the video is still made.
 - `doctor` and `verify` never run anything from your working tree: `verify` uses a fresh clone, `doctor` only reads files.
 
+## What reporeel runs, and when
+
+A README and a storyboard are input, and a storyboard may have been written by a model that read someone else's repository. So:
+
+- `doctor`, `plan`, `diagram`, `social` and `readme` run nothing from the repository.
+- `video`, `pr`, `shots` and `verify` list the exact commands they need (terminal scenes, `app.start`, README setup blocks) and ask before running any of them. `--run` approves up front, for CI. With no terminal and no `--run`, they refuse.
+- Those commands do not see environment variables that look like credentials (`*KEY*`, `*TOKEN*`, `*SECRET*`, `*PASSWORD*`, `*AUTH*`). `REPOREEL_PASS_ENV=NAME,NAME` lets named ones through.
+- Code scenes can only show files inside the repository, and web scenes only `http`/`https` pages.
+- This is consent, not a sandbox: an approved command has your user's file and network access. For a repository you do not trust, run reporeel in a container or a throwaway VM.
+
 ## Limits
 
 - The offline `plan` draft is a starting point, not a script. The good videos come from a storyboard written by an agent, by Claude, or by you.
-- `verify` runs your README's commands. It skips ones that obviously need a person (`cd`, `export`, placeholders), but read your README before running it on someone else's repository.
+- `verify` runs your README's commands once you approve them. It skips ones that obviously need a person (`cd`, `export`, placeholders); the skip list is a convenience, not a safety filter.
 - Web scenes need an app that runs locally; apps that need a database or secrets need those set up first.
 - GitHub does not autoplay video in a README, which is why the README gets a silent GIF that links to the MP4. To get an inline player, drag the MP4 into the README editor on github.com.
 

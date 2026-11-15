@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
+import { childEnv, mustApprove, type Approve } from './exec.ts';
 import { duration, ffmpeg } from './ffmpeg.ts';
 import { OVERLAY } from './overlay.ts';
 import { validate, type Action, type Scene, type Storyboard } from './storyboard.ts';
@@ -27,6 +28,8 @@ export interface RenderOpts {
   only?: number[];
   /** Ignore cached scenes and record everything again. */
   fresh?: boolean;
+  /** Asked once, with every terminal-scene command and app.start, before anything runs. Without it they are refused. */
+  approve?: Approve;
 }
 export interface Rendered { video: string; gif: string; srt: string; poster: string; sheet: string; readme: string; scenes: { id: string; type: string; title: string; start: number; seconds: number }[] }
 
@@ -61,6 +64,9 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
   if (errs.length) throw new Error('storyboard is not valid:\n  ' + errs.join('\n  '));
   const bad = (o.only ?? []).filter(n => !(n >= 1 && n <= sb.scenes.length));
   if (bad.length) throw new Error(`--only ${bad.join(',')}: the storyboard has scenes 1 to ${sb.scenes.length}`);
+  // A storyboard can come from a model that read an untrusted repository: its commands are shown
+  // and approved before any of them runs.
+  await mustApprove([...sb.scenes.flatMap(s => (s.type === 'terminal' ? s.commands : [])), ...(sb.app?.start && sb.scenes.some(s => s.type === 'web') ? [sb.app.start] : [])], o.approve);
   // `repo` is a folder relative to the storyboard, or an owner/name label; a label means "this folder".
   const candidate = resolve(file, '..', sb.repo ?? '.');
   const repoDir = existsSync(candidate) ? candidate : resolve(file, '..');
@@ -82,7 +88,7 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
   for (const s of sb.scenes) if (s.type === 'terminal') {
     (s as any).__runs = s.commands.map(cmd => {
       let outp: string;
-      try { outp = execSync(cmd, { cwd: resolve(repoDir, s.cwd ?? '.'), timeout: s.timeoutMs ?? 120_000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, FORCE_COLOR: '0', CI: '1' } }); }
+      try { outp = execSync(cmd, { cwd: resolve(repoDir, s.cwd ?? '.'), timeout: s.timeoutMs ?? 120_000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: childEnv({ FORCE_COLOR: '0', CI: '1' }) }); }
       catch (e: any) { outp = (e.stdout ?? '') + (e.stderr ?? ''); }
       const lines = stripAnsi(outp).trimEnd().split('\n');
       log(`  ran: ${cmd} (${lines.length} lines)`);
@@ -198,15 +204,16 @@ ${tl.map(c => `${mmss(c.start)} ${c.title}`).join('\n')}
 `;
 }
 
+/** Runs `app.start`. Callers get approval first (render does; see mustApprove). */
 export async function startApp(app: NonNullable<Storyboard['app']>, cwd: string, log: (m: string) => void) {
   // A fresh clone has no dependencies yet: install them where the start command will run.
   const dir = resolve(cwd, app.start!.match(/^cd\s+([^\s&;]+)\s*&&/)?.[1] ?? '.');
   if (existsSync(join(dir, 'package.json')) && !existsSync(join(dir, 'node_modules'))) {
     log(`installing dependencies in ${dir}`);
-    execSync(existsSync(join(dir, 'package-lock.json')) ? 'npm ci' : 'npm install', { cwd: dir, stdio: 'ignore', timeout: 600_000 });
+    execSync(existsSync(join(dir, 'package-lock.json')) ? 'npm ci' : 'npm install', { cwd: dir, stdio: 'ignore', timeout: 600_000, env: childEnv() });
   }
   log(`starting app: ${app.start}`);
-  const p = spawn(app.start!, { cwd, shell: true, stdio: 'ignore', detached: false, env: { ...process.env, BROWSER: 'none' } });
+  const p = spawn(app.start!, { cwd, shell: true, stdio: 'ignore', detached: false, env: childEnv({ BROWSER: 'none' }) });
   const until = Date.now() + (app.readyTimeoutMs ?? 90_000);
   while (Date.now() < until) {
     try { if ((await fetch(app.url)).status < 500) return p; } catch {}

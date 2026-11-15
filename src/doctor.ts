@@ -25,7 +25,7 @@ function files(dir: string): string[] {
   try { return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter(Boolean); }
   catch {
     const out: string[] = [];
-    const walk = (d: string) => { for (const e of readdirSync(d, { withFileTypes: true })) { if (SKIP.has(e.name)) continue; const p = join(d, e.name); e.isDirectory() ? walk(p) : out.push(relative(dir, p)); } };
+    const walk = (d: string) => { for (const e of readdirSync(d, { withFileTypes: true })) { if (SKIP.has(e.name)) continue; const p = join(d, e.name); e.isDirectory() ? walk(p) : out.push(relative(dir, p).replaceAll('\\', '/')); } };
     walk(dir); return out;
   }
 }

@@ -1,5 +1,6 @@
 // reporeel as a library. The CLI is a thin layer over these.
 export { render, startApp, type RenderOpts, type Rendered } from './render.ts';
+export { childEnv, mustApprove, type Approve } from './exec.ts';
 export { validate, SCHEMA_URL, type Storyboard, type Scene, type Action } from './storyboard.ts';
 export { doctor, format as formatDoctor, type Report, type Check } from './doctor.ts';
 export { verify, commandsFrom, type Step } from './verify.ts';

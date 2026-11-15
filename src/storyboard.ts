@@ -47,13 +47,16 @@ export function validate(sb: any): string[] {
   const errs: string[] = [];
   if (!sb || typeof sb !== 'object') return ['storyboard must be a JSON object'];
   if (typeof sb.title !== 'string' || !sb.title) errs.push('title: required');
+  if (sb.app?.url !== undefined && !/^https?:/i.test(String(sb.app.url))) errs.push('app.url: must be http or https');
   if (!Array.isArray(sb.scenes) || !sb.scenes.length) errs.push('scenes: need at least one');
   (sb.scenes ?? []).forEach((s: any, i: number) => {
     const at = `scenes[${i}]`;
     if (!TYPES.includes(s?.type)) return errs.push(`${at}.type: one of ${TYPES.join(', ')}`);
     if (typeof s.say !== 'string' || !s.say.trim()) errs.push(`${at}.say: the narration for this scene is required`);
     if (s.type === 'web' && !sb.app?.url && !/^https?:/.test(s.url ?? '')) errs.push(`${at}: web scenes need app.url or an absolute url`);
+    if (s.type === 'web' && /^[a-z][a-z0-9+.-]*:/i.test(s.url ?? '') && !/^https?:/i.test(s.url)) errs.push(`${at}.url: only http and https pages can be recorded`);
     if (s.type === 'code' && typeof s.file !== 'string') errs.push(`${at}.file: required`);
+    else if (s.type === 'code' && (/^([\\/]|[a-z]:)/i.test(s.file) || /(^|[\\/])\.\.([\\/]|$)/.test(s.file))) errs.push(`${at}.file: must be a path inside the repo`);
     if (s.type === 'diagram' && typeof s.mermaid !== 'string') errs.push(`${at}.mermaid: required`);
     if (s.type === 'terminal' && !(Array.isArray(s.commands) && s.commands.length)) errs.push(`${at}.commands: required`);
     if (s.type === 'stats' && !(Array.isArray(s.items) && s.items.length)) errs.push(`${at}.items: required`);

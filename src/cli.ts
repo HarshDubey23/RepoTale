@@ -2,10 +2,12 @@
 // whole kit and shows the score before and after.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import { writeWorkflow } from './ci.ts';
 import { cut, FORMATS, type Format } from './cuts.ts';
 import { checkSetup, formatSetup } from './setup.ts';
 import { doctor, format } from './doctor.ts';
+import { mustApprove } from './exec.ts';
 import { diagram, shots, socialCard } from './media.ts';
 import { draft, planWithClaude, translate } from './plan.ts';
 import { launchPosts } from './posts.ts';
@@ -25,6 +27,15 @@ const out = resolve(root, flag('out', 'docs/reporeel')!);
 const sbFile = resolve(root, flag('storyboard', 'reporeel.json')!);
 const log = (m: string) => process.stderr.write(m + '\n');
 const say = (m: string) => process.stdout.write(m + '\n');
+
+// --run approves up front; at a terminal you are shown the commands and asked; otherwise they are refused.
+const approve = async (cmds: string[]) => {
+  if (on('run')) return true;
+  if (!process.stdin.isTTY) return false;
+  log(`\nreporeel is about to run these commands in ${root}:\n${cmds.map(c => `    $ ${c}`).join('\n')}`);
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try { return /^y(es)?$/i.test((await rl.question('  run them? [y/N] ')).trim()); } finally { rl.close(); }
+};
 
 const load = (): Storyboard => {
   if (!existsSync(sbFile)) throw new Error(`no storyboard at ${sbFile}; run reporeel plan first`);
@@ -48,8 +59,8 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     say(on('json') ? JSON.stringify(r, null, 1) : format(r, basename(root)));
     if (flag('min') && r.score < +flag('min')!) process.exitCode = 1;
   } },
-  verify: { help: 'run the README setup commands on a clean checkout', async run() {
-    const r = await verify(root, { log, keep: on('keep') });
+  verify: { help: 'run the README setup commands on a clean checkout (asks first; --run to allow)', async run() {
+    const r = await verify(root, { log, keep: on('keep'), approve });
     say(r.found ? `\n  ${r.ok ? 'quickstart works' : 'quickstart is broken'}: ${r.steps.filter(s => s.ok).length}/${r.steps.length} steps passed` : '\n  no setup commands found in the README');
     const bad = r.steps.find(s => !s.ok);
     if (bad) say(`  failed: $ ${bad.cmd}  (${bad.note})\n${bad.tail.split('\n').map(l => '    ' + l).join('\n')}`);
@@ -67,7 +78,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     const lang = flag('lang');
     if (lang && (sb.voice?.provider ?? 'kokoro') === 'kokoro') sb.voice = { provider: 'elevenlabs', voice: sb.voice?.voice?.length === 20 ? sb.voice.voice : undefined };
     const only = flag('only')?.split(',').map(Number);
-    const r = await render(sb, sbFile, { out: lang ? join(out, lang) : out, log, lang, only, fresh: on('fresh') });
+    const r = await render(sb, sbFile, { out: lang ? join(out, lang) : out, log, lang, only, fresh: on('fresh'), approve });
     say(only ? `preview ${r.video}` : `video ${r.video}\ngif   ${r.gif}\nsheet ${r.sheet}`);
   } },
   dub: { help: 'add a translated narration (--lang hi) with Claude, then render it with ElevenLabs', async run() {
@@ -81,7 +92,9 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     const sb = existsSync(sbFile) ? load() : draft(root);
     if (!sb.app?.url) throw new Error('no app url: set "app" in reporeel.json');
     const pages = [...new Set(sb.scenes.flatMap(s => (s.type === 'web' ? [s.url ?? '/'] : [])))];
-    const app = sb.app.start && !(await fetch(sb.app.url).then(() => true, () => false)) ? await startApp(sb.app, root, log) : undefined;
+    const down = sb.app.start && !(await fetch(sb.app.url).then(() => true, () => false));
+    if (down) await mustApprove([sb.app.start!], approve);
+    const app = down ? await startApp(sb.app, root, log) : undefined;
     try { await shots(sb.app.url, pages.length ? pages : ['/'], join(out, 'shots'), log); } finally { app?.kill(); }
   } },
   diagram: { help: 'architecture diagram (SVG and PNG) from the storyboard, or from the code', async run() {
@@ -115,7 +128,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     const file = join(out, 'pr', 'storyboard.json');
     mkdirSync(join(out, 'pr'), { recursive: true });
     writeFileSync(file, JSON.stringify({ ...sb, repo: resolve(root) }, null, 2));
-    const r = await render({ ...sb, repo: resolve(root), voice: { provider: (flag('voice') as any) ?? 'kokoro' } }, file, { out: join(out, 'pr'), log });
+    const r = await render({ ...sb, repo: resolve(root), voice: { provider: (flag('voice') as any) ?? 'kokoro' } }, file, { out: join(out, 'pr'), log, approve });
     say(`pr video ${r.video}`);
   } },
   ci: { help: 'add a GitHub Action: doctor and verify on PRs, fresh media on releases', async run() { say(`wrote ${writeWorkflow(root)}`); } },
@@ -125,7 +138,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     if (items.some(i => i.required && !i.ok)) process.exitCode = 1;
   } },
   help: { help: 'this list', async run() {
-    say(`reporeel: make your repository understood\n\n  reporeel            everything, with the score before and after\n${Object.entries(commands).filter(([k]) => k !== 'go').map(([k, v]) => `  reporeel ${k.padEnd(10)} ${v.help}`).join('\n')}\n\n  common: --dir <repo> --out <folder, default docs/reporeel> --storyboard <file, default reporeel.json>\n`);
+    say(`reporeel: make your repository understood\n\n  reporeel            everything, with the score before and after\n${Object.entries(commands).filter(([k]) => k !== 'go').map(([k, v]) => `  reporeel ${k.padEnd(10)} ${v.help}`).join('\n')}\n\n  common: --run (allow the commands a storyboard or README asks for, without the prompt) --dir <repo> --out <folder, default docs/reporeel> --storyboard <file, default reporeel.json>\n`);
   } },
 };
 

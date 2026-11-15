@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Breaking, security:** commands from a storyboard (`terminal` scenes, `app.start`) or a README (`verify`) no longer run unasked. The CLI lists them and asks; `--run` approves up front; without a terminal they are refused. Library callers pass `approve` to `render` and `verify`.
+- Those commands no longer inherit credential-like environment variables (`REPOREEL_PASS_ENV` lets named ones through).
+- The workflow from `reporeel ci` gives pull requests a read-only token; only the release job can write.
+- Storyboards are rejected if a code scene points outside the repository or a web scene is not `http`/`https`.
+- `doctor` works on Windows outside a git checkout.
 - `doctor` reports a private key only when key material follows the header, so tests that guard against keys are no longer flagged.
 - `doctor` finds the one-line description when badges, images or HTML come first.
 

@@ -1,8 +1,8 @@
 // Built-in scenes are small HTML pages that animate themselves for exactly the length of their
 // narration. They are recorded the same way as the user's own app.
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Scene } from './storyboard.ts';
 
@@ -65,6 +65,8 @@ export async function sceneHtml(s: Scene, c: Ctx): Promise<string> {
     case 'code': {
       const { codeToHtml } = await import('shiki');
       const path = join(c.repoDir ?? '.', s.file);
+      // A symlink in the repo must not put a file from outside it on screen.
+      if (/^\.\.|^([\\/]|[a-z]:)/i.test(relative(realpathSync(c.repoDir ?? '.'), realpathSync(path)))) throw new Error(`${s.file} is outside the repository`);
       const all = readFileSync(path, 'utf8').split('\n');
       const [from, to] = s.lines ?? [1, Math.min(all.length, 40)];
       const lang = ({ ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx', py: 'python', sol: 'solidity', rs: 'rust', go: 'go', java: 'java', circom: 'rust', css: 'css', html: 'html', json: 'json', md: 'markdown', sh: 'bash', yml: 'yaml', yaml: 'yaml', sql: 'sql' } as Record<string, string>)[s.file.split('.').pop()!] ?? 'text';

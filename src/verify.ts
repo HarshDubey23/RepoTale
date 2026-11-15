@@ -4,6 +4,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { childEnv, mustApprove, type Approve } from './exec.ts';
 
 export interface Step { cmd: string; ok: boolean; seconds: number; note: string; tail: string }
 
@@ -33,7 +34,7 @@ export function commandsFrom(md: string): string[] {
 /** Runs one command; a server that is still up after `serveAfter` ms counts as started. */
 function run(cmd: string, cwd: string, timeoutMs: number, serveAfter: number): Promise<Omit<Step, 'cmd'>> {
   return new Promise(done => {
-    const t0 = Date.now(), p = spawn(cmd, { cwd, shell: true, detached: true, env: { ...process.env, CI: '1', BROWSER: 'none' } });
+    const t0 = Date.now(), p = spawn(cmd, { cwd, shell: true, detached: true, env: childEnv({ CI: '1', BROWSER: 'none' }) });
     let out = '';
     const grab = (d: Buffer) => { out = (out + d.toString()).slice(-4000); };
     p.stdout.on('data', grab); p.stderr.on('data', grab);
@@ -51,11 +52,13 @@ function run(cmd: string, cwd: string, timeoutMs: number, serveAfter: number): P
   });
 }
 
-export async function verify(root: string, o: { timeoutMs?: number; log?: (m: string) => void; keep?: boolean } = {}) {
+export async function verify(root: string, o: { timeoutMs?: number; log?: (m: string) => void; keep?: boolean; approve?: Approve } = {}) {
   const log = o.log ?? (() => {});
   const readme = ['README.md', 'readme.md'].map(f => join(root, f)).find(f => { try { readFileSync(f); return true; } catch { return false; } });
   if (!readme) throw new Error('no README.md');
   const cmds = commandsFrom(readFileSync(readme, 'utf8'));
+  // README text is untrusted input; the clone below is a clean copy, not a sandbox.
+  await mustApprove(cmds.filter(c => !SKIP.test(c)), o.approve);
   const dir = mkdtempSync(join(tmpdir(), 'reporeel-verify-'));
   // A clean copy of what is committed: no node_modules, no local .env, no build output.
   execFileSync('git', ['clone', '--quiet', '--depth', '1', `file://${root}`, dir]);

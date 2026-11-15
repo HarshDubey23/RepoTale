@@ -16,7 +16,7 @@ test('renders the example end to end, then reuses unchanged scenes', { timeout: 
   const file = resolve('examples/hello/reporeel.example.json');
   const sb = { ...JSON.parse(readFileSync(file, 'utf8')), voice: { provider: 'none' } };
   const out = mkdtempSync(join(tmpdir(), 'rr-e2e-'));
-  const r = await render(sb, file, { out });
+  const r = await render(sb, file, { out, approve: () => true });
 
   for (const f of [r.video, r.gif, r.srt, r.poster, r.sheet, r.readme]) assert.ok(existsSync(f), f);
   assert.equal(r.scenes.length, 5);
@@ -29,7 +29,7 @@ test('renders the example end to end, then reuses unchanged scenes', { timeout: 
 
   // Second run: the four non-web scenes come from the cache; the live app scene is recorded again.
   const lines: string[] = [];
-  await render(sb, file, { out, log: l => lines.push(l) });
+  await render(sb, file, { out, approve: () => true, log: l => lines.push(l) });
   assert.equal(lines.filter(l => l.startsWith('reusing')).length, 4);
   assert.equal(lines.filter(l => l.startsWith('recording')).length, 1);
 });
