@@ -1,5 +1,7 @@
 # reporeel
 
+[![npm](https://img.shields.io/npm/v/@theharshdubey/reporeel?color=ff7a45&label=npm)](https://www.npmjs.com/package/@theharshdubey/reporeel) [![CI](https://github.com/HarshDubey23/reporeel/actions/workflows/ci.yml/badge.svg)](https://github.com/HarshDubey23/reporeel/actions/workflows/ci.yml) ![license](https://img.shields.io/badge/license-MIT-blue)
+
 **Your repo, explained in one command.** reporeel reads a repository and turns it into a narrated video that explains it (the live app, the architecture, the real code, a real test run), then puts that video, a diagram and a chapter list into your README, makes the social preview card, drafts the launch posts, and tells you whether your quickstart actually works.
 
 <!-- reporeel:start -->
