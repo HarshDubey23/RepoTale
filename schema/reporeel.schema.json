@@ -123,6 +123,41 @@
               },
               "sub": {
                 "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "description": "What in the repository backs this scene. reporeel check resolves every entry; one that does not exist stops the render.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "file",
+                        "symbol",
+                        "test"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "file and test: a path in the repo. symbol: \"path#name\", as listed by reporeel graph."
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  }
+                }
               }
             },
             "patternProperties": {
@@ -287,6 +322,41 @@
                     }
                   ]
                 }
+              },
+              "evidence": {
+                "type": "array",
+                "description": "What in the repository backs this scene. reporeel check resolves every entry; one that does not exist stops the render.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "file",
+                        "symbol",
+                        "test"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "file and test: a path in the repo. symbol: \"path#name\", as listed by reporeel graph."
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  }
+                }
               }
             },
             "patternProperties": {
@@ -346,6 +416,41 @@
               },
               "caption": {
                 "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "description": "What in the repository backs this scene. reporeel check resolves every entry; one that does not exist stops the render.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "file",
+                        "symbol",
+                        "test"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "file and test: a path in the repo. symbol: \"path#name\", as listed by reporeel graph."
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  }
+                }
               }
             },
             "patternProperties": {
@@ -382,6 +487,41 @@
               },
               "caption": {
                 "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "description": "What in the repository backs this scene. reporeel check resolves every entry; one that does not exist stops the render.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "file",
+                        "symbol",
+                        "test"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "file and test: a path in the repo. symbol: \"path#name\", as listed by reporeel graph."
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  }
+                }
               }
             },
             "patternProperties": {
@@ -424,6 +564,41 @@
               },
               "timeoutMs": {
                 "type": "number"
+              },
+              "evidence": {
+                "type": "array",
+                "description": "What in the repository backs this scene. reporeel check resolves every entry; one that does not exist stops the render.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "file",
+                        "symbol",
+                        "test"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "file and test: a path in the repo. symbol: \"path#name\", as listed by reporeel graph."
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  }
+                }
               }
             },
             "patternProperties": {
@@ -476,6 +651,41 @@
                   },
                   "additionalProperties": false
                 }
+              },
+              "evidence": {
+                "type": "array",
+                "description": "What in the repository backs this scene. reporeel check resolves every entry; one that does not exist stops the render.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "file",
+                        "symbol",
+                        "test"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "file and test: a path in the repo. symbol: \"path#name\", as listed by reporeel graph."
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  }
+                }
               }
             },
             "patternProperties": {
@@ -513,6 +723,41 @@
                 "type": "array",
                 "items": {
                   "type": "string"
+                }
+              },
+              "evidence": {
+                "type": "array",
+                "description": "What in the repository backs this scene. reporeel check resolves every entry; one that does not exist stops the render.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "file",
+                        "symbol",
+                        "test"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "file and test: a path in the repo. symbol: \"path#name\", as listed by reporeel graph."
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  }
                 }
               }
             },

@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
+import { check } from './evidence.ts';
 import { childEnv, mustApprove, type Approve } from './exec.ts';
 import { duration, ffmpeg } from './ffmpeg.ts';
 import { OVERLAY } from './overlay.ts';
@@ -70,6 +71,12 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
   // `repo` is a folder relative to the storyboard, or an owner/name label; a label means "this folder".
   const candidate = resolve(file, '..', sb.repo ?? '.');
   const repoDir = existsSync(candidate) ? candidate : resolve(file, '..');
+  // A citation that does not resolve is a wrong video; find out before recording, not after.
+  const evidence = check(sb, repoDir);
+  const broken = evidence.scenes.filter(s => s.status === 'broken');
+  if (broken.length) throw new Error('the storyboard cites things that are not in the repository:\n  ' + broken.flatMap(s => s.problems.map(p => `scene ${s.scene} (${s.type}): ${p}`)).join('\n  '));
+  const loose = evidence.scenes.filter(s => s.status === 'unsupported');
+  if (loose.length) log(`warning: scene(s) ${loose.map(s => s.scene).join(', ')} cite no evidence; see reporeel check`);
   const out = resolve(o.out), work = join(out, '.work');
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
@@ -183,6 +190,8 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
 
   const readme = join(out, 'README-section.md');
   writeFileSync(readme, readmeSection(sb, timeline, clips));
+  // What this video cites, at which commit: `reporeel check` compares it with the code later.
+  writeFileSync(join(out, 'evidence.json'), JSON.stringify(evidence, null, 1) + '\n');
   rmSync(work, { recursive: true, force: true });
   log(`done: ${video} (${duration(video).toFixed(1)}s)`);
   return { video, gif, srt, poster, sheet, readme, scenes: timeline };

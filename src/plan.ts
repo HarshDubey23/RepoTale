@@ -5,6 +5,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
+import { check } from './evidence.ts';
+import { analyze } from './graph.ts';
 import { detect, mermaidFor } from './stack.ts';
 import { validate, type Scene, type Storyboard } from './storyboard.ts';
 
@@ -48,9 +50,12 @@ Scene types (every scene has "say": the narration, 1 to 3 sentences, spoken alou
 - {"type":"stats","heading"?,"items":[{"value","label"}]}   only numbers stated in the repo
 - {"type":"end","heading","links"?}
 
+Any scene may also carry "evidence": a list of {"kind":"file","id":path,"lines"?:[a,b]}, {"kind":"symbol","id":"path#name"} or {"kind":"test","id":path}. reporeel resolves every entry against the repository and rejects the storyboard if one does not exist.
+
 Rules:
 - 6 to 9 scenes, 60 to 120 seconds spoken in total. Story: problem, the product working, how it works, proof (tests or numbers), where to get it.
 - Every fact, number, file path and line range must come from the repository below. Never invent metrics.
+- Every diagram and stats scene must cite evidence for what it shows: the files, the symbols (ids copied exactly from the symbols list) or the tests that back it. If you cannot cite anything for a claim, leave the claim out.
 - Prefer showing over telling: a web scene if the project has a UI and a dev command, a terminal scene for CLIs and tests.
 - Write for the ear: short sentences, no markdown, no lists, spell out symbols.
 - Only use selectors you can see in the source (ids, data-testid, visible text via text=...). If unsure, use scroll and zoom instead of clicks.
@@ -59,7 +64,7 @@ Rules:
 export async function planWithClaude(root: string, o: { model?: string; log?: (m: string) => void } = {}): Promise<Storyboard> {
   const log = o.log ?? (() => {});
   const { text, omitted } = pack(root);
-  const st = detect(root);
+  const st = detect(root), g = analyze(root);
   log(`packed ${Math.round(text.length / 1000)}k characters${omitted ? `, ${omitted} files left out for size` : ''}`);
   const client = new Anthropic();
   const ask = async (messages: Anthropic.MessageParam[]) => {
@@ -78,12 +83,13 @@ export async function planWithClaude(root: string, o: { model?: string; log?: (m
   };
   const first: Anthropic.MessageParam = { role: 'user', content: [
     { type: 'text', text: `<repository name="${st.name}" detected="${JSON.stringify(st).replace(/"/g, "'")}">\n${text}\n</repository>`, cache_control: { type: 'ephemeral' } } as any,
+    { type: 'text', text: `<symbols note="exported top-level symbols found by static analysis, as id kind line">\n${g.symbols.filter(s => s.exported).slice(0, 500).map(s => `${s.id} ${s.kind} ${s.line}`).join('\n')}\n</symbols>` },
     { type: 'text', text: 'Write the storyboard for this repository.' },
   ] };
   let reply = await ask([first]);
   for (let attempt = 0; attempt < 2; attempt++) {
     let sb: any, errs: string[];
-    try { sb = JSON.parse(reply.replace(/^```(json)?\s*|\s*```$/g, '').trim()); errs = validate(sb); }
+    try { sb = JSON.parse(reply.replace(/^```(json)?\s*|\s*```$/g, '').trim()); errs = validate(sb); if (!errs.length) errs = check(sb, root, g).scenes.flatMap(s => s.problems.map(p => `scenes[${s.scene - 1}]: ${p}`)); }
     catch (e) { errs = [`not valid JSON: ${(e as Error).message}`]; }
     if (!errs.length) return sb;
     log(`storyboard had problems, asking for a fix: ${errs.slice(0, 3).join('; ')}`);
@@ -103,7 +109,9 @@ export function draft(root: string): Storyboard {
   const tagline = md.split('\n').map(l => l.trim()).find(l => /^\*\*[^*]+\*\*$/.test(l))?.replace(/\*/g, '');
   const scenes: Scene[] = [{ type: 'title', heading: title, sub: tagline ?? (sentence.length < 90 ? sentence : undefined), say: [tagline, sentence].filter(Boolean).join(' ') }];
   if (st.dev) scenes.push({ type: 'web', url: '/', actions: [{ wait: 1200 }, { scroll: 700 }, { wait: 800 }, { scroll: 700 }], say: `Here is ${title} running locally.` });
-  scenes.push({ type: 'diagram', caption: 'Architecture', mermaid: mermaidFor(st), say: `${title} is built from ${st.parts.filter(p => p.kind !== 'tests').length} part${st.parts.filter(p => p.kind !== 'tests').length === 1 ? '' : 's'}: ${st.parts.filter(p => p.kind !== 'tests').map(p => `${p.name}${p.tech.length ? `, using ${p.tech.slice(0, 2).join(' and ')}` : ''}`).join('; ')}.` });
+  // The diagram is drawn from the manifests, so those are what it cites.
+  const manifests = st.parts.flatMap(p => ['package.json', 'pyproject.toml', 'requirements.txt', 'setup.py'].map(f => (p.dir === '.' ? f : `${p.dir}/${f}`)).filter(f => existsSync(join(root, f))).slice(0, 1));
+  scenes.push({ type: 'diagram', caption: 'Architecture', mermaid: mermaidFor(st), ...(manifests.length ? { evidence: manifests.map(id => ({ kind: 'file' as const, id })) } : {}), say: `${title} is built from ${st.parts.filter(p => p.kind !== 'tests').length} part${st.parts.filter(p => p.kind !== 'tests').length === 1 ? '' : 's'}: ${st.parts.filter(p => p.kind !== 'tests').map(p => `${p.name}${p.tech.length ? `, using ${p.tech.slice(0, 2).join(' and ')}` : ''}`).join('; ')}.` });
   const pkg = (() => { try { return JSON.parse(readFileSync(join(root, st.dev?.dir ?? '.', 'package.json'), 'utf8')); } catch { return {}; } })();
   if (pkg.scripts?.test && !/no test specified/.test(pkg.scripts.test)) scenes.push({ type: 'terminal', commands: [`${st.dev && st.dev.dir !== '.' ? `cd ${st.dev.dir} && ` : ''}npm test`], say: 'And the test suite runs, for real, right here.' });
   scenes.push({ type: 'end', heading: title, links: [], say: `That is ${title}. The code is open source.` });

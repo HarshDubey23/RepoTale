@@ -68,6 +68,8 @@ A visitor decides about a repository from its README in a few seconds. Most READ
 | --- | --- |
 | `reporeel` | Everything below in order, with the score before and after |
 | `reporeel doctor` | A first-impression score out of 100 with the fix for each gap: README, one-line description, demo media above the fold, quickstart, license, tests, CI, broken links, **committed secrets and `.env` files**, huge files |
+| `reporeel graph` | Maps the code without running it: modules, top-level symbols and the imports between them (TypeScript, JavaScript, Python) as `graph.json`, plus `explore.html`, a page to click through who imports what and which tests reach a file |
+| `reporeel check` | Says whether every scene is backed by the repository (a file, line range, symbol or test that exists) and whether the last render is out of date with the code it cites |
 | `reporeel verify` | Shows you the commands in your README's setup section, and once you approve them runs them on a clean clone and tells you the first one that breaks |
 | `reporeel plan` | Writes `reporeel.json`, the storyboard. With `ANTHROPIC_API_KEY` Claude reads the repo and writes it; without one you get an offline draft from your manifests and README |
 | `reporeel video` | Renders the storyboard: MP4 with voice and chapters, a silent GIF for the README, `.srt` captions, a poster frame and a contact sheet. Unchanged scenes come from a cache; `--only 3` previews one scene in seconds |
@@ -164,11 +166,34 @@ Type declarations are included.
 - A failed web action is reported and skipped instead of killing a two-minute render; an app that will not start drops its web scenes with a warning, and the rest of the video is still made.
 - `doctor` and `verify` never run anything from your working tree: `verify` uses a fresh clone, `doctor` only reads files.
 
+## Evidence
+
+A video about code should be checkable against the code. Any scene can cite what backs it:
+
+```json
+{ "type": "stats", "heading": "Safe by default", "items": [{ "value": "0", "label": "commands run unasked" }],
+  "say": "Nothing from the repository runs until you approve it.",
+  "evidence": [{ "kind": "symbol", "id": "src/exec.ts#mustApprove" }, { "kind": "test", "id": "test/security.test.ts" }] }
+```
+
+`reporeel check` sorts every scene into one of four kinds:
+
+| | Meaning |
+|---|---|
+| `observed` | A `web` or `terminal` scene: recorded from the running app or a real command run |
+| `grounded` | A `code` scene, or a scene whose evidence all resolves to a file, a line range, a symbol or a test |
+| `unsupported` | A `diagram` or `stats` scene that cites nothing |
+| `broken` | It cites something that is not in the repository. `video` refuses to render until this is fixed |
+
+Every render writes `evidence.json` next to the video: the commit, and a hash of each cited line range. Run `check` later and it names the scenes whose code has changed since, so you know which parts of the video to redo. `reporeel pr` uses the same import graph to say how many modules depend on the changed files and which test files reach them.
+
+What this does and does not prove: a `grounded` scene cites something that exists at that commit. It does not prove the narration describes it correctly. The graph is built by matching declarations and imports, not by parsing: it lists top-level symbols and imports that resolve to a file, and it does not trace calls.
+
 ## What reporeel runs, and when
 
 A README and a storyboard are input, and a storyboard may have been written by a model that read someone else's repository. So:
 
-- `doctor`, `plan`, `diagram`, `social` and `readme` run nothing from the repository.
+- `doctor`, `plan`, `graph`, `check`, `diagram`, `social` and `readme` run nothing from the repository.
 - `video`, `pr`, `shots` and `verify` list the exact commands they need (terminal scenes, `app.start`, README setup blocks) and ask before running any of them. `--run` approves up front, for CI. With no terminal and no `--run`, they refuse.
 - Those commands do not see environment variables that look like credentials (`*KEY*`, `*TOKEN*`, `*SECRET*`, `*PASSWORD*`, `*AUTH*`). `REPOREEL_PASS_ENV=NAME,NAME` lets named ones through.
 - Code scenes can only show files inside the repository, and web scenes only `http`/`https` pages.

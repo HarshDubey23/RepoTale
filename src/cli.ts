@@ -15,7 +15,10 @@ import { prStoryboard } from './pr.ts';
 import { writeReadme } from './readme.ts';
 import { render, startApp } from './render.ts';
 import { detect, mermaidFor } from './stack.ts';
-import { SCHEMA_URL, type Storyboard } from './storyboard.ts';
+import { check, formatReport, stale } from './evidence.ts';
+import { explorerHtml } from './explore.ts';
+import { analyze } from './graph.ts';
+import { SCHEMA_URL, validate, type Storyboard } from './storyboard.ts';
 import { verify } from './verify.ts';
 
 const args = process.argv.slice(2);
@@ -65,6 +68,22 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     const bad = r.steps.find(s => !s.ok);
     if (bad) say(`  failed: $ ${bad.cmd}  (${bad.note})\n${bad.tail.split('\n').map(l => '    ' + l).join('\n')}`);
     if (!r.ok) process.exitCode = 1;
+  } },
+  graph: { help: 'map the code without running it: modules, symbols and imports in graph.json, and explore.html to walk them (--json prints the graph)', async run() {
+    const g = analyze(root);
+    if (on('json')) return say(JSON.stringify(g, null, 1));
+    mkdirSync(out, { recursive: true });
+    writeFileSync(join(out, 'graph.json'), JSON.stringify(g, null, 1) + '\n');
+    writeFileSync(join(out, 'explore.html'), explorerHtml(g, { title: basename(root), repo: repoSlug() }));
+    say(`${g.modules.length} modules, ${g.symbols.length} symbols, ${g.modules.reduce((n, m) => n + m.imports.length, 0)} import edges\ngraph   ${join(out, 'graph.json')}\nexplore ${join(out, 'explore.html')}`);
+  } },
+  check: { help: 'is every scene backed by the repo, and is the last render still current? (--json; --strict also fails on uncited or out-of-date scenes)', async run() {
+    const sb = load(), errs = validate(sb), g = analyze(root);
+    if (errs.length) throw new Error('storyboard is not valid:\n  ' + errs.join('\n  '));
+    const r = check(sb, root, g), last = join(out, 'evidence.json');
+    const old = existsSync(last) ? (p => ({ commit: p.commit as string | null, stale: stale(root, p, g) }))(JSON.parse(readFileSync(last, 'utf8'))) : undefined;
+    say(on('json') ? JSON.stringify({ ...r, stale: old?.stale ?? null }, null, 1) : formatReport(r, old));
+    if (r.scenes.some(s => s.status === 'broken') || (on('strict') && (r.scenes.some(s => s.status === 'unsupported') || old?.stale.length))) process.exitCode = 1;
   } },
   plan: { help: 'write reporeel.json (Claude if ANTHROPIC_API_KEY is set, otherwise an offline draft)', async run() {
     const useClaude = !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) && !on('offline');

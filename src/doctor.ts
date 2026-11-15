@@ -21,7 +21,7 @@ const SECRETS: [string, RegExp][] = [
 ];
 
 /** Tracked files when it is a git checkout (that is what visitors see), otherwise a walk. */
-function files(dir: string): string[] {
+export function files(dir: string): string[] {
   try { return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter(Boolean); }
   catch {
     const out: string[] = [];

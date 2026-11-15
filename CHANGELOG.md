@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `reporeel graph`: modules, top-level symbols and resolved imports for TypeScript, JavaScript and Python, as `graph.json` and a clickable `explore.html`. Static: nothing is run.
+- Scenes can cite `evidence` (file, line range, symbol, test). `reporeel check` reports each scene as observed, grounded, unsupported or broken; `video` refuses a storyboard with a broken citation, including a code scene whose lines are not in the file.
+- Every render writes `evidence.json` (commit and a hash of each cited range); `check` names the scenes that are out of date with the code.
+- `reporeel pr` adds how far the change reaches: modules that depend on the changed files and the test files that reach them.
+- `plan` gives Claude the symbol list and sends broken citations back for a fix; the workflow from `reporeel ci` runs `check` on pull requests.
 - **Breaking, security:** commands from a storyboard (`terminal` scenes, `app.start`) or a README (`verify`) no longer run unasked. The CLI lists them and asks; `--run` approves up front; without a terminal they are refused. Library callers pass `approve` to `render` and `verify`.
 - Those commands no longer inherit credential-like environment variables (`REPOREEL_PASS_ENV` lets named ones through).
 - The workflow from `reporeel ci` gives pull requests a read-only token; only the release job can write.

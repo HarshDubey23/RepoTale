@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npx -y @theharshdubey/reporeel doctor --min 60
+      # Reads only: fails when the storyboard cites a file, line range, symbol or test this change removed.
+      - run: npx -y @theharshdubey/reporeel check
       - run: npx -y @theharshdubey/reporeel verify --run
   refresh:
     if: github.event_name != 'pull_request'

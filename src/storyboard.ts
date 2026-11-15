@@ -12,8 +12,8 @@ export type Action =
   | { wait: number }                           // ms
   | { waitFor: string };                       // wait until a selector is visible
 
-/** `say` is the narration; `say_hi`, `say_ta`, ... hold translations used by `--lang`. */
-export type Scene = { say: string; id?: string; [lang: `say_${string}`]: string | undefined } & (
+/** `say` is the narration; `say_hi`, `say_ta`, ... hold translations used by `--lang`. `evidence` cites what backs the scene. */
+export type Scene = { say: string; id?: string; evidence?: import('./evidence.ts').Evidence[]; [lang: `say_${string}`]: string | undefined } & (
   | { type: 'title'; heading: string; sub?: string }
   | { type: 'web'; url?: string; actions?: Action[] }
   | { type: 'code'; file: string; lines?: [number, number]; highlight?: [number, number][]; caption?: string }
@@ -61,6 +61,11 @@ export function validate(sb: any): string[] {
     if (s.type === 'terminal' && !(Array.isArray(s.commands) && s.commands.length)) errs.push(`${at}.commands: required`);
     if (s.type === 'stats' && !(Array.isArray(s.items) && s.items.length)) errs.push(`${at}.items: required`);
     if ((s.type === 'title' || s.type === 'end') && typeof s.heading !== 'string') errs.push(`${at}.heading: required`);
+    if (s.evidence !== undefined && !Array.isArray(s.evidence)) errs.push(`${at}.evidence: must be a list`);
+    else (s.evidence ?? []).forEach((e: any, j: number) => {
+      if (!['file', 'symbol', 'test'].includes(e?.kind) || typeof e.id !== 'string' || !e.id) errs.push(`${at}.evidence[${j}]: needs kind (file, symbol or test) and id`);
+      else if (e.lines !== undefined && !(Array.isArray(e.lines) && e.lines.length === 2)) errs.push(`${at}.evidence[${j}].lines: [first, last]`);
+    });
     (s.actions ?? []).forEach((a: any, j: number) => {
       const keys = Object.keys(a ?? {});
       if (keys.length !== 1 || !ACTIONS.includes(keys[0])) errs.push(`${at}.actions[${j}]: one of ${ACTIONS.join(', ')}`);

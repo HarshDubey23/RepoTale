@@ -43,6 +43,8 @@ Shape:
 Rules that make the video good:
 - 6 to 9 scenes, 60 to 120 seconds. Problem, product working, how it works, proof, where to get it.
 - Every claim, number, path and line range comes from the repo. Never invent a metric.
+- Cite what backs each `diagram` and `stats` scene with `"evidence": [{"kind":"file","id":"src/a.ts","lines":[1,20]}, {"kind":"symbol","id":"src/a.ts#name"}, {"kind":"test","id":"test/a.test.ts"}]`.
+  Symbol ids come from `npx -y @theharshdubey/reporeel graph --json`. Run `npx -y @theharshdubey/reporeel check` before rendering and fix anything `broken` or `unsupported`.
 - Show, don't tell: a `web` scene if there is a UI, a `terminal` scene for CLIs and tests.
 - Narration is for the ear: short sentences, no markdown, symbols spelled out.
 - Before writing a `web` scene, start the app and find selectors that exist (use the Playwright MCP
