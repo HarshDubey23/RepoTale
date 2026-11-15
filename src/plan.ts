@@ -14,7 +14,7 @@ const SKIP = /(^|\/)(node_modules|dist|build|\.next|vendor|__pycache__|\.venv|ve
 /** A readable snapshot of the repo for the model: tree, then the files that explain it most. */
 export function pack(root: string, budget = 180_000): { text: string; omitted: number } {
   let files: string[];
-  try { files = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter(Boolean); }
+  try { files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter(Boolean); }
   catch { files = []; }
   const tree = files.filter(f => !SKIP.test(f));
   const score = (f: string) =>

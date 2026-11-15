@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:'Inter Variable';src:url(file:///home/user/reporeel/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+@font-face{font-family:'JetBrains Mono Variable';src:url(file:///home/user/reporeel/node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+:root{--a:#ff7a45;--bg:#0c0d12;--s:#15171f;--l:#262935;--t:#f3f3f6;--m:#9a9cab;--dur:1s}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--t);font-family:'Inter Variable',system-ui,sans-serif;overflow:hidden}
+body{background:radial-gradient(1200px 600px at 85% -10%,color-mix(in srgb,var(--a) 22%,transparent),transparent 60%),var(--bg)}
+.wrap{position:absolute;inset:64px 80px 110px}
+.kick{font:600 15px 'JetBrains Mono Variable',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--a)}
+.up{opacity:0;transform:translateY(18px);animation:up .8s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes up{to{opacity:1;transform:none}}
+.mark{position:absolute;right:28px;top:24px;font:500 13px 'JetBrains Mono Variable',monospace;color:#5d6070}
+</style></head><body><div class="mark"></div><div class="wrap" style="display:grid;grid-template-rows:auto 1fr;gap:16px">
+          <div></div>
+          <div id="d" class="up" style="animation-delay:.1s;min-height:0;overflow:hidden"></div></div>
+        <script src="file:///home/user/reporeel/node_modules/mermaid/dist/mermaid.min.js"></script>
+        <script>
+          document.fonts.load('20px "Inter Variable"').then(() => {
+          mermaid.initialize({ startOnLoad: false, theme: 'base', flowchart: { htmlLabels: false, padding: 18, nodeSpacing: 46, rankSpacing: 60 }, sequence: { useMaxWidth: true }, themeVariables: { darkMode: true, background: '#0c0d12', primaryColor: '#15171f', primaryBorderColor: '#ff7a45', primaryTextColor: '#f3f3f6', lineColor: '#9a9cab', secondaryColor: '#1d2030', tertiaryColor: '#15171f', fontFamily: 'Inter Variable', fontSize: '20px', edgeLabelBackground: '#0c0d12' } });
+          mermaid.render('g', "flowchart LR\n  R[Your repo] --> P[plan: agent or Claude]\n  P --> S[reporeel.json]\n  S --> V[voice: Kokoro or ElevenLabs]\n  S --> B[Chrome screencast]\n  V --> F[ffmpeg]\n  B --> F\n  F --> O[MP4, GIF, captions]\n  O --> D[README, social card, launch posts]").then(({ svg }) => {
+            const d = document.getElementById('d'); d.innerHTML = svg;
+            // Fill the stage: the SVG scales up to the box and keeps its aspect ratio.
+            const el = d.querySelector('svg'); el.removeAttribute('height'); el.style.maxWidth = 'none';
+            el.style.width = d.clientWidth + 'px'; el.style.height = d.clientHeight + 'px'; el.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+            const parts = [...el.querySelectorAll('.node, .cluster, .edgePaths path, .edgeLabels .edgeLabel, .actor, .messageLine0, .messageLine1, .messageText')];
+            const step = Math.max(30, Math.min(250, (1 * 1000 * .45) / Math.max(1, parts.length)));
+            parts.forEach((p, i) => { p.style.opacity = 0; p.style.transition = 'opacity .5s'; setTimeout(() => p.style.opacity = 1, 300 + i * step); });
+            window.__ready = true;
+          }).catch(e => { document.getElementById('d').textContent = 'diagram error: ' + e.message; window.__ready = true; });
+          });
+        </script></body></html>

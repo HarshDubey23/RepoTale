@@ -107,7 +107,7 @@ export async function sceneHtml(s: Scene, c: Ctx): Promise<string> {
             const el = d.querySelector('svg'); el.removeAttribute('height'); el.style.maxWidth = 'none';
             el.style.width = d.clientWidth + 'px'; el.style.height = d.clientHeight + 'px'; el.setAttribute('preserveAspectRatio', 'xMidYMid meet');
             const parts = [...el.querySelectorAll('.node, .cluster, .edgePaths path, .edgeLabels .edgeLabel, .actor, .messageLine0, .messageLine1, .messageText')];
-            const step = Math.min(350, (${c.seconds} * 1000 * .6) / Math.max(1, parts.length));
+            const step = Math.max(30, Math.min(250, (${c.seconds} * 1000 * .45) / Math.max(1, parts.length)));
             parts.forEach((p, i) => { p.style.opacity = 0; p.style.transition = 'opacity .5s'; setTimeout(() => p.style.opacity = 1, 300 + i * step); });
             window.__ready = true;
           }).catch(e => { document.getElementById('d').textContent = 'diagram error: ' + e.message; window.__ready = true; });

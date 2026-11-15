@@ -11,6 +11,8 @@
     "node": ">=22.18"
   },
   "scripts": {
+    "build": "rm -rf dist && tsc -p .",
+    "prepublishOnly": "npm run build && npm test",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
@@ -26,5 +28,30 @@
   "devDependencies": {
     "@types/node": "^26.6.6",
     "typescript": "^7.0.2"
-  }
+  },
+  "keywords": [
+    "readme",
+    "demo video",
+    "documentation",
+    "developer tools",
+    "playwright",
+    "text-to-speech",
+    "github",
+    "claude code",
+    "agent skill",
+    "open source"
+  ],
+  "files": [
+    "bin",
+    "dist",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarshDubey23/reporeel.git"
+  },
+  "homepage": "https://github.com/HarshDubey23/reporeel#readme",
+  "author": "Harsh Dubey"
 }

@@ -1,0 +1,31 @@
+1
+00:00:00,500 --> 00:00:10,374
+Most repositories never get understood. A visitor gives the README a few seconds, sees a wall of text, and leaves. reporeel fixes that with one command.
+
+2
+00:00:11,674 --> 00:00:20,347
+First it scores the repo the way a visitor sees it. This little app gets a D: no demo, no license, no way to know what it does.
+
+3
+00:00:21,647 --> 00:00:33,193
+Then run reporeel with no arguments. It writes a storyboard, records a narrated video, draws the architecture, makes a social card and updates the README. The score goes up on its own.
+
+4
+00:00:34,493 --> 00:00:41,677
+Web scenes drive the real app, with a cursor that glides, clicks that ripple, and a camera that zooms in on what matters.
+
+5
+00:00:43,809 --> 00:00:55,747
+Everything lives in one storyboard file. Title cards, live web, real code, diagrams, terminal runs and numbers. A coding agent writes it, or Claude does, or you do.
+
+6
+00:00:57,047 --> 00:01:07,209
+The narration is spoken by a free local voice, or by ElevenLabs in Hindi and many other languages. Chrome records sharp frames, and ffmpeg puts it all together.
+
+7
+00:01:08,509 --> 00:01:16,763
+It also checks that your quickstart really works on a clean checkout, makes videos of pull requests, and keeps everything fresh on every release.
+
+8
+00:01:18,063 --> 00:01:24,228
+reporeel. Make your repo understood. This video was made by reporeel, from this storyboard.

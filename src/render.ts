@@ -27,7 +27,9 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
   }
   const errs = validate(sb);
   if (errs.length) throw new Error('storyboard is not valid:\n  ' + errs.join('\n  '));
-  const repoDir = resolve(file, '..', sb.repo ?? '.');
+  // `repo` is a folder relative to the storyboard, or an owner/name label; a label means "this folder".
+  const candidate = resolve(file, '..', sb.repo ?? '.');
+  const repoDir = existsSync(candidate) ? candidate : resolve(file, '..');
   const out = resolve(o.out), work = join(out, '.work');
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
@@ -155,7 +157,7 @@ async function recordScene(browser: Browser, sb: Storyboard, s: Scene, seconds: 
     await page.goto(new URL(s.url ?? '/', sb.app?.url ?? s.url).href, { waitUntil: 'networkidle', timeout: 60_000 }).catch(() => page.waitForLoadState('load'));
   } else {
     const html = join(env.work, 'scene.html');
-    writeFileSync(html, await sceneHtml(s, { accent: env.accent, seconds: seconds - LEAD, repo: sb.repo && sb.repo !== '.' ? sb.repo : env.repoDir.split('/').pop()!, repoDir: env.repoDir, title: sb.title }));
+    writeFileSync(html, await sceneHtml(s, { accent: env.accent, seconds: seconds - LEAD, repo: /^[\w.-]+\/[\w.-]+$/.test(sb.repo ?? '') ? sb.repo! : env.repoDir.split('/').pop()!, repoDir: env.repoDir, title: sb.title }));
     await page.goto('file://' + html);
     if (s.type === 'diagram') await page.waitForFunction(() => (window as any).__ready, null, { timeout: 30_000 });
   }
@@ -233,7 +235,7 @@ async function play(page: Page, actions: Action[], seconds: number) {
           await rr('cursorTo', x, y, 650);
           if ('click' in a) { await rr('ripple', x, y); await el.click(); }
           if ('hover' in a) await el.hover();
-          if ('type' in a) { await rr('ripple', x, y); await el.click(); await el.pressSequentially(a.type[1], { delay: 55 }); }
+          if ('type' in a) { await rr('ripple', x, y); await el.click(); await el.pressSequentially(a.type[1], { delay: Math.min(55, 1600 / Math.max(1, a.type[1].length)) }); }
         }
         if ('press' in a) await page.keyboard.press(a.press);
       }

@@ -44,7 +44,8 @@ function part(root: string, rel: string): Part | undefined {
   if (files.some(f => f.endsWith('.sol')) || /contracts?$/.test(rel)) kinds.add('contracts'), tech.add('Solidity');
   if (files.some(f => f.endsWith('.circom'))) kinds.add('contracts'), tech.add('Circom');
   if (files.includes('Dockerfile') || files.includes('docker-compose.yml')) tech.add('Docker');
-  if (!d.names.length && !tech.size) return undefined;
+  if (files.includes('index.html')) kinds.add('frontend');
+  if (!d.names.length && !tech.size && !Object.keys(d.scripts).length && !kinds.size) return undefined;
   const kind = (['cli', 'frontend', 'backend', 'contracts', 'ml', 'tests'] as const).find(k => kinds.has(k)) ?? (d.lang === 'other' ? 'infra' : 'library');
   return { dir: rel || '.', name: rel || 'app', kind, tech: [...tech] };
 }
@@ -62,7 +63,9 @@ export function detect(root: string): Stack {
     const s = deps(join(root, p.dir)).scripts, cmd = s.dev ? 'dev' : s.start ? 'start' : s.preview ? 'preview' : undefined;
     if (cmd && (p.kind === 'frontend' || !dev)) {
       const port = /next/.test(s[cmd]) ? 3000 : /vite/.test(s[cmd]) ? 5173 : /astro/.test(s[cmd]) ? 4321 : 3000;
-      dev = { cmd: `npm run ${cmd}`, port, dir: p.dir };
+      // Most Node servers (Next.js, Express, plain http) honour PORT; Vite and Astro use their own flag.
+      const pinned = /vite|astro/.test(s[cmd]) ? `npm run ${cmd} -- --port ${port}` : `PORT=${port} npm run ${cmd}`;
+      dev = { cmd: pinned, port, dir: p.dir };
     }
   }
   return { name, parts: parts.length > 1 ? parts.filter(p => p.dir !== '.' || p.tech.length > 1) : parts, stores, services, dev };

@@ -25,7 +25,7 @@ export type Scene = { say: string; id?: string; [lang: `say_${string}`]: string 
 
 export interface Storyboard {
   title: string;
-  /** Root of the project being explained. Relative paths in scenes resolve against it. */
+  /** Folder of the project (relative to this file), or an owner/name label shown on the title card. */
   repo?: string;
   /** The running app, for web scenes. `start` is run in `repo` and awaited until `url` answers. */
   app?: { url: string; start?: string; readyTimeoutMs?: number };

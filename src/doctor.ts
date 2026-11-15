@@ -22,7 +22,7 @@ const SECRETS: [string, RegExp][] = [
 
 /** Tracked files when it is a git checkout (that is what visitors see), otherwise a walk. */
 function files(dir: string): string[] {
-  try { return execFileSync('git', ['ls-files'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter(Boolean); }
+  try { return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter(Boolean); }
   catch {
     const out: string[] = [];
     const walk = (d: string) => { for (const e of readdirSync(d, { withFileTypes: true })) { if (SKIP.has(e.name)) continue; const p = join(d, e.name); e.isDirectory() ? walk(p) : out.push(relative(dir, p)); } };
@@ -66,7 +66,7 @@ export function doctor(dir: string): Report {
     c('readme', 'first impression', 12, !!readmeFile, readmeFile ? `${readmeFile}, ${words} words` : 'no README', 'reporeel readme'),
     c('one-liner', 'first impression', 8, /^(#[^\n]*\n+)?(\s*<[^>]+>\s*\n+)*\s*([^#\n<!\[].{20,200})$/m.test(top.split('\n').slice(0, 12).join('\n')), 'a plain sentence near the top says what this is', 'Add one sentence under the title: what it does and for whom.'),
     c('demo-media', 'first impression', 14, media.test(top), media.test(top) ? 'a GIF, image or video in the first 40 lines' : media.test(md) ? 'media exists but is below the fold' : 'no screenshot, GIF or video', 'reporeel video  (then reporeel readme to place it)'),
-    c('how-it-works', 'first impression', 6, section(/how it works|architecture|design|overview|under the hood/), 'an architecture or "how it works" section', 'reporeel diagram'),
+    c('how-it-works', 'first impression', 6, (section(/how it works|how it is built|architecture|design|overview|under the hood|internals/) || /<summary>[^<]*(<b>)?\s*(architecture|how it works)/i.test(md)), 'an architecture or "how it works" section', 'reporeel diagram'),
     c('quickstart', 'getting started', 10, section(/install|quick ?start|getting started|setup|usage|run/) && codeBlocks.some(b => /\b(npm|npx|pnpm|yarn|pip|uv|cargo|go |docker|make|brew|curl|git clone|python)\b/.test(b[2])), 'install or quickstart section with a command', 'Add a Quickstart with the exact commands, then run reporeel verify.'),
     c('license', 'trust', 8, has(/^(LICENSE|LICENCE|COPYING)(\.\w+)?$/i), has(/^(LICENSE|LICENCE|COPYING)/i) ? 'license file present' : 'no license: legally, nobody may use this code', 'Add a LICENSE file (MIT is the common default).'),
     c('tests', 'trust', 7, has(/(^|\/)(tests?|__tests__|spec|e2e)\/|(^|\/)(pytest\.ini|conftest\.py|playwright\.config\.\w+|vitest\.config\.\w+|jest\.config\.\w+)$|\.(test|spec)\.\w+$|_test\.(go|py)$|^test_.*\.py$/), 'tests in the repo'),
