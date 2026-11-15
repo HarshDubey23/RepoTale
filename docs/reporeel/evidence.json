@@ -1,0 +1,143 @@
+{
+ "commit": "a3b0b5368e008e1b2832f7ea339f62eb1d625955",
+ "coverage": 1,
+ "scenes": [
+  {
+   "scene": 1,
+   "id": "1-title",
+   "type": "title",
+   "status": "none",
+   "refs": [],
+   "problems": []
+  },
+  {
+   "scene": 2,
+   "id": "2-terminal",
+   "type": "terminal",
+   "status": "observed",
+   "refs": [],
+   "problems": []
+  },
+  {
+   "scene": 3,
+   "id": "3-terminal",
+   "type": "terminal",
+   "status": "observed",
+   "refs": [],
+   "problems": []
+  },
+  {
+   "scene": 4,
+   "id": "4-web",
+   "type": "web",
+   "status": "observed",
+   "refs": [],
+   "problems": []
+  },
+  {
+   "scene": 5,
+   "id": "5-code",
+   "type": "code",
+   "status": "grounded",
+   "refs": [
+    {
+     "kind": "file",
+     "id": "src/storyboard.ts",
+     "lines": [
+      5,
+      28
+     ],
+     "file": "src/storyboard.ts",
+     "hash": "d1a697d2e8c85489"
+    }
+   ],
+   "problems": []
+  },
+  {
+   "scene": 6,
+   "id": "6-diagram",
+   "type": "diagram",
+   "status": "grounded",
+   "refs": [
+    {
+     "kind": "symbol",
+     "id": "src/plan.ts#planWithClaude",
+     "file": "src/plan.ts",
+     "hash": "ec9307f87ede03bf"
+    },
+    {
+     "kind": "symbol",
+     "id": "src/voice.ts#speak",
+     "file": "src/voice.ts",
+     "hash": "49a73bb454d0ea25"
+    },
+    {
+     "kind": "symbol",
+     "id": "src/render.ts#render",
+     "file": "src/render.ts",
+     "hash": "6c21bb794d777e67"
+    },
+    {
+     "kind": "symbol",
+     "id": "src/ffmpeg.ts#ffmpeg",
+     "file": "src/ffmpeg.ts",
+     "hash": "e4e8fd331fae882d"
+    },
+    {
+     "kind": "symbol",
+     "id": "src/readme.ts#writeReadme",
+     "file": "src/readme.ts",
+     "hash": "af2c0731feb60fb2"
+    },
+    {
+     "kind": "symbol",
+     "id": "src/media.ts#socialCard",
+     "file": "src/media.ts",
+     "hash": "4af3f38c176f2a4e"
+    },
+    {
+     "kind": "symbol",
+     "id": "src/posts.ts#launchPosts",
+     "file": "src/posts.ts",
+     "hash": "9068054d6f246eec"
+    }
+   ],
+   "problems": []
+  },
+  {
+   "scene": 7,
+   "id": "7-stats",
+   "type": "stats",
+   "status": "grounded",
+   "refs": [
+    {
+     "kind": "symbol",
+     "id": "src/cli.ts#commands",
+     "file": "src/cli.ts",
+     "hash": "b67f792e73cc5c8b"
+    },
+    {
+     "kind": "symbol",
+     "id": "src/storyboard.ts#Scene",
+     "file": "src/storyboard.ts",
+     "hash": "ddbfcda95b8dd0bc"
+    },
+    {
+     "kind": "symbol",
+     "id": "src/voice.ts#speak",
+     "file": "src/voice.ts",
+     "hash": "49a73bb454d0ea25"
+    }
+   ],
+   "problems": []
+  },
+  {
+   "scene": 8,
+   "id": "8-end",
+   "type": "end",
+   "status": "none",
+   "refs": [],
+   "problems": []
+  }
+ ]
+}

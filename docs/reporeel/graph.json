@@ -1,0 +1,1826 @@
+{
+ "commit": "a3b0b5368e008e1b2832f7ea339f62eb1d625955",
+ "modules": [
+  {
+   "file": "bench/run.ts",
+   "lang": "js",
+   "lines": 75,
+   "test": false,
+   "imports": [
+    "src/evidence.ts",
+    "src/graph.ts",
+    "src/plan.ts",
+    "src/storyboard.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "4aa04809129f2f48"
+  },
+  {
+   "file": "bin/reporeel.js",
+   "lang": "js",
+   "lines": 6,
+   "test": false,
+   "imports": [],
+   "external": [],
+   "unresolved": [],
+   "hash": "feb5f4dfaaad3125"
+  },
+  {
+   "file": "examples/hello/readable.js",
+   "lang": "js",
+   "lines": 11,
+   "test": false,
+   "imports": [],
+   "external": [],
+   "unresolved": [],
+   "hash": "3ac15bbfa72aa14f"
+  },
+  {
+   "file": "examples/hello/readable.test.js",
+   "lang": "js",
+   "lines": 10,
+   "test": true,
+   "imports": [
+    "examples/hello/readable.js"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "2dbe13a9ded12f2e"
+  },
+  {
+   "file": "examples/hello/server.js",
+   "lang": "js",
+   "lines": 14,
+   "test": false,
+   "imports": [],
+   "external": [],
+   "unresolved": [],
+   "hash": "266f2ea7be16951c"
+  },
+  {
+   "file": "src/ci.ts",
+   "lang": "js",
+   "lines": 53,
+   "test": false,
+   "imports": [],
+   "external": [],
+   "unresolved": [],
+   "hash": "d34cb7f8400f6103"
+  },
+  {
+   "file": "src/cli.ts",
+   "lang": "js",
+   "lines": 173,
+   "test": false,
+   "imports": [
+    "src/ci.ts",
+    "src/cuts.ts",
+    "src/doctor.ts",
+    "src/evidence.ts",
+    "src/exec.ts",
+    "src/explore.ts",
+    "src/graph.ts",
+    "src/media.ts",
+    "src/plan.ts",
+    "src/posts.ts",
+    "src/pr.ts",
+    "src/readme.ts",
+    "src/render.ts",
+    "src/setup.ts",
+    "src/stack.ts",
+    "src/storyboard.ts",
+    "src/verify.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "b67f792e73cc5c8b"
+  },
+  {
+   "file": "src/cuts.ts",
+   "lang": "js",
+   "lines": 46,
+   "test": false,
+   "imports": [
+    "src/ffmpeg.ts"
+   ],
+   "external": [
+    "playwright"
+   ],
+   "unresolved": [],
+   "hash": "73f28d4af84efcec"
+  },
+  {
+   "file": "src/doctor.ts",
+   "lang": "js",
+   "lines": 114,
+   "test": false,
+   "imports": [],
+   "external": [],
+   "unresolved": [],
+   "hash": "f573404f139897ec"
+  },
+  {
+   "file": "src/evidence.ts",
+   "lang": "js",
+   "lines": 78,
+   "test": false,
+   "imports": [
+    "src/graph.ts",
+    "src/storyboard.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "8f256a9fe5e226f0"
+  },
+  {
+   "file": "src/exec.ts",
+   "lang": "js",
+   "lines": 40,
+   "test": false,
+   "imports": [],
+   "external": [],
+   "unresolved": [],
+   "hash": "6bbdac546886a226"
+  },
+  {
+   "file": "src/explore.ts",
+   "lang": "js",
+   "lines": 74,
+   "test": false,
+   "imports": [
+    "src/graph.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "22a3ee053fc90c74"
+  },
+  {
+   "file": "src/ffmpeg.ts",
+   "lang": "js",
+   "lines": 29,
+   "test": false,
+   "imports": [],
+   "external": [],
+   "unresolved": [],
+   "hash": "e4e8fd331fae882d"
+  },
+  {
+   "file": "src/graph.ts",
+   "lang": "js",
+   "lines": 145,
+   "test": false,
+   "imports": [
+    "src/doctor.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "8ddc1bd818b1d050"
+  },
+  {
+   "file": "src/index.ts",
+   "lang": "js",
+   "lines": 20,
+   "test": false,
+   "imports": [
+    "src/ci.ts",
+    "src/cuts.ts",
+    "src/doctor.ts",
+    "src/evidence.ts",
+    "src/exec.ts",
+    "src/explore.ts",
+    "src/graph.ts",
+    "src/media.ts",
+    "src/plan.ts",
+    "src/posts.ts",
+    "src/pr.ts",
+    "src/readme.ts",
+    "src/render.ts",
+    "src/setup.ts",
+    "src/stack.ts",
+    "src/storyboard.ts",
+    "src/verify.ts",
+    "src/voice.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "ac39d2f26367d466"
+  },
+  {
+   "file": "src/media.ts",
+   "lang": "js",
+   "lines": 73,
+   "test": false,
+   "imports": [
+    "src/templates.ts"
+   ],
+   "external": [
+    "playwright"
+   ],
+   "unresolved": [],
+   "hash": "4af3f38c176f2a4e"
+  },
+  {
+   "file": "src/overlay.ts",
+   "lang": "js",
+   "lines": 69,
+   "test": false,
+   "imports": [],
+   "external": [],
+   "unresolved": [],
+   "hash": "51cf4c926b82d2c9"
+  },
+  {
+   "file": "src/plan.ts",
+   "lang": "js",
+   "lines": 146,
+   "test": false,
+   "imports": [
+    "src/evidence.ts",
+    "src/graph.ts",
+    "src/stack.ts",
+    "src/storyboard.ts"
+   ],
+   "external": [
+    "@anthropic-ai/sdk"
+   ],
+   "unresolved": [],
+   "hash": "ec9307f87ede03bf"
+  },
+  {
+   "file": "src/posts.ts",
+   "lang": "js",
+   "lines": 48,
+   "test": false,
+   "imports": [
+    "src/storyboard.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "9068054d6f246eec"
+  },
+  {
+   "file": "src/pr.ts",
+   "lang": "js",
+   "lines": 51,
+   "test": false,
+   "imports": [
+    "src/graph.ts",
+    "src/storyboard.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "fc1facc1b376c637"
+  },
+  {
+   "file": "src/readme.ts",
+   "lang": "js",
+   "lines": 43,
+   "test": false,
+   "imports": [],
+   "external": [],
+   "unresolved": [],
+   "hash": "af2c0731feb60fb2"
+  },
+  {
+   "file": "src/render.ts",
+   "lang": "js",
+   "lines": 344,
+   "test": false,
+   "imports": [
+    "src/evidence.ts",
+    "src/exec.ts",
+    "src/ffmpeg.ts",
+    "src/overlay.ts",
+    "src/storyboard.ts",
+    "src/templates.ts",
+    "src/voice.ts"
+   ],
+   "external": [
+    "playwright"
+   ],
+   "unresolved": [],
+   "hash": "6c21bb794d777e67"
+  },
+  {
+   "file": "src/setup.ts",
+   "lang": "js",
+   "lines": 39,
+   "test": false,
+   "imports": [
+    "src/ffmpeg.ts"
+   ],
+   "external": [
+    "playwright"
+   ],
+   "unresolved": [],
+   "hash": "3669b32ac2dc5bd1"
+  },
+  {
+   "file": "src/stack.ts",
+   "lang": "js",
+   "lines": 92,
+   "test": false,
+   "imports": [],
+   "external": [],
+   "unresolved": [],
+   "hash": "3ee78e8645110699"
+  },
+  {
+   "file": "src/storyboard.ts",
+   "lang": "js",
+   "lines": 76,
+   "test": false,
+   "imports": [
+    "src/evidence.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "ddbfcda95b8dd0bc"
+  },
+  {
+   "file": "src/templates.ts",
+   "lang": "js",
+   "lines": 145,
+   "test": false,
+   "imports": [
+    "src/storyboard.ts"
+   ],
+   "external": [
+    "shiki"
+   ],
+   "unresolved": [],
+   "hash": "814bae148d221c91"
+  },
+  {
+   "file": "src/verify.ts",
+   "lang": "js",
+   "lines": 84,
+   "test": false,
+   "imports": [
+    "src/exec.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "4fbbfdc1ec1a834d"
+  },
+  {
+   "file": "src/voice.ts",
+   "lang": "js",
+   "lines": 40,
+   "test": false,
+   "imports": [
+    "src/ffmpeg.ts"
+   ],
+   "external": [
+    "kokoro-js"
+   ],
+   "unresolved": [],
+   "hash": "49a73bb454d0ea25"
+  },
+  {
+   "file": "test/doctor.test.ts",
+   "lang": "js",
+   "lines": 52,
+   "test": true,
+   "imports": [
+    "src/doctor.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "5868ac0dd8e23ed5"
+  },
+  {
+   "file": "test/graph.test.ts",
+   "lang": "js",
+   "lines": 164,
+   "test": true,
+   "imports": [
+    "src/evidence.ts",
+    "src/explore.ts",
+    "src/graph.ts",
+    "src/plan.ts",
+    "src/storyboard.ts"
+   ],
+   "external": [],
+   "unresolved": [
+    "../src/auth.ts",
+    "./app.css",
+    "./commented-out",
+    "./util.js"
+   ],
+   "hash": "8f1b4e6647a57192"
+  },
+  {
+   "file": "test/readme.test.ts",
+   "lang": "js",
+   "lines": 20,
+   "test": true,
+   "imports": [
+    "src/readme.ts",
+    "src/verify.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "b1c70afe6ac4c186"
+  },
+  {
+   "file": "test/render.test.ts",
+   "lang": "js",
+   "lines": 36,
+   "test": true,
+   "imports": [
+    "src/ffmpeg.ts",
+    "src/render.ts",
+    "src/setup.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "6c21c3d954f294e6"
+  },
+  {
+   "file": "test/schema.test.ts",
+   "lang": "js",
+   "lines": 23,
+   "test": true,
+   "imports": [
+    "src/storyboard.ts"
+   ],
+   "external": [
+    "ajv"
+   ],
+   "unresolved": [],
+   "hash": "aea4fd75471c7835"
+  },
+  {
+   "file": "test/security.test.ts",
+   "lang": "js",
+   "lines": 140,
+   "test": true,
+   "imports": [
+    "src/ci.ts",
+    "src/exec.ts",
+    "src/render.ts",
+    "src/storyboard.ts",
+    "src/verify.ts"
+   ],
+   "external": [],
+   "unresolved": [],
+   "hash": "2fab3bdef935bd62"
+  }
+ ],
+ "symbols": [
+  {
+   "id": "bench/run.ts#REPOS",
+   "name": "REPOS",
+   "kind": "const",
+   "file": "bench/run.ts",
+   "line": 18,
+   "exported": false
+  },
+  {
+   "id": "bench/run.ts#base",
+   "name": "base",
+   "kind": "const",
+   "file": "bench/run.ts",
+   "line": 24,
+   "exported": false
+  },
+  {
+   "id": "bench/run.ts#rows",
+   "name": "rows",
+   "kind": "const",
+   "file": "bench/run.ts",
+   "line": 26,
+   "exported": false
+  },
+  {
+   "id": "bench/run.ts#cols",
+   "name": "cols",
+   "kind": "const",
+   "file": "bench/run.ts",
+   "line": 46,
+   "exported": false
+  },
+  {
+   "id": "bench/run.ts#ok",
+   "name": "ok",
+   "kind": "const",
+   "file": "bench/run.ts",
+   "line": 47,
+   "exported": false
+  },
+  {
+   "id": "bench/run.ts#sum",
+   "name": "sum",
+   "kind": "function",
+   "file": "bench/run.ts",
+   "line": 48,
+   "exported": false
+  },
+  {
+   "id": "bench/run.ts#md",
+   "name": "md",
+   "kind": "const",
+   "file": "bench/run.ts",
+   "line": 49,
+   "exported": false
+  },
+  {
+   "id": "bin/reporeel.js#built",
+   "name": "built",
+   "kind": "const",
+   "file": "bin/reporeel.js",
+   "line": 4,
+   "exported": false
+  },
+  {
+   "id": "examples/hello/readable.js#syllables",
+   "name": "syllables",
+   "kind": "function",
+   "file": "examples/hello/readable.js",
+   "line": 2,
+   "exported": false
+  },
+  {
+   "id": "examples/hello/readable.js#measure",
+   "name": "measure",
+   "kind": "function",
+   "file": "examples/hello/readable.js",
+   "line": 4,
+   "exported": true
+  },
+  {
+   "id": "examples/hello/server.js#dir",
+   "name": "dir",
+   "kind": "const",
+   "file": "examples/hello/server.js",
+   "line": 6,
+   "exported": false
+  },
+  {
+   "id": "examples/hello/server.js#types",
+   "name": "types",
+   "kind": "const",
+   "file": "examples/hello/server.js",
+   "line": 7,
+   "exported": false
+  },
+  {
+   "id": "src/ci.ts#writeWorkflow",
+   "name": "writeWorkflow",
+   "kind": "function",
+   "file": "src/ci.ts",
+   "line": 6,
+   "exported": true
+  },
+  {
+   "id": "src/cli.ts#args",
+   "name": "args",
+   "kind": "const",
+   "file": "src/cli.ts",
+   "line": 24,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#cmd",
+   "name": "cmd",
+   "kind": "const",
+   "file": "src/cli.ts",
+   "line": 25,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#flag",
+   "name": "flag",
+   "kind": "function",
+   "file": "src/cli.ts",
+   "line": 26,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#on",
+   "name": "on",
+   "kind": "function",
+   "file": "src/cli.ts",
+   "line": 27,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#root",
+   "name": "root",
+   "kind": "const",
+   "file": "src/cli.ts",
+   "line": 28,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#out",
+   "name": "out",
+   "kind": "const",
+   "file": "src/cli.ts",
+   "line": 29,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#sbFile",
+   "name": "sbFile",
+   "kind": "const",
+   "file": "src/cli.ts",
+   "line": 30,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#log",
+   "name": "log",
+   "kind": "function",
+   "file": "src/cli.ts",
+   "line": 31,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#say",
+   "name": "say",
+   "kind": "function",
+   "file": "src/cli.ts",
+   "line": 32,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#sandbox",
+   "name": "sandbox",
+   "kind": "const",
+   "file": "src/cli.ts",
+   "line": 35,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#approve",
+   "name": "approve",
+   "kind": "function",
+   "file": "src/cli.ts",
+   "line": 37,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#load",
+   "name": "load",
+   "kind": "function",
+   "file": "src/cli.ts",
+   "line": 45,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#save",
+   "name": "save",
+   "kind": "function",
+   "file": "src/cli.ts",
+   "line": 49,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#repoSlug",
+   "name": "repoSlug",
+   "kind": "function",
+   "file": "src/cli.ts",
+   "line": 50,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#commands",
+   "name": "commands",
+   "kind": "const",
+   "file": "src/cli.ts",
+   "line": 52,
+   "exported": false
+  },
+  {
+   "id": "src/cli.ts#c",
+   "name": "c",
+   "kind": "const",
+   "file": "src/cli.ts",
+   "line": 170,
+   "exported": false
+  },
+  {
+   "id": "src/cuts.ts#esc",
+   "name": "esc",
+   "kind": "function",
+   "file": "src/cuts.ts",
+   "line": 10,
+   "exported": false
+  },
+  {
+   "id": "src/cuts.ts#FORMATS",
+   "name": "FORMATS",
+   "kind": "const",
+   "file": "src/cuts.ts",
+   "line": 11,
+   "exported": true
+  },
+  {
+   "id": "src/cuts.ts#Format",
+   "name": "Format",
+   "kind": "type",
+   "file": "src/cuts.ts",
+   "line": 12,
+   "exported": true
+  },
+  {
+   "id": "src/cuts.ts#cut",
+   "name": "cut",
+   "kind": "function",
+   "file": "src/cuts.ts",
+   "line": 14,
+   "exported": true
+  },
+  {
+   "id": "src/doctor.ts#Check",
+   "name": "Check",
+   "kind": "type",
+   "file": "src/doctor.ts",
+   "line": 7,
+   "exported": true
+  },
+  {
+   "id": "src/doctor.ts#Report",
+   "name": "Report",
+   "kind": "type",
+   "file": "src/doctor.ts",
+   "line": 8,
+   "exported": true
+  },
+  {
+   "id": "src/doctor.ts#SKIP",
+   "name": "SKIP",
+   "kind": "const",
+   "file": "src/doctor.ts",
+   "line": 10,
+   "exported": false
+  },
+  {
+   "id": "src/doctor.ts#SECRETS",
+   "name": "SECRETS",
+   "kind": "const",
+   "file": "src/doctor.ts",
+   "line": 11,
+   "exported": false
+  },
+  {
+   "id": "src/doctor.ts#files",
+   "name": "files",
+   "kind": "function",
+   "file": "src/doctor.ts",
+   "line": 24,
+   "exported": true
+  },
+  {
+   "id": "src/doctor.ts#oneLiner",
+   "name": "oneLiner",
+   "kind": "function",
+   "file": "src/doctor.ts",
+   "line": 34,
+   "exported": true
+  },
+  {
+   "id": "src/doctor.ts#doctor",
+   "name": "doctor",
+   "kind": "function",
+   "file": "src/doctor.ts",
+   "line": 38,
+   "exported": true
+  },
+  {
+   "id": "src/doctor.ts#format",
+   "name": "format",
+   "kind": "function",
+   "file": "src/doctor.ts",
+   "line": 101,
+   "exported": true
+  },
+  {
+   "id": "src/evidence.ts#Evidence",
+   "name": "Evidence",
+   "kind": "type",
+   "file": "src/evidence.ts",
+   "line": 17,
+   "exported": true
+  },
+  {
+   "id": "src/evidence.ts#Ref",
+   "name": "Ref",
+   "kind": "type",
+   "file": "src/evidence.ts",
+   "line": 18,
+   "exported": true
+  },
+  {
+   "id": "src/evidence.ts#SceneReport",
+   "name": "SceneReport",
+   "kind": "type",
+   "file": "src/evidence.ts",
+   "line": 19,
+   "exported": true
+  },
+  {
+   "id": "src/evidence.ts#Report",
+   "name": "Report",
+   "kind": "type",
+   "file": "src/evidence.ts",
+   "line": 20,
+   "exported": true
+  },
+  {
+   "id": "src/evidence.ts#read",
+   "name": "read",
+   "kind": "function",
+   "file": "src/evidence.ts",
+   "line": 28,
+   "exported": false
+  },
+  {
+   "id": "src/evidence.ts#resolve",
+   "name": "resolve",
+   "kind": "function",
+   "file": "src/evidence.ts",
+   "line": 35,
+   "exported": false
+  },
+  {
+   "id": "src/evidence.ts#check",
+   "name": "check",
+   "kind": "function",
+   "file": "src/evidence.ts",
+   "line": 52,
+   "exported": true
+  },
+  {
+   "id": "src/evidence.ts#stale",
+   "name": "stale",
+   "kind": "function",
+   "file": "src/evidence.ts",
+   "line": 67,
+   "exported": true
+  },
+  {
+   "id": "src/evidence.ts#formatReport",
+   "name": "formatReport",
+   "kind": "function",
+   "file": "src/evidence.ts",
+   "line": 71,
+   "exported": true
+  },
+  {
+   "id": "src/exec.ts#Approve",
+   "name": "Approve",
+   "kind": "type",
+   "file": "src/exec.ts",
+   "line": 7,
+   "exported": true
+  },
+  {
+   "id": "src/exec.ts#SECRET",
+   "name": "SECRET",
+   "kind": "const",
+   "file": "src/exec.ts",
+   "line": 9,
+   "exported": false
+  },
+  {
+   "id": "src/exec.ts#childEnv",
+   "name": "childEnv",
+   "kind": "function",
+   "file": "src/exec.ts",
+   "line": 13,
+   "exported": true
+  },
+  {
+   "id": "src/exec.ts#Sandbox",
+   "name": "Sandbox",
+   "kind": "type",
+   "file": "src/exec.ts",
+   "line": 19,
+   "exported": true
+  },
+  {
+   "id": "src/exec.ts#dockerArgs",
+   "name": "dockerArgs",
+   "kind": "function",
+   "file": "src/exec.ts",
+   "line": 24,
+   "exported": true
+  },
+  {
+   "id": "src/exec.ts#mustApprove",
+   "name": "mustApprove",
+   "kind": "function",
+   "file": "src/exec.ts",
+   "line": 36,
+   "exported": true
+  },
+  {
+   "id": "src/explore.ts#explorerHtml",
+   "name": "explorerHtml",
+   "kind": "function",
+   "file": "src/explore.ts",
+   "line": 7,
+   "exported": true
+  },
+  {
+   "id": "src/explore.ts#by",
+   "name": "by",
+   "kind": "const",
+   "file": "src/explore.ts",
+   "line": 35,
+   "exported": false
+  },
+  {
+   "id": "src/explore.ts#users",
+   "name": "users",
+   "kind": "function",
+   "file": "src/explore.ts",
+   "line": 36,
+   "exported": false
+  },
+  {
+   "id": "src/explore.ts#el",
+   "name": "el",
+   "kind": "function",
+   "file": "src/explore.ts",
+   "line": 37,
+   "exported": false
+  },
+  {
+   "id": "src/explore.ts#link",
+   "name": "link",
+   "kind": "function",
+   "file": "src/explore.ts",
+   "line": 38,
+   "exported": false
+  },
+  {
+   "id": "src/explore.ts#testsFor",
+   "name": "testsFor",
+   "kind": "function",
+   "file": "src/explore.ts",
+   "line": 40,
+   "exported": false
+  },
+  {
+   "id": "src/explore.ts#current",
+   "name": "current",
+   "kind": "const",
+   "file": "src/explore.ts",
+   "line": 41,
+   "exported": false
+  },
+  {
+   "id": "src/explore.ts#go",
+   "name": "go",
+   "kind": "function",
+   "file": "src/explore.ts",
+   "line": 42,
+   "exported": false
+  },
+  {
+   "id": "src/explore.ts#pick",
+   "name": "pick",
+   "kind": "function",
+   "file": "src/explore.ts",
+   "line": 43,
+   "exported": false
+  },
+  {
+   "id": "src/explore.ts#card",
+   "name": "card",
+   "kind": "function",
+   "file": "src/explore.ts",
+   "line": 44,
+   "exported": false
+  },
+  {
+   "id": "src/explore.ts#draw",
+   "name": "draw",
+   "kind": "function",
+   "file": "src/explore.ts",
+   "line": 49,
+   "exported": false
+  },
+  {
+   "id": "src/ffmpeg.ts#bin",
+   "name": "bin",
+   "kind": "const",
+   "file": "src/ffmpeg.ts",
+   "line": 6,
+   "exported": false
+  },
+  {
+   "id": "src/ffmpeg.ts#ffmpegPath",
+   "name": "ffmpegPath",
+   "kind": "function",
+   "file": "src/ffmpeg.ts",
+   "line": 7,
+   "exported": true
+  },
+  {
+   "id": "src/ffmpeg.ts#exe",
+   "name": "exe",
+   "kind": "function",
+   "file": "src/ffmpeg.ts",
+   "line": 18,
+   "exported": false
+  },
+  {
+   "id": "src/ffmpeg.ts#ffmpeg",
+   "name": "ffmpeg",
+   "kind": "function",
+   "file": "src/ffmpeg.ts",
+   "line": 20,
+   "exported": true
+  },
+  {
+   "id": "src/ffmpeg.ts#duration",
+   "name": "duration",
+   "kind": "function",
+   "file": "src/ffmpeg.ts",
+   "line": 23,
+   "exported": true
+  },
+  {
+   "id": "src/graph.ts#Sym",
+   "name": "Sym",
+   "kind": "type",
+   "file": "src/graph.ts",
+   "line": 18,
+   "exported": true
+  },
+  {
+   "id": "src/graph.ts#Mod",
+   "name": "Mod",
+   "kind": "type",
+   "file": "src/graph.ts",
+   "line": 19,
+   "exported": true
+  },
+  {
+   "id": "src/graph.ts#Graph",
+   "name": "Graph",
+   "kind": "type",
+   "file": "src/graph.ts",
+   "line": 26,
+   "exported": true
+  },
+  {
+   "id": "src/graph.ts#CODE",
+   "name": "CODE",
+   "kind": "const",
+   "file": "src/graph.ts",
+   "line": 28,
+   "exported": false
+  },
+  {
+   "id": "src/graph.ts#SKIP",
+   "name": "SKIP",
+   "kind": "const",
+   "file": "src/graph.ts",
+   "line": 29,
+   "exported": false
+  },
+  {
+   "id": "src/graph.ts#TEST",
+   "name": "TEST",
+   "kind": "const",
+   "file": "src/graph.ts",
+   "line": 30,
+   "exported": false
+  },
+  {
+   "id": "src/graph.ts#JS_EXT",
+   "name": "JS_EXT",
+   "kind": "const",
+   "file": "src/graph.ts",
+   "line": 31,
+   "exported": false
+  },
+  {
+   "id": "src/graph.ts#sha",
+   "name": "sha",
+   "kind": "function",
+   "file": "src/graph.ts",
+   "line": 33,
+   "exported": true
+  },
+  {
+   "id": "src/graph.ts#jsSymbols",
+   "name": "jsSymbols",
+   "kind": "function",
+   "file": "src/graph.ts",
+   "line": 35,
+   "exported": false
+  },
+  {
+   "id": "src/graph.ts#pySymbols",
+   "name": "pySymbols",
+   "kind": "function",
+   "file": "src/graph.ts",
+   "line": 48,
+   "exported": false
+  },
+  {
+   "id": "src/graph.ts#inString",
+   "name": "inString",
+   "kind": "function",
+   "file": "src/graph.ts",
+   "line": 58,
+   "exported": false
+  },
+  {
+   "id": "src/graph.ts#jsSpecs",
+   "name": "jsSpecs",
+   "kind": "function",
+   "file": "src/graph.ts",
+   "line": 69,
+   "exported": false
+  },
+  {
+   "id": "src/graph.ts#pySpecs",
+   "name": "pySpecs",
+   "kind": "function",
+   "file": "src/graph.ts",
+   "line": 80,
+   "exported": false
+  },
+  {
+   "id": "src/graph.ts#analyze",
+   "name": "analyze",
+   "kind": "function",
+   "file": "src/graph.ts",
+   "line": 91,
+   "exported": true
+  },
+  {
+   "id": "src/graph.ts#reach",
+   "name": "reach",
+   "kind": "function",
+   "file": "src/graph.ts",
+   "line": 131,
+   "exported": false
+  },
+  {
+   "id": "src/graph.ts#impact",
+   "name": "impact",
+   "kind": "function",
+   "file": "src/graph.ts",
+   "line": 139,
+   "exported": true
+  },
+  {
+   "id": "src/media.ts#esc",
+   "name": "esc",
+   "kind": "function",
+   "file": "src/media.ts",
+   "line": 7,
+   "exported": false
+  },
+  {
+   "id": "src/media.ts#shots",
+   "name": "shots",
+   "kind": "function",
+   "file": "src/media.ts",
+   "line": 10,
+   "exported": true
+  },
+  {
+   "id": "src/media.ts#diagram",
+   "name": "diagram",
+   "kind": "function",
+   "file": "src/media.ts",
+   "line": 32,
+   "exported": true
+  },
+  {
+   "id": "src/media.ts#socialCard",
+   "name": "socialCard",
+   "kind": "function",
+   "file": "src/media.ts",
+   "line": 51,
+   "exported": true
+  },
+  {
+   "id": "src/overlay.ts#OVERLAY",
+   "name": "OVERLAY",
+   "kind": "const",
+   "file": "src/overlay.ts",
+   "line": 4,
+   "exported": true
+  },
+  {
+   "id": "src/plan.ts#TEXT",
+   "name": "TEXT",
+   "kind": "const",
+   "file": "src/plan.ts",
+   "line": 13,
+   "exported": false
+  },
+  {
+   "id": "src/plan.ts#SKIP",
+   "name": "SKIP",
+   "kind": "const",
+   "file": "src/plan.ts",
+   "line": 14,
+   "exported": false
+  },
+  {
+   "id": "src/plan.ts#pack",
+   "name": "pack",
+   "kind": "function",
+   "file": "src/plan.ts",
+   "line": 17,
+   "exported": true
+  },
+  {
+   "id": "src/plan.ts#GUIDE",
+   "name": "GUIDE",
+   "kind": "const",
+   "file": "src/plan.ts",
+   "line": 39,
+   "exported": false
+  },
+  {
+   "id": "src/plan.ts#AUDIENCES",
+   "name": "AUDIENCES",
+   "kind": "const",
+   "file": "src/plan.ts",
+   "line": 65,
+   "exported": true
+  },
+  {
+   "id": "src/plan.ts#planWithClaude",
+   "name": "planWithClaude",
+   "kind": "function",
+   "file": "src/plan.ts",
+   "line": 73,
+   "exported": true
+  },
+  {
+   "id": "src/plan.ts#draft",
+   "name": "draft",
+   "kind": "function",
+   "file": "src/plan.ts",
+   "line": 111,
+   "exported": true
+  },
+  {
+   "id": "src/plan.ts#translate",
+   "name": "translate",
+   "kind": "function",
+   "file": "src/plan.ts",
+   "line": 132,
+   "exported": true
+  },
+  {
+   "id": "src/posts.ts#launchPosts",
+   "name": "launchPosts",
+   "kind": "function",
+   "file": "src/posts.ts",
+   "line": 5,
+   "exported": true
+  },
+  {
+   "id": "src/pr.ts#git",
+   "name": "git",
+   "kind": "function",
+   "file": "src/pr.ts",
+   "line": 10,
+   "exported": false
+  },
+  {
+   "id": "src/pr.ts#prStoryboard",
+   "name": "prStoryboard",
+   "kind": "function",
+   "file": "src/pr.ts",
+   "line": 12,
+   "exported": true
+  },
+  {
+   "id": "src/readme.ts#START",
+   "name": "START",
+   "kind": "const",
+   "file": "src/readme.ts",
+   "line": 6,
+   "exported": false
+  },
+  {
+   "id": "src/readme.ts#upsertBlock",
+   "name": "upsertBlock",
+   "kind": "function",
+   "file": "src/readme.ts",
+   "line": 8,
+   "exported": true
+  },
+  {
+   "id": "src/readme.ts#readmeBlock",
+   "name": "readmeBlock",
+   "kind": "function",
+   "file": "src/readme.ts",
+   "line": 24,
+   "exported": true
+  },
+  {
+   "id": "src/readme.ts#writeReadme",
+   "name": "writeReadme",
+   "kind": "function",
+   "file": "src/readme.ts",
+   "line": 37,
+   "exported": true
+  },
+  {
+   "id": "src/render.ts#LEAD",
+   "name": "LEAD",
+   "kind": "const",
+   "file": "src/render.ts",
+   "line": 17,
+   "exported": false
+  },
+  {
+   "id": "src/render.ts#CACHE_VERSION",
+   "name": "CACHE_VERSION",
+   "kind": "const",
+   "file": "src/render.ts",
+   "line": 19,
+   "exported": false
+  },
+  {
+   "id": "src/render.ts#sleep",
+   "name": "sleep",
+   "kind": "function",
+   "file": "src/render.ts",
+   "line": 20,
+   "exported": false
+  },
+  {
+   "id": "src/render.ts#stripAnsi",
+   "name": "stripAnsi",
+   "kind": "function",
+   "file": "src/render.ts",
+   "line": 21,
+   "exported": false
+  },
+  {
+   "id": "src/render.ts#RenderOpts",
+   "name": "RenderOpts",
+   "kind": "type",
+   "file": "src/render.ts",
+   "line": 23,
+   "exported": true
+  },
+  {
+   "id": "src/render.ts#Rendered",
+   "name": "Rendered",
+   "kind": "type",
+   "file": "src/render.ts",
+   "line": 37,
+   "exported": true
+  },
+  {
+   "id": "src/render.ts#chapterTitle",
+   "name": "chapterTitle",
+   "kind": "function",
+   "file": "src/render.ts",
+   "line": 40,
+   "exported": false
+  },
+  {
+   "id": "src/render.ts#sceneKey",
+   "name": "sceneKey",
+   "kind": "function",
+   "file": "src/render.ts",
+   "line": 51,
+   "exported": false
+  },
+  {
+   "id": "src/render.ts#render",
+   "name": "render",
+   "kind": "function",
+   "file": "src/render.ts",
+   "line": 59,
+   "exported": true
+  },
+  {
+   "id": "src/render.ts#readmeSection",
+   "name": "readmeSection",
+   "kind": "function",
+   "file": "src/render.ts",
+   "line": 207,
+   "exported": false
+  },
+  {
+   "id": "src/render.ts#startApp",
+   "name": "startApp",
+   "kind": "function",
+   "file": "src/render.ts",
+   "line": 224,
+   "exported": true
+  },
+  {
+   "id": "src/render.ts#Env",
+   "name": "Env",
+   "kind": "type",
+   "file": "src/render.ts",
+   "line": 242,
+   "exported": false
+  },
+  {
+   "id": "src/render.ts#recordScene",
+   "name": "recordScene",
+   "kind": "function",
+   "file": "src/render.ts",
+   "line": 244,
+   "exported": false
+  },
+  {
+   "id": "src/render.ts#play",
+   "name": "play",
+   "kind": "function",
+   "file": "src/render.ts",
+   "line": 300,
+   "exported": false
+  },
+  {
+   "id": "src/setup.ts#Item",
+   "name": "Item",
+   "kind": "type",
+   "file": "src/setup.ts",
+   "line": 6,
+   "exported": true
+  },
+  {
+   "id": "src/setup.ts#checkSetup",
+   "name": "checkSetup",
+   "kind": "function",
+   "file": "src/setup.ts",
+   "line": 8,
+   "exported": true
+  },
+  {
+   "id": "src/setup.ts#formatSetup",
+   "name": "formatSetup",
+   "kind": "function",
+   "file": "src/setup.ts",
+   "line": 33,
+   "exported": true
+  },
+  {
+   "id": "src/stack.ts#Part",
+   "name": "Part",
+   "kind": "type",
+   "file": "src/stack.ts",
+   "line": 6,
+   "exported": true
+  },
+  {
+   "id": "src/stack.ts#Stack",
+   "name": "Stack",
+   "kind": "type",
+   "file": "src/stack.ts",
+   "line": 7,
+   "exported": true
+  },
+  {
+   "id": "src/stack.ts#JS",
+   "name": "JS",
+   "kind": "const",
+   "file": "src/stack.ts",
+   "line": 9,
+   "exported": false
+  },
+  {
+   "id": "src/stack.ts#PY",
+   "name": "PY",
+   "kind": "const",
+   "file": "src/stack.ts",
+   "line": 18,
+   "exported": false
+  },
+  {
+   "id": "src/stack.ts#STORES",
+   "name": "STORES",
+   "kind": "const",
+   "file": "src/stack.ts",
+   "line": 23,
+   "exported": false
+  },
+  {
+   "id": "src/stack.ts#deps",
+   "name": "deps",
+   "kind": "function",
+   "file": "src/stack.ts",
+   "line": 25,
+   "exported": false
+  },
+  {
+   "id": "src/stack.ts#part",
+   "name": "part",
+   "kind": "function",
+   "file": "src/stack.ts",
+   "line": 38,
+   "exported": false
+  },
+  {
+   "id": "src/stack.ts#detect",
+   "name": "detect",
+   "kind": "function",
+   "file": "src/stack.ts",
+   "line": 53,
+   "exported": true
+  },
+  {
+   "id": "src/stack.ts#mermaidFor",
+   "name": "mermaidFor",
+   "kind": "function",
+   "file": "src/stack.ts",
+   "line": 76,
+   "exported": true
+  },
+  {
+   "id": "src/storyboard.ts#Action",
+   "name": "Action",
+   "kind": "type",
+   "file": "src/storyboard.ts",
+   "line": 5,
+   "exported": true
+  },
+  {
+   "id": "src/storyboard.ts#Scene",
+   "name": "Scene",
+   "kind": "type",
+   "file": "src/storyboard.ts",
+   "line": 16,
+   "exported": true
+  },
+  {
+   "id": "src/storyboard.ts#SCHEMA_URL",
+   "name": "SCHEMA_URL",
+   "kind": "const",
+   "file": "src/storyboard.ts",
+   "line": 26,
+   "exported": true
+  },
+  {
+   "id": "src/storyboard.ts#Storyboard",
+   "name": "Storyboard",
+   "kind": "type",
+   "file": "src/storyboard.ts",
+   "line": 28,
+   "exported": true
+  },
+  {
+   "id": "src/storyboard.ts#TYPES",
+   "name": "TYPES",
+   "kind": "const",
+   "file": "src/storyboard.ts",
+   "line": 42,
+   "exported": false
+  },
+  {
+   "id": "src/storyboard.ts#ACTIONS",
+   "name": "ACTIONS",
+   "kind": "const",
+   "file": "src/storyboard.ts",
+   "line": 43,
+   "exported": false
+  },
+  {
+   "id": "src/storyboard.ts#validate",
+   "name": "validate",
+   "kind": "function",
+   "file": "src/storyboard.ts",
+   "line": 46,
+   "exported": true
+  },
+  {
+   "id": "src/templates.ts#req",
+   "name": "req",
+   "kind": "const",
+   "file": "src/templates.ts",
+   "line": 9,
+   "exported": false
+  },
+  {
+   "id": "src/templates.ts#pkg",
+   "name": "pkg",
+   "kind": "function",
+   "file": "src/templates.ts",
+   "line": 10,
+   "exported": false
+  },
+  {
+   "id": "src/templates.ts#font",
+   "name": "font",
+   "kind": "function",
+   "file": "src/templates.ts",
+   "line": 11,
+   "exported": false
+  },
+  {
+   "id": "src/templates.ts#MERMAID",
+   "name": "MERMAID",
+   "kind": "const",
+   "file": "src/templates.ts",
+   "line": 12,
+   "exported": false
+  },
+  {
+   "id": "src/templates.ts#esc",
+   "name": "esc",
+   "kind": "function",
+   "file": "src/templates.ts",
+   "line": 13,
+   "exported": false
+  },
+  {
+   "id": "src/templates.ts#Ctx",
+   "name": "Ctx",
+   "kind": "type",
+   "file": "src/templates.ts",
+   "line": 15,
+   "exported": true
+  },
+  {
+   "id": "src/templates.ts#base",
+   "name": "base",
+   "kind": "function",
+   "file": "src/templates.ts",
+   "line": 17,
+   "exported": false
+  },
+  {
+   "id": "src/templates.ts#sceneHtml",
+   "name": "sceneHtml",
+   "kind": "function",
+   "file": "src/templates.ts",
+   "line": 31,
+   "exported": true
+  },
+  {
+   "id": "src/verify.ts#Step",
+   "name": "Step",
+   "kind": "type",
+   "file": "src/verify.ts",
+   "line": 9,
+   "exported": true
+  },
+  {
+   "id": "src/verify.ts#SHELL_LANGS",
+   "name": "SHELL_LANGS",
+   "kind": "const",
+   "file": "src/verify.ts",
+   "line": 11,
+   "exported": false
+  },
+  {
+   "id": "src/verify.ts#SKIP",
+   "name": "SKIP",
+   "kind": "const",
+   "file": "src/verify.ts",
+   "line": 13,
+   "exported": false
+  },
+  {
+   "id": "src/verify.ts#commandsFrom",
+   "name": "commandsFrom",
+   "kind": "function",
+   "file": "src/verify.ts",
+   "line": 16,
+   "exported": true
+  },
+  {
+   "id": "src/verify.ts#run",
+   "name": "run",
+   "kind": "function",
+   "file": "src/verify.ts",
+   "line": 35,
+   "exported": false
+  },
+  {
+   "id": "src/verify.ts#verify",
+   "name": "verify",
+   "kind": "function",
+   "file": "src/verify.ts",
+   "line": 60,
+   "exported": true
+  },
+  {
+   "id": "src/voice.ts#Voice",
+   "name": "Voice",
+   "kind": "type",
+   "file": "src/voice.ts",
+   "line": 8,
+   "exported": true
+  },
+  {
+   "id": "src/voice.ts#Clip",
+   "name": "Clip",
+   "kind": "type",
+   "file": "src/voice.ts",
+   "line": 9,
+   "exported": true
+  },
+  {
+   "id": "src/voice.ts#kokoro",
+   "name": "kokoro",
+   "kind": "const",
+   "file": "src/voice.ts",
+   "line": 11,
+   "exported": false
+  },
+  {
+   "id": "src/voice.ts#speak",
+   "name": "speak",
+   "kind": "function",
+   "file": "src/voice.ts",
+   "line": 13,
+   "exported": true
+  },
+  {
+   "id": "test/doctor.test.ts#repo",
+   "name": "repo",
+   "kind": "function",
+   "file": "test/doctor.test.ts",
+   "line": 8,
+   "exported": false
+  },
+  {
+   "id": "test/doctor.test.ts#get",
+   "name": "get",
+   "kind": "function",
+   "file": "test/doctor.test.ts",
+   "line": 13,
+   "exported": false
+  },
+  {
+   "id": "test/graph.test.ts#FILES",
+   "name": "FILES",
+   "kind": "const",
+   "file": "test/graph.test.ts",
+   "line": 13,
+   "exported": false
+  },
+  {
+   "id": "test/graph.test.ts#repo",
+   "name": "repo",
+   "kind": "function",
+   "file": "test/graph.test.ts",
+   "line": 25,
+   "exported": false
+  },
+  {
+   "id": "test/graph.test.ts#mod",
+   "name": "mod",
+   "kind": "function",
+   "file": "test/graph.test.ts",
+   "line": 30,
+   "exported": false
+  },
+  {
+   "id": "test/graph.test.ts#sb",
+   "name": "sb",
+   "kind": "function",
+   "file": "test/graph.test.ts",
+   "line": 85,
+   "exported": false
+  },
+  {
+   "id": "test/schema.test.ts#ajv",
+   "name": "ajv",
+   "kind": "const",
+   "file": "test/schema.test.ts",
+   "line": 7,
+   "exported": false
+  },
+  {
+   "id": "test/schema.test.ts#check",
+   "name": "check",
+   "kind": "const",
+   "file": "test/schema.test.ts",
+   "line": 8,
+   "exported": false
+  },
+  {
+   "id": "test/security.test.ts#tmp",
+   "name": "tmp",
+   "kind": "function",
+   "file": "test/security.test.ts",
+   "line": 15,
+   "exported": false
+  },
+  {
+   "id": "test/security.test.ts#mark",
+   "name": "mark",
+   "kind": "function",
+   "file": "test/security.test.ts",
+   "line": 17,
+   "exported": false
+  }
+ ]
+}
