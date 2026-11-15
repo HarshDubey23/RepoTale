@@ -389,6 +389,7 @@ export function routesOf(paths, texts = {}) {
   const found = new Map();
   const add = (route, file) => {
     route = ('/' + route).replace(/\/+/g, '/').replace(/(.)\/$/, '$1');
+    route = route.replace(/\/index(\.html?)?$/, '') || '/';
     if (/[[:*]/.test(route) || /(^|\/)(404|500|_error|not-found)(\.html)?$/.test(route)) return;
     // The same page in other languages adds nothing: keep English or unprefixed ones.
     if (/^\/(?!en(?:-[a-z]{2})?\/)[a-z]{2}(?:-[a-z]{2})?(\/|$)/i.test(route)) return;
