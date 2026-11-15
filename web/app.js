@@ -22,7 +22,10 @@ const opts = { voice: store.get('voice', true), voiceName: store.get('voiceName'
 const pool = new VoicePool({ studio: store.get('studio', true) });
 let audioContext = null, voiceJob = 0;
 let model = null, scenes = null, player = null, selected = null, recording = null;
-let arch = null, archLay = null, archTheme = 'dark';
+let arch = null, archLay = null, archTheme = 'light';
+// The film draws its type on a canvas, which only sees fonts the page has already loaded.
+for (const f of ["italic 40px 'Instrument Serif'", "40px 'Instrument Serif'", "400 16px 'Inter Tight'", "600 16px 'Inter Tight'"]) document.fonts?.load(f);
+document.fonts?.ready.then(() => player?.draw());
 
 // ------------------------------------------------------------- the O in the name: a live import graph
 (function glyph() {
@@ -31,20 +34,20 @@ let arch = null, archLay = null, archTheme = 'dark';
   const links = [[0, 5], [0, 9], [2, 7], [3, 11], [4, 12], [6, 13], [8, 1], [10, 3], [12, 6], [1, 9]];
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const draw = ms => {
-    ctx.fillStyle = '#0d060b'; ctx.fillRect(0, 0, 320, 320);
+    ctx.fillStyle = '#f2eee6'; ctx.fillRect(0, 0, 320, 320);
     ctx.lineWidth = 3;
     links.forEach(([a, b], k) => {
       const lit = Math.floor(ms / 700) % links.length === k;
-      ctx.strokeStyle = lit ? '#ff488b' : '#4a3442';
+      ctx.strokeStyle = lit ? '#2b44ff' : '#c9bfac';
       ctx.beginPath(); ctx.moveTo(...nodes[a]); ctx.quadraticCurveTo(160, 160, ...nodes[b]); ctx.stroke();
       if (lit) {
         const u = (ms % 700) / 700, [x1, y1] = nodes[a], [x2, y2] = nodes[b];
         const x = (1 - u) ** 2 * x1 + 2 * (1 - u) * u * 160 + u * u * x2, y = (1 - u) ** 2 * y1 + 2 * (1 - u) * u * 160 + u * u * y2;
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fill();
+        ctx.fillStyle = '#2b44ff'; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fill();
       }
     });
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 26; ctx.beginPath(); ctx.ellipse(160, 160, 136, 146, 0, 0, 7); ctx.stroke();
-    nodes.forEach(([x, y], i) => { ctx.fillStyle = i % 4 === 0 ? '#ff488b' : '#0d060b'; ctx.fillRect(x - 9, y - 9, 18, 18); });
+    ctx.strokeStyle = '#15130f'; ctx.lineWidth = 22; ctx.beginPath(); ctx.ellipse(160, 160, 136, 146, 0, 0, 7); ctx.stroke();
+    nodes.forEach(([x, y], i) => { ctx.fillStyle = i % 4 === 0 ? '#2b44ff' : '#f2eee6'; ctx.fillRect(x - 9, y - 9, 18, 18); });
     if (!still) requestAnimationFrame(draw);
   };
   requestAnimationFrame(draw);
@@ -299,12 +302,12 @@ function drawMap() {
   areas.forEach((a, k) => a.files.forEach((f, r) => pos.set(f, { x: PAD + k * (CW + GAP), y: TOP + r * RH, col: k })));
   const W = PAD * 2 + areas.length * (CW + GAP) - GAP, H = TOP + Math.max(...areas.map(a => a.files.length)) * RH + PAD;
   const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Architecture of ${model.meta.full}: ${areas.length} areas, ${model.edges.length} imports` });
-  svg.append(s('rect', { width: W, height: H, fill: '#1b0e17' }));
+  svg.append(s('rect', { width: W, height: H, fill: '#e8e2d5' }));
   const edgeLayer = s('g'), nodeLayer = s('g');
   areas.forEach((a, k) => {
     const x = PAD + k * (CW + GAP);
-    svg.append(s('text', { x, y: 40, fill: '#ffffff', 'font-family': 'Archivo', 'font-weight': 800, 'font-stretch': '62%', 'font-size': 26, style: 'text-transform:uppercase;font-stretch:62%' }, base(a.name).slice(0, 18)));
-    svg.append(s('text', { x, y: 62, fill: '#b3a8b0', 'font-family': 'Archivo', 'font-size': 13 }, `${a.name === base(a.name) ? '' : a.name + ' · '}${a.files.length} file${a.files.length === 1 ? '' : 's'}`));
+    svg.append(s('text', { x, y: 40, fill: '#15130f', 'font-family': 'Instrument Serif', 'font-size': 30 }, base(a.name).slice(0, 18)));
+    svg.append(s('text', { x, y: 62, fill: '#6a6357', 'font-family': 'Inter Tight', 'font-size': 13 }, `${a.name === base(a.name) ? '' : a.name + ' · '}${a.files.length} file${a.files.length === 1 ? '' : 's'}`));
   });
   for (const e of model.edges) {
     const A = pos.get(e.from), B = pos.get(e.to); if (!A || !B) continue;
@@ -318,10 +321,10 @@ function drawMap() {
     const m = byFile.get(f);
     const g = s('g', { class: 'node', transform: `translate(${p.x} ${p.y})`, tabindex: 0, role: 'button', 'data-file': f, 'aria-label': `${f}, imported by ${m.importedBy.length}` });
     g.append(s('title', {}, f));
-    g.append(s('rect', { width: CW, height: 24, fill: '#26141f' }));
-    g.append(s('rect', { width: 5, height: 24, fill: core.has(f) ? '#ff488b' : entry.has(f) ? '#ffffff' : m.test ? '#6b5a66' : '#26141f' }));
-    g.append(s('text', { x: 14, y: 16.5, fill: m.test ? '#b3a8b0' : '#ffffff', 'font-family': 'Archivo', 'font-size': 13 }, base(f).length > 24 ? base(f).slice(0, 23) + '…' : base(f)));
-    if (m.importedBy.length) g.append(s('text', { x: CW - 8, y: 16.5, fill: '#b3a8b0', 'font-family': 'Archivo', 'font-size': 12, 'text-anchor': 'end' }, m.importedBy.length));
+    g.append(s('rect', { width: CW, height: 24, fill: '#ded6c5' }));
+    g.append(s('rect', { width: 5, height: 24, fill: core.has(f) ? '#2b44ff' : entry.has(f) ? '#15130f' : m.test ? '#6a6357' : '#ded6c5' }));
+    g.append(s('text', { x: 14, y: 16.5, fill: m.test ? '#6a6357' : '#15130f', 'font-family': 'Inter Tight', 'font-size': 13 }, base(f).length > 24 ? base(f).slice(0, 23) + '…' : base(f)));
+    if (m.importedBy.length) g.append(s('text', { x: CW - 8, y: 16.5, fill: '#6a6357', 'font-family': 'Inter Tight', 'font-size': 12, 'text-anchor': 'end' }, m.importedBy.length));
     g.addEventListener('click', () => select(f));
     g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(f); } });
     nodeLayer.append(g);
@@ -459,19 +462,24 @@ syncBands();
 // ------------------------------------------------------------- architecture diagram
 const view = { x: 0, y: 0, k: 1 };
 
-/** The page's own Archivo, embedded so the diagram keeps its type as an image or a PNG. */
+/** The page's own fonts, embedded so the diagram keeps its type as an image or a PNG. */
 let fontData = null;
 async function withFont(svg) {
   try {
     fontData ??= (async () => {
-      const css = await (await fetch('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap')).text();
-      const url = [...css.matchAll(/url\((https:[^)]+)\)/g)].at(-1)?.[1];
-      const b = new Uint8Array(await (await fetch(url)).arrayBuffer());
-      let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
-      return btoa(bin);
+      const css = await (await fetch('https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter+Tight:wght@400;600;700&display=swap')).text();
+      // Only the latin subsets: the diagram's text is file names and English.
+      const blocks = css.split('/*').filter(b => b.startsWith(' latin */')).map(b => b.slice(10));
+      const out = [];
+      for (const b of blocks) {
+        const url = b.match(/url\((https:[^)]+)\)/)[1];
+        const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+        let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        out.push(b.replace(url, 'data:font/woff2;base64,' + btoa(bin)));
+      }
+      return out.join('');
     })();
-    const data = await fontData;
-    return svg.replace('<defs>', `<defs><style>@font-face{font-family:Archivo;src:url(data:font/woff2;base64,${data}) format('woff2');font-weight:100 900;font-stretch:62% 125%}</style>`);
+    return svg.replace('<defs>', `<defs><style>${await fontData}</style>`);
   } catch { return svg; }
 }
 async function svgImage(svg) {
@@ -500,7 +508,7 @@ function paintArch() {
   svg.removeAttribute('width'); svg.removeAttribute('height');
   const [, , W, H] = svg.getAttribute('viewBox').split(' ').map(Number);
   svg.style.width = W + 'px'; svg.style.height = H + 'px';
-  dz.classList.toggle('light', archTheme === 'light');
+  dz.classList.toggle('dark', archTheme === 'dark');
   fitArch();
   for (const n of $$('.node', svg)) {
     const id = n.dataset.id;
@@ -583,10 +591,10 @@ addEventListener('resize', () => { if (arch && !$('#p-arch').hidden) fitArch(); 
 $('#dz-theme').addEventListener('click', e => {
   archTheme = archTheme === 'dark' ? 'light' : 'dark';
   e.currentTarget.textContent = archTheme === 'dark' ? 'Light' : 'Dark';
-  e.currentTarget.setAttribute('aria-pressed', archTheme === 'light');
+  e.currentTarget.setAttribute('aria-pressed', archTheme === 'dark');
   if (arch) paintArch();
 });
-const archName = ext => `${model.meta.name}-architecture${archTheme === 'light' ? '-light' : ''}.${ext}`;
+const archName = ext => `${model.meta.name}-architecture${archTheme === 'dark' ? '-dark' : ''}.${ext}`;
 $('#dz-svg').addEventListener('click', () => arch && download(new Blob([renderArch(arch, archLay, { theme: archTheme })], { type: 'image/svg+xml' }), archName('svg')));
 $('#dz-png').addEventListener('click', async e => { if (!arch) return; const b = e.currentTarget; b.disabled = true; download(await svgPNG(renderArch(arch, archLay, { theme: archTheme })), archName('png')); b.disabled = false; });
 $('#dz-mermaid').addEventListener('click', async e => {

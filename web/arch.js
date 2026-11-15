@@ -37,19 +37,19 @@ export function kindOf(file) {
 const SERVICES = [
   [/^(pg|postgres|@neondatabase\/serverless|psycopg2?|asyncpg)$/, 'PostgreSQL', 'data'], [/^(@prisma\/client|prisma)$/, 'Database (Prisma)', 'data'],
   [/^(drizzle-orm)$/, 'Database (Drizzle)', 'data'], [/^(mongoose|mongodb|pymongo|motor)$/, 'MongoDB', 'data'], [/^(mysql2?|pymysql)$/, 'MySQL', 'data'],
-  [/^(better-sqlite3|sqlite3|sqlite)$/, 'SQLite', 'data'], [/^(redis|ioredis|@upstash\/redis)$/, 'Redis', 'data'], [/^(sqlalchemy)$/, 'SQL database', 'data'],
+  [/^(better-sqlite3|sqlite3|sqlite)$/, 'SQLite', 'data'], [/^(redis|ioredis|@upstash\/redis)$/, 'Redis', 'cache'], [/^(sqlalchemy)$/, 'SQL database', 'data'],
   [/^(@supabase\/supabase-js|supabase)$/, 'Supabase', 'cloud'], [/^(firebase|firebase-admin)$/, 'Firebase', 'cloud'], [/^(@aws-sdk\/.+|aws-sdk|boto3)$/, 'AWS', 'cloud'],
   [/^(stripe)$/, 'Stripe API', 'cloud'], [/^(openai)$/, 'OpenAI API', 'cloud'], [/^(@anthropic-ai\/sdk|anthropic)$/, 'Claude API', 'cloud'],
   [/^(@google\/generative-ai|google-generativeai|@google\/genai)$/, 'Gemini API', 'cloud'], [/^(@octokit\/.+|octokit|PyGithub|github)$/, 'GitHub API', 'cloud'],
   [/^(resend|nodemailer|@sendgrid\/mail)$/, 'Email service', 'cloud'], [/^(twilio)$/, 'Twilio', 'cloud'], [/^(@clerk\/.+|next-auth|@auth\/.+|passport)$/, 'Auth provider', 'cloud'],
-  [/^(socket\.io|socket\.io-client|ws)$/, 'WebSockets', 'cloud'], [/^(kafkajs|amqplib|bullmq|bull|celery)$/, 'Message queue', 'data'],
+  [/^(socket\.io|socket\.io-client|ws)$/, 'WebSockets', 'cloud'], [/^(kafkajs|amqplib|bullmq|bull|celery)$/, 'Message queue', 'queue'],
   [/^(playwright|puppeteer|@playwright\/test)$/, 'Headless browser', 'tool'], [/^(ffmpeg-static|fluent-ffmpeg)$/, 'ffmpeg', 'tool'],
   [/^(kokoro-js)$/, 'Kokoro voice', 'tool'], [/^(@elevenlabs\/.+|elevenlabs)$/, 'ElevenLabs API', 'cloud'], [/^(transformers|torch|tensorflow|@huggingface\/.+)$/, 'ML models', 'tool'],
   [/^(langchain|@langchain\/.+)$/, 'LLM chain', 'cloud'], [/^(@vercel\/.+)$/, 'Vercel', 'cloud'], [/^(cloudinary|uploadthing)$/, 'File storage', 'cloud'],
 ];
 
 // Twelve hues that read on the dark ground, each with a deep tint for its subsystem's field.
-const HUES = ['#ff488b', '#7c9cff', '#3ddc97', '#ffb547', '#c38bff', '#4fd1e8', '#ff7a59', '#a3e635', '#f472b6', '#60a5fa', '#facc15', '#2dd4bf'];
+const HUES = ['#2b44ff', '#e5484d', '#12a594', '#f76b15', '#8e4ec6', '#0090ff', '#d6409f', '#46a758', '#ad7f58', '#3e63dd', '#e0a400', '#00a2c7'];
 
 /** Pick the components, group them, and connect them. Pure: no layout, no DOM. */
 export function buildArch(model, { max = 24 } = {}) {
@@ -135,9 +135,36 @@ function labelOf(names, count) {
 
 // ---------------------------------------------------------------- layout
 
-const FONT = `Archivo, 'Segoe UI', system-ui, sans-serif`;
+const FONT = `'Inter Tight', 'Segoe UI', system-ui, sans-serif`;
 const tw = (s, px) => Math.ceil(String(s).length * px * 0.56);
-const nodeSize = n => n.kind === 'actor' ? { width: 120, height: 120 } : { width: Math.max(168, tw(n.title, 15) + 44, tw(base(n.file ?? n.pkgs?.[0] ?? ''), 12) + 44), height: n.kind === 'data' ? 76 : 62 };
+const nodeSize = n => n.kind === 'actor' ? { width: 120, height: 120 } : { width: Math.max(168, tw(n.title, 15) + 44, tw(base(n.file ?? n.pkgs?.[0] ?? ''), 12) + 44), height: ({ data: 78, cache: 78, cloud: 92, ui: 74, queue: 66 })[n.kind] ?? 62 };
+
+/** The outline of a part, by what it is: a cylinder for a database, a cloud for a hosted service,
+ *  a pipe for a queue, a browser window for UI, a cut-corner plate for an API, a page with a folded
+ *  corner for config, a box with side rails for a tool. Returns the body and any inner lines. */
+export function shapeOf(kind, x, y, w, h) {
+  const r = 12, rect = (x, y, w, h, r) => `M${x + r} ${y}H${x + w - r}Q${x + w} ${y} ${x + w} ${y + r}V${y + h - r}Q${x + w} ${y + h} ${x + w - r} ${y + h}H${x + r}Q${x} ${y + h} ${x} ${y + h - r}V${y + r}Q${x} ${y} ${x + r} ${y}Z`;
+  if (kind === 'data' || kind === 'cache') {
+    const ry = 10;
+    return { body: `M${x} ${y + ry}a${w / 2} ${ry} 0 0 1 ${w} 0v${h - 2 * ry}a${w / 2} ${ry} 0 0 1 ${-w} 0z`,
+      lines: `M${x} ${y + ry}a${w / 2} ${ry} 0 0 0 ${w} 0` + (kind === 'data' ? `M${x} ${y + ry + 12}a${w / 2} ${ry} 0 0 0 ${w} 0` : '') };
+  }
+  if (kind === 'queue') {
+    const rx = 12;
+    return { body: `M${x + rx} ${y}H${x + w - rx}a${rx} ${h / 2} 0 0 1 0 ${h}H${x + rx}a${rx} ${h / 2} 0 0 1 0 ${-h}z`, lines: `M${x + w - rx} ${y}a${rx} ${h / 2} 0 0 0 0 ${h}` };
+  }
+  if (kind === 'cloud') {
+    const b = y + h, k = h * 0.36;
+    return { body: `M${x + k} ${b}H${x + w - k}A${k} ${k} 0 0 0 ${x + w - k * 0.4} ${y + h * 0.42}A${h * 0.3} ${h * 0.3} 0 0 0 ${x + w * 0.66} ${y + h * 0.16}A${h * 0.42} ${h * 0.42} 0 0 0 ${x + w * 0.3} ${y + h * 0.22}A${k} ${k} 0 0 0 ${x + k} ${b}Z`, lines: '' };
+  }
+  if (kind === 'ui') return { body: rect(x, y, w, h, r), lines: `M${x} ${y + 18}H${x + w}M${x + 14} ${y + 9}h.01M${x + 24} ${y + 9}h.01M${x + 34} ${y + 9}h.01` };
+  if (kind === 'api') { const c = 12; return { body: `M${x + c} ${y}H${x + w - c}L${x + w} ${y + c}V${y + h - c}L${x + w - c} ${y + h}H${x + c}L${x} ${y + h - c}V${y + c}Z`, lines: '' }; }
+  if (kind === 'config') { const f = 16; return { body: `M${x} ${y}H${x + w - f}L${x + w} ${y + f}V${y + h}H${x}Z`, lines: `M${x + w - f} ${y}V${y + f}H${x + w}` }; }
+  if (kind === 'tool') return { body: rect(x, y, w, h, 6), lines: `M${x + 8} ${y}V${y + h}M${x + w - 8} ${y}V${y + h}` };
+  return { body: rect(x, y, w, h, r), lines: '' };
+}
+/** Where a part's title sits inside its shape. */
+export const textTop = kind => ({ data: 44, cache: 40, cloud: 56, ui: 40, queue: 31 })[kind] ?? 27;
 
 let elkReady = null;
 /** ELK, loaded once from the CDN. */
@@ -209,14 +236,14 @@ function roundPath(pts, r = 10) {
 
 const ICON = {
   api: 'M3 6h14M3 10h14M3 14h9', ui: 'M3 4h14v10H3zM3 7h14', data: 'M4 5c0-2 12-2 12 0v10c0 2-12 2-12 0zM4 5c0 2 12 2 12 0', config: 'M10 3v3M10 14v3M3 10h3M14 10h3M10 7a3 3 0 1 0 0 6a3 3 0 1 0 0-6',
-  lib: 'M4 4h5v5H4zM11 4h5v5h-5zM4 11h5v5H4zM11 11h5v5h-5z', core: 'M10 3l7 4v6l-7 4-7-4V7z', cloud: 'M6 15h9a3 3 0 0 0 0-6a5 5 0 0 0-9.6 1A2.5 2.5 0 0 0 6 15z', tool: 'M12 3l5 5-9 9H3v-5z',
+  lib: 'M4 4h5v5H4zM11 4h5v5h-5zM4 11h5v5H4zM11 11h5v5h-5z', core: 'M10 3l7 4v6l-7 4-7-4V7z', cache: 'M11 3L5 11h5l-1 6 6-8h-5z', queue: 'M3 6h14M3 10h14M3 14h14M14 3l3 3-3 3', cloud: 'M6 15h9a3 3 0 0 0 0-6a5 5 0 0 0-9.6 1A2.5 2.5 0 0 0 6 15z', tool: 'M12 3l5 5-9 9H3v-5z',
 };
 
 /** The whole diagram as an SVG string. `theme` is 'dark' (the page) or 'light' (READMEs). */
-export function renderArch(arch, lay, { theme = 'dark', title = true } = {}) {
+export function renderArch(arch, lay, { theme = 'light', title = true } = {}) {
   const T = theme === 'dark'
-    ? { bg: '#0d060b', dot: '#24121d', ink: '#ffffff', muted: '#b3a8b0', node: '#1b0e17', node2: '#26141f', edge: '#8d7a87', labelBg: '#0d060b' }
-    : { bg: '#fbf7fa', dot: '#efe4ec', ink: '#14101a', muted: '#5f5468', node: '#ffffff', node2: '#f4eef3', edge: '#8a7d8f', labelBg: '#fbf7fa' };
+    ? { bg: '#15130f', dot: '#2a2620', ink: '#f2eee6', muted: '#a39c8e', node: '#1f1c17', node2: '#35302a', edge: '#8a8274', labelBg: '#15130f' }
+    : { bg: '#f2eee6', dot: '#ddd5c4', ink: '#15130f', muted: '#6a6357', node: '#fffdf8', node2: '#e8e2d5', edge: '#8a8274', labelBg: '#f2eee6' };
   const head = title ? 120 : 0;
   const W = Math.ceil(lay.width), H = Math.ceil(lay.height) + head + 40;
   const color = new Map([...arch.groups.map(g => [g.id, g.color]), ...arch.nodes.map(n => [n.id, n.color])]);
@@ -227,7 +254,7 @@ export function renderArch(arch, lay, { theme = 'dark', title = true } = {}) {
   for (const c of new Set([...color.values(), T.edge])) o.push(`<marker id="m${c.slice(1)}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 1L10 5L0 9z" fill="${c}"/></marker>`);
   o.push(`</defs><rect width="${W}" height="${H}" fill="${T.bg}"/><rect width="${W}" height="${H}" fill="url(#dots)"/>`);
   if (title) {
-    o.push(`<text x="56" y="70" font-size="44" font-weight="800" font-stretch="62%" style="font-stretch:62%;text-transform:uppercase" fill="${T.ink}">${esc(arch.meta.name.toUpperCase())}</text>`);
+    o.push(`<text x="56" y="76" font-size="56" font-family="'Instrument Serif', serif" font-style="italic" letter-spacing="-1" fill="${T.ink}">${esc(arch.meta.name)}</text>`);
     o.push(`<text x="56" y="100" font-size="15" fill="${T.muted}">${esc(`${arch.meta.full} @ ${arch.meta.sha.slice(0, 7)} · ${arch.nodes.length} components in ${arch.groups.length} subsystems${arch.hidden > 0 ? ` · ${arch.hidden} smaller files folded into them` : ''}`)}</text>`);
   }
   o.push(`<g transform="translate(0 ${head})">`);
@@ -258,15 +285,12 @@ export function renderArch(arch, lay, { theme = 'dark', title = true } = {}) {
       continue;
     }
     const svc = id.startsWith('svc:');
-    const stroke = svc ? T.muted : c, fill = svc ? T.bg : T.node;
+    const stroke = svc ? T.ink : c, fill = svc ? T.node2 : T.node;
     o.push(`<g class="node" data-id="${esc(id)}" ${n.file ? `data-file="${esc(n.file)}" tabindex="0" role="link"` : ''}>`);
-    if (n.kind === 'data') {
-      const ry = 9;
-      o.push(`<path d="M${b.x} ${b.y + ry}a${b.w / 2} ${ry} 0 0 1 ${b.w} 0v${b.h - 2 * ry}a${b.w / 2} ${ry} 0 0 1 ${-b.w} 0z" fill="${fill}" stroke="${stroke}" stroke-width="1.8" ${svc ? 'stroke-dasharray="6 5"' : ''}/><path d="M${b.x} ${b.y + ry}a${b.w / 2} ${ry} 0 0 0 ${b.w} 0" fill="none" stroke="${stroke}" stroke-width="1.8"/>`);
-    } else {
-      o.push(`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12" fill="${fill}" stroke="${stroke}" stroke-width="${n.heart ? 3 : 1.8}" ${svc ? 'stroke-dasharray="6 5"' : ''}/>`);
-    }
-    const ty = b.y + (n.kind === 'data' ? 40 : 27);
+    const sh = shapeOf(n.kind, b.x, b.y, b.w, b.h);
+    o.push(`<path d="${sh.body}" fill="${fill}" stroke="${stroke}" stroke-width="${n.heart ? 3 : 1.8}" stroke-linejoin="round" ${svc && n.kind !== 'cloud' ? 'stroke-dasharray="6 5"' : ''}/>`);
+    if (sh.lines) o.push(`<path d="${sh.lines}" fill="none" stroke="${stroke}" stroke-width="${n.kind === 'ui' ? 1.4 : 1.8}" stroke-linecap="round"/>`);
+    const ty = b.y + textTop(n.kind);
     o.push(`<g transform="translate(${b.x + 14} ${ty - 14}) scale(.85)"><path d="${ICON[svc ? n.kind : n.kind] ?? ICON.core}" fill="none" stroke="${svc ? T.muted : c}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></g>`);
     o.push(`<text x="${b.x + 38}" y="${ty}" font-size="15" font-weight="700" fill="${T.ink}">${esc(n.title)}</text>`);
     o.push(`<text x="${b.x + 38}" y="${ty + 19}" font-size="12" fill="${T.muted}">${esc(svc ? n.pkgs.slice(0, 2).join(', ') : base(n.file))}</text>`);

@@ -3,7 +3,9 @@
 // subsystem while the narration names its parts and the real imports between them. Consecutive
 // beats share the canvas, so the camera move is the transition.
 
-const C = { bg: '#0d060b', node: '#1b0e17', node2: '#26141f', ink: '#ffffff', muted: '#b3a8b0', edge: '#8d7a87' };
+import { shapeOf, textTop } from './arch.js';
+
+const C = { bg: '#f2eee6', node: '#fffdf8', node2: '#e8e2d5', ink: '#15130f', muted: '#6a6357', edge: '#8a8274', accent: '#2b44ff' };
 const W = 1280, H = 720;
 const ease = t => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 const seg = (t, a, b) => ease((t - a) / (b - a));
@@ -104,7 +106,7 @@ export function drawArchBeat(ctx, s, t, ms, el) {
     ctx.globalAlpha = a;
     rr(ctx, b.x, b.y, b.w, b.h, 18); ctx.fillStyle = g.color + '14'; ctx.fill(); ctx.strokeStyle = g.color + '66'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = g.color; ctx.beginPath(); ctx.arc(b.x + 26, b.y + 29, 6, 0, 7); ctx.fill();
-    ctx.font = '700 17px Archivo'; ctx.fillStyle = C.ink; ctx.fillText(g.label, b.x + 42, b.y + 35);
+    ctx.font = "600 17px 'Inter Tight'"; ctx.fillStyle = C.ink; ctx.fillText(g.label, b.x + 42, b.y + 35);
   });
   const eById = new Map(arch.edges.map(e => [e.id, e]));
   lay.edges.forEach((e, i) => {
@@ -123,14 +125,14 @@ export function drawArchBeat(ctx, s, t, ms, el) {
       let run = 0;
       for (let j = 1; j < e.pts.length; j++) {
         const [x0, y0] = e.pts[j - 1], [x1, y1] = e.pts[j], l = Math.hypot(x1 - x0, y1 - y0);
-        if (run + l >= d) { const u = (d - run) / (l || 1); ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, 4.5, 0, 7); ctx.fill(); break; }
+        if (run + l >= d) { const u = (d - run) / (l || 1); ctx.fillStyle = C.accent; ctx.beginPath(); ctx.arc(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, 4.5, 0, 7); ctx.fill(); break; }
         run += l;
       }
     }
     if (e.label && p === 1 && (on || s.beat === 0)) {
       ctx.globalAlpha = (on ? 1 : dim) * seg(build, 0.8, 0.95);
       rr(ctx, e.label.x, e.label.y, e.label.w, e.label.h, 11); ctx.fillStyle = C.bg; ctx.fill(); ctx.strokeStyle = C.node2; ctx.lineWidth = 1; ctx.stroke();
-      ctx.font = '12px Archivo'; ctx.fillStyle = C.muted; ctx.textAlign = 'center'; ctx.fillText(a.label, e.label.x + e.label.w / 2, e.label.y + 15); ctx.textAlign = 'left';
+      ctx.font = "12px 'Inter Tight'"; ctx.fillStyle = C.muted; ctx.textAlign = 'center'; ctx.fillText(a.label, e.label.x + e.label.w / 2, e.label.y + 15); ctx.textAlign = 'left';
     }
   });
   const nodes = [...arch.nodes, ...arch.services, ...(arch.actor ? [arch.actor] : [])];
@@ -143,15 +145,18 @@ export function drawArchBeat(ctx, s, t, ms, el) {
     if (n.kind === 'actor') {
       ctx.fillStyle = C.node; ctx.strokeStyle = C.ink; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(b.x + b.w / 2, b.y + b.h / 2 + lift, b.w / 2, 0, 7); ctx.fill(); ctx.stroke();
-      ctx.font = '700 14px Archivo'; ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.fillText(n.title, b.x + b.w / 2, b.y + b.h / 2 + 5 + lift); ctx.textAlign = 'left';
+      ctx.font = "700 14px 'Inter Tight'"; ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.fillText(n.title, b.x + b.w / 2, b.y + b.h / 2 + 5 + lift); ctx.textAlign = 'left';
       return;
     }
-    rr(ctx, b.x, b.y + lift, b.w, b.h, 12); ctx.fillStyle = svc ? C.bg : C.node; ctx.fill();
-    ctx.strokeStyle = svc ? C.muted : col; ctx.lineWidth = n.heart ? 3 : 1.8; ctx.setLineDash(svc ? [6, 5] : []); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = svc ? C.muted : col; ctx.fillRect(b.x + 14, b.y + 18 + lift, 4, 22);
-    ctx.font = '700 15px Archivo'; ctx.fillStyle = C.ink; ctx.fillText(n.title, b.x + 28, b.y + 27 + lift);
-    ctx.font = '12px Archivo'; ctx.fillStyle = C.muted; ctx.fillText(svc ? n.pkgs.slice(0, 2).join(', ') : n.file.split('/').pop(), b.x + 28, b.y + 46 + lift);
-    if (n.heart) { rr(ctx, b.x + b.w - 58, b.y - 11 + lift, 50, 20, 10); ctx.fillStyle = col; ctx.fill(); ctx.font = '800 10.5px Archivo'; ctx.fillStyle = C.bg; ctx.textAlign = 'center'; ctx.fillText('CORE', b.x + b.w - 33, b.y + 3 + lift); ctx.textAlign = 'left'; }
+    const sh = shapeOf(n.kind, b.x, b.y + lift, b.w, b.h), body = new Path2D(sh.body);
+    ctx.save(); ctx.shadowColor = 'rgba(21,19,15,0.10)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; ctx.fillStyle = svc ? C.node2 : C.node; ctx.fill(body); ctx.restore();
+    ctx.strokeStyle = svc ? C.ink : col; ctx.lineWidth = n.heart ? 3 : 1.8; ctx.setLineDash(svc && n.kind !== 'cloud' ? [6, 5] : []); ctx.stroke(body); ctx.setLineDash([]);
+    if (sh.lines) { ctx.lineCap = 'round'; ctx.stroke(new Path2D(sh.lines)); ctx.lineCap = 'butt'; }
+    const ty = b.y + textTop(n.kind) + lift;
+    ctx.fillStyle = svc ? C.ink : col; ctx.fillRect(b.x + 16, ty - 13, 4, 20);
+    ctx.font = "600 15px 'Inter Tight'"; ctx.fillStyle = C.ink; ctx.fillText(n.title, b.x + 28, ty);
+    ctx.font = "12px 'Inter Tight'"; ctx.fillStyle = C.muted; ctx.fillText(svc ? n.pkgs.slice(0, 2).join(', ') : n.file.split('/').pop(), b.x + 28, ty + 19);
+    if (n.heart) { rr(ctx, b.x + b.w - 58, b.y - 11 + lift, 50, 20, 10); ctx.fillStyle = col; ctx.fill(); ctx.font = "800 10.5px 'Inter Tight'"; ctx.fillStyle = C.bg; ctx.textAlign = 'center'; ctx.fillText('CORE', b.x + b.w - 33, b.y + 3 + lift); ctx.textAlign = 'left'; }
   });
   ctx.restore();
   ctx.globalAlpha = 1;
@@ -159,9 +164,8 @@ export function drawArchBeat(ctx, s, t, ms, el) {
   if (s.beat > 0) {
     const a = seg(el / 1000, 0.6, 1.2);
     ctx.globalAlpha = a;
-    ctx.font = '800 54px Archivo'; try { ctx.fontStretch = 'extra-condensed'; } catch {}
-    ctx.fillStyle = C.ink; ctx.fillText(s.heading.toUpperCase(), 72, 150);
-    try { ctx.fontStretch = 'normal'; } catch {}
+    ctx.font = "italic 400 64px 'Instrument Serif'";
+    ctx.fillStyle = C.ink; ctx.fillText(s.heading, 72, 150);
     ctx.globalAlpha = 1;
   }
 }

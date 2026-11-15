@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Website redesign: warm paper and cobalt, Instrument Serif and Inter Tight, the same look on the page, in the film and in the diagram (light by default, dark on request). Diagram parts are drawn by kind: cylinders for databases, a cloud for hosted services, a pipe for queues, a browser window for UI, cut corners for APIs, a folded page for config, side rails for tools. Page scenes have a camera that finds the two busiest regions of each page, pushes in on them with a cursor that clicks, and scrolls to the end; each scene enters with a transition chosen from what it is and what came before (zoom, iris, slide, wipe, blur, rise).
+
 - Renamed to RepoTale. The CLI keeps the `reporeel` command and npm package, and is also installed as `repotale`.
 - The website (`web/`, published to GitHub Pages by `.github/workflows/pages.yml`): paste a GitHub link and get a narrated film, an architecture map with blast radius, an evidence report and exports (share link, README badge, SVG, Mermaid, `graph.json`, a `reporeel.json` storyboard). It reads code in the browser and runs nothing. Imports resolve for JavaScript, TypeScript (with path aliases), Python and Go; every link is pinned to the analysed commit; import cycles are reported in import order.
 - Website film: a neural voice (Kokoro-82M, in the browser, four English voices) with scene lengths fitted to the audio, and downloaded videos that carry the voice; the live site's pages, photographed and scrolled through, each tied to the file that defines its route; wipe transitions between scenes.

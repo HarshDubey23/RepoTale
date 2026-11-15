@@ -5,7 +5,7 @@ import { blastRadius, permalink } from './analyze.js';
 import { archBeats, drawArchBeat } from './filmarch.js';
 import { mermaidArch } from './arch.js';
 
-const C = { bg: '#0d060b', surface: '#1b0e17', plum: '#470c35', ink: '#ffffff', muted: '#9a8f97', accent: '#ff488b' };
+const C = { bg: '#f2eee6', surface: '#e8e2d5', plum: '#ded6c5', ink: '#15130f', muted: '#6a6357', accent: '#2b44ff' };
 const plural = (n, w, s = w + 's') => `${n.toLocaleString('en')} ${n === 1 ? w : s}`;
 const list = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a.at(-1);
 const base = f => f.split('/').pop();
@@ -124,10 +124,10 @@ export function buildStory(model, opts = {}) {
 const W = 1280, H = 720, M = 72;
 const ease = t => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 const seg = (t, a, b) => ease((t - a) / (b - a));
-const DISPLAY = s => `800 ${s}px Archivo`;
-const TEXT = (s, w = 400) => `${w} ${s}px Archivo`;
+const DISPLAY = s => `italic 400 ${Math.round(s * 1.08)}px 'Instrument Serif'`;
+const TEXT = (s, w = 400) => `${w} ${s}px 'Inter Tight'`;
 
-function font(ctx, f, condensed) { ctx.font = f; try { ctx.fontStretch = condensed ? 'extra-condensed' : 'normal'; } catch {} }
+function font(ctx, f) { ctx.font = f; }
 function wrap(ctx, text, maxW) {
   const out = []; let line = '';
   for (const w of String(text).split(/\s+/)) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; }
@@ -159,7 +159,7 @@ function chrome(ctx, scene, i, n, t, opts) {
     ctx.fillStyle = C.accent; ctx.fillRect(W - M - tw - 40, 62, 10, 10);
     ctx.fillStyle = C.ink; ctx.textAlign = 'left'; ctx.fillText(label, W - M - tw - 22, 73);
   }
-  font(ctx, DISPLAY(22), true); ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.fillText('REPOTALE', M, 74);
+  font(ctx, DISPLAY(22), true); ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.fillText('RepoTale', M, 74);
   if (opts.captions !== false) captions(ctx, scene, t, opts);
 }
 
@@ -178,16 +178,66 @@ function captions(ctx, scene, t, opts) {
   font(ctx, TEXT(26, 600));
   const lines = wrap(ctx, sentence, W - M * 2 - 80).slice(0, 2);
   const lw = Math.max(...lines.map(l => ctx.measureText(l).width)), h = lines.length * 36 + 26, x = (W - lw) / 2 - 24, y = H - 34 - h;
-  ctx.fillStyle = 'rgba(13,6,11,0.9)'; ctx.beginPath(); ctx.roundRect(x, y, lw + 48, h, 14); ctx.fill();
+  ctx.fillStyle = 'rgba(21,19,15,0.92)'; ctx.beginPath(); ctx.roundRect(x, y, lw + 48, h, 14); ctx.fill();
   let seen = 0;
   lines.forEach((l, k) => {
     let cx = (W - ctx.measureText(l).width) / 2;
     for (const word of l.split(' ')) {
-      ctx.fillStyle = seen + word.length * 0.5 <= local ? C.ink : 'rgba(255,255,255,0.42)';
+      ctx.fillStyle = seen + word.length * 0.5 <= local ? '#f2eee6' : 'rgba(242,238,230,0.42)';
       ctx.fillText(word, cx, y + 38 + k * 36);
       const ww = ctx.measureText(word + ' ').width; cx += ww; seen += word.length + 1;
     }
   });
+}
+
+/** Where a page is worth looking: the two busiest regions, by how much detail (edges) they hold,
+ *  measured on a 48-column thumbnail. Headings, product shots and feature grids score high; empty
+ *  margins and flat bands score low. Cached on the image. */
+export function interest(img, aspect = 2.3) {
+  if (img._focus) return img._focus;
+  const gw = 48, gh = Math.max(12, Math.round(gw * img.naturalHeight / img.naturalWidth));
+  let d;
+  try { const c = Object.assign(document.createElement('canvas'), { width: gw, height: gh }), x = c.getContext('2d'); x.drawImage(img, 0, 0, gw, gh); d = x.getImageData(0, 0, gw, gh).data; }
+  catch { return img._focus = [{ x: 0.5, y: 0.15 }, { x: 0.5, y: 0.6 }]; }
+  const L = (i, j) => { const k = (Math.min(gh - 1, j) * gw + Math.min(gw - 1, i)) * 4; return d[k] * 0.3 + d[k + 1] * 0.59 + d[k + 2] * 0.11; };
+  const e = new Float32Array(gw * gh);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) e[j * gw + i] = Math.abs(L(i + 1, j) - L(i, j)) + Math.abs(L(i, j + 1) - L(i, j));
+  const ww = 22, wh = Math.max(4, Math.round(ww / aspect)), wins = [];
+  for (let j = 0; j + wh <= gh; j += 2) for (let i = 0; i + ww <= gw; i += 2) {
+    let sum = 0; for (let b = j; b < j + wh; b++) for (let a = i; a < i + ww; a++) sum += e[b * gw + a];
+    wins.push({ x: (i + ww / 2) / gw, y: (j + wh / 2) / gh, sum });
+  }
+  wins.sort((a, b) => b.sum - a.sum);
+  const one = wins[0] ?? { x: 0.5, y: 0.15 };
+  const two = wins.find(w => Math.abs(w.y - one.y) > wh / gh) ?? { x: 0.5, y: Math.min(0.85, one.y + 0.4) };
+  return img._focus = [one, two].sort((a, b) => a.y - b.y);
+}
+
+/** The camera over a page, at time t: the top of the page, a push in on the busiest region, a
+ *  drift to the second, then a pull back that scrolls to the end. Source rectangle in image pixels. */
+function camera(img, t, aspect) {
+  const iw = img.naturalWidth, ih = img.naturalHeight, focus = interest(img, aspect);
+  const view = (cx, cy, z) => {
+    const vw = iw / z, vh = vw / aspect;
+    return { sx: Math.max(0, Math.min(iw - vw, cx * iw - vw / 2)), sy: Math.max(0, Math.min(Math.max(0, ih - vh), cy * ih - vh / 2)), vw, vh };
+  };
+  const keys = [[0, view(0.5, 0, 1)], [0.16, view(0.5, 0, 1)], [0.4, view(focus[0].x, focus[0].y, 1.8)], [0.5, view(focus[0].x, focus[0].y, 1.85)],
+    [0.72, view(focus[1].x, focus[1].y, 1.35)], [0.8, view(focus[1].x, focus[1].y, 1.38)], [1, view(0.5, 1, 1)]];
+  let k = 0; while (k < keys.length - 2 && t > keys[k + 1][0]) k++;
+  const [ta, A] = keys[k], [tb, B] = keys[k + 1], u = ease((t - ta) / (tb - ta || 1));
+  const mix = n => A[n] + (B[n] - A[n]) * u;
+  return { sx: mix('sx'), sy: mix('sy'), vw: mix('vw'), vh: mix('vh'), focus };
+}
+
+/** How a scene enters, chosen from what it is and what came before it. */
+function enterStyle(prev, kind) {
+  if (!prev || (kind === 'arch' && prev === 'arch')) return 'none';
+  if (kind === 'site') return prev === 'site' ? 'slide' : 'zoom';
+  if (kind === 'arch') return 'iris';
+  if (kind === 'end' || kind === 'title') return 'blur';
+  if (kind === 'stats' || kind === 'stack') return 'slide';
+  if (kind === 'code' || kind === 'path' || kind === 'blast') return 'wipe';
+  return 'rise';
 }
 
 /** The ground every scene stands on: a slow plum glow and a dot grid, so cuts never feel bare. */
@@ -195,19 +245,19 @@ function ground(ctx, ms) {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
   const gx = W * (0.78 + 0.06 * Math.sin(ms / 7000)), gy = H * (0.18 + 0.05 * Math.cos(ms / 9000));
   const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 620);
-  g.addColorStop(0, 'rgba(255,72,139,0.16)'); g.addColorStop(0.45, 'rgba(71,12,53,0.22)'); g.addColorStop(1, 'rgba(13,6,11,0)');
+  g.addColorStop(0, 'rgba(43,68,255,0.13)'); g.addColorStop(0.5, 'rgba(247,107,21,0.05)'); g.addColorStop(1, 'rgba(242,238,230,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = 'rgba(255,255,255,0.055)';
+  ctx.fillStyle = 'rgba(21,19,15,0.07)';
   for (let y = 14; y < H; y += 28) for (let x = 14; x < W; x += 28) ctx.fillRect(x, y, 2, 2);
 }
 
 const DRAW = {
   arch(ctx, s, t, ms) { drawArchBeat(ctx, s, t, ms, t * s.duration); },
   title(ctx, s, t, ms) {
-    const size = fit(ctx, s.heading.toUpperCase(), W - M * 2, 210);
+    const size = fit(ctx, s.heading, W - M * 2, 210);
     const reveal = seg(t, 0, 0.25);
     ctx.save(); ctx.beginPath(); ctx.rect(M, 0, (W - M * 2) * reveal + 4, H); ctx.clip();
-    font(ctx, DISPLAY(size), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading.toUpperCase(), M, 330);
+    font(ctx, DISPLAY(size), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading, M, 330);
     ctx.restore();
     ctx.fillStyle = C.accent; ctx.fillRect(M, 360, (W - M * 2) * seg(t, 0.15, 0.4), 10);
     font(ctx, TEXT(34)); ctx.fillStyle = C.ink; ctx.globalAlpha = seg(t, 0.25, 0.45);
@@ -215,7 +265,7 @@ const DRAW = {
     ctx.globalAlpha = 1;
   },
   stats(ctx, s, t) {
-    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading.toUpperCase(), M, 170);
+    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading, M, 170);
     const cw = (W - M * 2) / s.items.length;
     s.items.forEach((it, k) => {
       const p = seg(t, 0.08 + k * 0.08, 0.5 + k * 0.08);
@@ -227,13 +277,13 @@ const DRAW = {
     });
   },
   stack(ctx, s, t) {
-    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading.toUpperCase(), M, 170);
+    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading, M, 170);
     s.items.forEach((it, k) => {
       const p = seg(t, 0.06 + k * 0.07, 0.3 + k * 0.07);
       const col = k % 2, row = Math.floor(k / 2), x = M + col * 580 + (1 - p) * 40, y = 240 + row * 110;
       ctx.globalAlpha = p; ctx.fillStyle = C.surface; ctx.fillRect(x, y, 560, 92);
       ctx.fillStyle = C.accent; ctx.fillRect(x, y, 8, 92);
-      font(ctx, DISPLAY(46), true); ctx.fillStyle = C.ink; ctx.fillText(it.name.toUpperCase(), x + 30, y + 54);
+      font(ctx, DISPLAY(46), true); ctx.fillStyle = C.ink; ctx.fillText(it.name, x + 30, y + 54);
       font(ctx, TEXT(19)); ctx.fillStyle = C.muted; ctx.fillText(`${it.proof} · ${it.detail}`.slice(0, 54), x + 30, y + 80);
       ctx.globalAlpha = 1;
     });
@@ -255,7 +305,7 @@ const DRAW = {
       ctx.restore(); ctx.globalAlpha = 1;
       return;
     }
-    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading.toUpperCase(), M, 170);
+    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading, M, 170);
     const n = s.areas.length, gap = 20, bw = (W - M * 2 - gap * (n - 1)) / n;
     const max = Math.max(...s.areas.map(a => a.files.length));
     const pos = new Map();
@@ -264,8 +314,8 @@ const DRAW = {
       const h = 110 + 150 * (a.files.length / max), x = M + k * (bw + gap), y = 560 - h;
       pos.set(a.name, { x, y, w: bw, h });
       ctx.globalAlpha = p; ctx.fillStyle = k === n - 1 ? C.plum : C.surface; ctx.fillRect(x, y + (1 - p) * 30, bw, h);
-      font(ctx, DISPLAY(Math.min(34, fit(ctx, base(a.name).toUpperCase(), bw - 28, 34, 16))), true); ctx.fillStyle = C.ink;
-      ctx.fillText(base(a.name).toUpperCase(), x + 14, y + 40 + (1 - p) * 30);
+      font(ctx, DISPLAY(Math.min(34, fit(ctx, base(a.name), bw - 28, 34, 16))), true); ctx.fillStyle = C.ink;
+      ctx.fillText(base(a.name), x + 14, y + 40 + (1 - p) * 30);
       font(ctx, TEXT(17)); ctx.fillStyle = C.muted; ctx.fillText(plural(a.files.length, 'file'), x + 14, y + 66 + (1 - p) * 30);
       // One dot per file, so size reads at a glance.
       ctx.fillStyle = C.ink;
@@ -290,7 +340,7 @@ const DRAW = {
     }
   },
   code(ctx, s, t) {
-    font(ctx, DISPLAY(Math.min(64, fit(ctx, base(s.file).toUpperCase(), 560, 64))), true); ctx.fillStyle = C.ink; ctx.fillText(base(s.file).toUpperCase(), M, 170);
+    font(ctx, DISPLAY(Math.min(64, fit(ctx, base(s.file), 560, 64))), true); ctx.fillStyle = C.ink; ctx.fillText(base(s.file), M, 170);
     font(ctx, TEXT(20)); ctx.fillStyle = C.muted; ctx.fillText(s.file, M, 204);
     const x = M, y = 236, w = 760, lh = 24;
     ctx.fillStyle = C.surface; ctx.fillRect(x, y, w, s.lines.length * lh + 32);
@@ -308,22 +358,22 @@ const DRAW = {
     ctx.globalAlpha = 1;
   },
   path(ctx, s, t, ms) {
-    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading.toUpperCase(), M, 170);
+    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading, M, 170);
     const n = s.chain.length, bw = Math.min(300, (W - M * 2 - (n - 1) * 56) / n);
     const total = n * bw + (n - 1) * 56, x0 = (W - total) / 2;
     s.chain.forEach((f, k) => {
       const p = seg(t, 0.08 + k * (0.6 / n), 0.2 + k * (0.6 / n));
       const x = x0 + k * (bw + 56), y = 300;
       ctx.globalAlpha = p; ctx.fillStyle = k === n - 1 ? C.accent : C.surface; ctx.fillRect(x, y, bw, 150);
-      font(ctx, DISPLAY(fit(ctx, base(f).toUpperCase(), bw - 32, 40, 14)), true); ctx.fillStyle = k === n - 1 ? C.bg : C.ink;
-      ctx.fillText(base(f).toUpperCase(), x + 16, y + 60);
+      font(ctx, DISPLAY(fit(ctx, base(f), bw - 32, 40, 14)), true); ctx.fillStyle = k === n - 1 ? C.bg : C.ink;
+      ctx.fillText(base(f), x + 16, y + 60);
       font(ctx, TEXT(16)); ctx.fillStyle = k === n - 1 ? C.bg : C.muted; wrap(ctx, f.split('/').slice(0, -1).join('/') || '(root)', bw - 32).slice(0, 2).forEach((l, j) => ctx.fillText(l, x + 16, y + 92 + j * 22));
       if (k < n - 1) { ctx.fillStyle = C.ink; ctx.fillRect(x + bw + 10, y + 72, 36 * seg(t, 0.2 + k * (0.6 / n), 0.3 + k * (0.6 / n)), 6); }
       ctx.globalAlpha = 1;
     });
   },
   blast(ctx, s, t, ms) {
-    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading.toUpperCase(), M, 170);
+    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading, M, 170);
     const cx = 860, cy = 360;
     const hops = Math.max(1, ...s.reach.map(r => r[1]));
     for (let h = hops; h >= 1; h--) {
@@ -342,7 +392,7 @@ const DRAW = {
     ctx.fillStyle = s.tests ? C.ink : C.accent; ctx.fillText(s.tests ? plural(s.tests, 'test file') + ' on the path' : 'no tests on the path', M + 4, 540);
   },
   health(ctx, s, t) {
-    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading.toUpperCase(), M, 170);
+    font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading, M, 170);
     const rows = [
       ...s.cycles.map(c => ({ tag: 'CYCLE', text: (c.loop.length > 4 ? [...c.loop.slice(0, 3).map(base), '…'] : c.loop.map(base)).join(' → ') + ' → ' + base(c.loop[0]) })),
       ...s.untested.map(f => ({ tag: 'UNTESTED', text: f })),
@@ -364,15 +414,28 @@ const DRAW = {
     [C.accent, C.muted, C.muted].forEach((c, k) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 24 + k * 22, y + bar / 2, 6, 0, 7); ctx.fill(); });
     ctx.fillStyle = C.bg; ctx.fillRect(x + 100, y + 9, w - 200, bar - 18);
     font(ctx, TEXT(16, 500)); ctx.fillStyle = C.ink; ctx.fillText(s.url.replace(/^https?:\/\//, '').slice(0, 90), x + 116, y + 28);
+    ctx.save(); ctx.shadowColor = 'rgba(21,19,15,0.22)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 18;
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y + bar, w, h - bar); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(x, y + bar, w, h - bar); ctx.clip();
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y + bar, w, h - bar);
-    const img = s.img, scale = (w / img.naturalWidth) * (1.06 - 0.06 * seg(t, 0.05, 0.4));
-    const ih = img.naturalHeight * scale, travel = Math.max(0, ih - (h - bar));
-    ctx.drawImage(img, x + (w - img.naturalWidth * scale) / 2, y + bar - travel * ease(seg(t, 0.22, 0.96) ** 1.2), img.naturalWidth * scale, ih);
+    const cam = camera(s.img, t, w / (h - bar));
+    ctx.drawImage(s.img, cam.sx, cam.sy, cam.vw, cam.vh, x, y + bar, w, h - bar);
+    // The cursor glides to each place the camera chose and clicks it.
+    const at = f => [x + (f.x * s.img.naturalWidth - cam.sx) / cam.vw * w, y + bar + (f.y * s.img.naturalHeight - cam.sy) / cam.vh * (h - bar)];
+    const [f1, f2] = cam.focus, m1 = seg(t, 0.12, 0.36), m2 = seg(t, 0.52, 0.7);
+    const p1 = at(f1), p2 = at(f2), start = [x + w * 0.85, y + h - 30];
+    const cx = m2 > 0 ? p1[0] + (p2[0] - p1[0]) * m2 : start[0] + (p1[0] - start[0]) * m1, cy = m2 > 0 ? p1[1] + (p2[1] - p1[1]) * m2 : start[1] + (p1[1] - start[1]) * m1;
+    const fade = 1 - seg(t, 0.86, 0.95);
+    for (const [a, b] of [[0.36, 0.48], [0.7, 0.82]]) if (t > a && t < b) {
+      const r = (t - a) / (b - a);
+      ctx.strokeStyle = C.accent; ctx.globalAlpha = (1 - r) * rise; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, 8 + r * 34, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = rise * fade;
+    ctx.fillStyle = C.ink; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + 24); ctx.lineTo(cx + 6.5, cy + 18); ctx.lineTo(cx + 11, cy + 28); ctx.lineTo(cx + 15, cy + 26); ctx.lineTo(cx + 10.5, cy + 16.5); ctx.lineTo(cx + 18, cy + 16.5); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
     ctx.globalAlpha = 1;
     // The route, set large on a pink block that fills the right end of the address bar.
-    const label = s.heading === '/' ? 'HOME' : s.heading.replace(/\.html$/, '').toUpperCase();
+    const label = s.heading === '/' ? 'Home' : s.heading.replace(/\.html$/, '');
     font(ctx, DISPLAY(34), true); const lw = Math.min(ctx.measureText(label).width + 40, 420);
     const lp = seg(t, 0.1, 0.25), lx = x + w - lw * lp;
     ctx.fillStyle = C.accent; ctx.fillRect(lx, y, lw * lp, bar);
@@ -381,8 +444,8 @@ const DRAW = {
   },
   end(ctx, s, t) {
     ctx.fillStyle = C.plum; ctx.fillRect(0, 0, W, H * seg(t, 0, 0.3));
-    const size = fit(ctx, s.heading.toUpperCase(), W - M * 2, 220);
-    font(ctx, DISPLAY(size), true); ctx.fillStyle = C.ink; ctx.globalAlpha = seg(t, 0.15, 0.4); ctx.fillText(s.heading.toUpperCase(), M, 360);
+    const size = fit(ctx, s.heading, W - M * 2, 220);
+    font(ctx, DISPLAY(size), true); ctx.fillStyle = C.ink; ctx.globalAlpha = seg(t, 0.15, 0.4); ctx.fillText(s.heading, M, 360);
     font(ctx, TEXT(32, 500)); ctx.fillText(s.sub, M, 420);
     ctx.fillStyle = C.accent; ctx.fillText('Told by RepoTale', M, 470); ctx.globalAlpha = 1;
   },
@@ -396,11 +459,18 @@ export function drawFrame(ctx, scenes, i, t, ms, opts = {}) {
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   // Scenes rise in softly; one architecture beat flows into the next through the camera instead.
   const el = t * scenes[i].duration;
-  const flows = scenes[i].kind === 'arch' && scenes[i - 1]?.kind === 'arch';
-  const enter = i === 0 || flows || opts.poster ? 1 : ease(el / 650);
-  ctx.save(); ctx.globalAlpha = enter; ctx.translate(0, (1 - enter) * 26);
+  const style = enterStyle(scenes[i - 1]?.kind, scenes[i].kind), p = opts.poster || style === 'none' ? 1 : ease(el / 700);
+  ctx.save();
+  if (p < 1) {
+    if (style === 'zoom') { ctx.globalAlpha = p; ctx.translate(W / 2, H / 2); ctx.scale(1.1 - 0.1 * p, 1.1 - 0.1 * p); ctx.translate(-W / 2, -H / 2); }
+    else if (style === 'iris') { ctx.beginPath(); ctx.arc(W / 2, H / 2, Math.hypot(W, H) / 2 * p, 0, 7); ctx.clip(); ground(ctx, ms); }
+    else if (style === 'slide') { ctx.globalAlpha = p; ctx.translate((1 - p) * (i % 2 ? -110 : 110), 0); }
+    else if (style === 'blur') { ctx.globalAlpha = p; ctx.filter = `blur(${(1 - p) * 16}px)`; }
+    else if (style === 'wipe') { ctx.beginPath(); ctx.rect(0, 0, W * p, H); ctx.clip(); }
+    else { ctx.globalAlpha = p; ctx.translate(0, (1 - p) * 28); }
+  }
   DRAW[scenes[i].kind](ctx, scenes[i], t, ms);
-  ctx.restore(); ctx.globalAlpha = 1;
+  ctx.restore(); ctx.globalAlpha = 1; ctx.filter = 'none';
   chrome(ctx, scenes[i], i, scenes.length, t, opts);
   if (opts.waiting) {
     font(ctx, TEXT(20, 600)); const label = 'Preparing the voice…', w = ctx.measureText(label).width + 48;
