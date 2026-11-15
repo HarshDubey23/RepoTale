@@ -1,0 +1,62 @@
+// The storyboard is the whole contract: an agent (or a person) writes it, `reporeel render` turns it
+// into a video. Everything the video says and shows is in this one file, so it can be reviewed,
+// diffed and re-rendered when the app changes.
+
+export type Action =
+  | { click: string }                          // a Playwright selector
+  | { type: [selector: string, text: string] }
+  | { press: string }                          // e.g. "Enter"
+  | { hover: string }
+  | { scroll: string | number }                // selector to bring into view, or pixels
+  | { zoom: string }                           // zoom the camera onto an element, then back out
+  | { wait: number }                           // ms
+  | { waitFor: string };                       // wait until a selector is visible
+
+export type Scene = { say: string; id?: string } & (
+  | { type: 'title'; heading: string; sub?: string }
+  | { type: 'web'; url?: string; actions?: Action[] }
+  | { type: 'code'; file: string; lines?: [number, number]; highlight?: [number, number][]; caption?: string }
+  | { type: 'diagram'; mermaid: string; caption?: string }
+  | { type: 'terminal'; commands: string[]; cwd?: string; timeoutMs?: number }
+  | { type: 'stats'; heading?: string; items: { value: string; label: string }[] }
+  | { type: 'end'; heading: string; links?: string[] }
+);
+
+export interface Storyboard {
+  title: string;
+  /** Root of the project being explained. Relative paths in scenes resolve against it. */
+  repo?: string;
+  /** The running app, for web scenes. `start` is run in `repo` and awaited until `url` answers. */
+  app?: { url: string; start?: string; readyTimeoutMs?: number };
+  voice?: { provider: 'kokoro' | 'elevenlabs' | 'none'; voice?: string; speed?: number };
+  theme?: { accent?: string; captions?: boolean };
+  size?: { width: number; height: number };
+  scenes: Scene[];
+}
+
+const TYPES = ['title', 'web', 'code', 'diagram', 'terminal', 'stats', 'end'];
+const ACTIONS = ['click', 'type', 'press', 'hover', 'scroll', 'zoom', 'wait', 'waitFor'];
+
+/** Returns a list of problems; empty means the storyboard can be rendered. */
+export function validate(sb: any): string[] {
+  const errs: string[] = [];
+  if (!sb || typeof sb !== 'object') return ['storyboard must be a JSON object'];
+  if (typeof sb.title !== 'string' || !sb.title) errs.push('title: required');
+  if (!Array.isArray(sb.scenes) || !sb.scenes.length) errs.push('scenes: need at least one');
+  (sb.scenes ?? []).forEach((s: any, i: number) => {
+    const at = `scenes[${i}]`;
+    if (!TYPES.includes(s?.type)) return errs.push(`${at}.type: one of ${TYPES.join(', ')}`);
+    if (typeof s.say !== 'string' || !s.say.trim()) errs.push(`${at}.say: the narration for this scene is required`);
+    if (s.type === 'web' && !sb.app?.url && !/^https?:/.test(s.url ?? '')) errs.push(`${at}: web scenes need app.url or an absolute url`);
+    if (s.type === 'code' && typeof s.file !== 'string') errs.push(`${at}.file: required`);
+    if (s.type === 'diagram' && typeof s.mermaid !== 'string') errs.push(`${at}.mermaid: required`);
+    if (s.type === 'terminal' && !(Array.isArray(s.commands) && s.commands.length)) errs.push(`${at}.commands: required`);
+    if (s.type === 'stats' && !(Array.isArray(s.items) && s.items.length)) errs.push(`${at}.items: required`);
+    if ((s.type === 'title' || s.type === 'end') && typeof s.heading !== 'string') errs.push(`${at}.heading: required`);
+    (s.actions ?? []).forEach((a: any, j: number) => {
+      const keys = Object.keys(a ?? {});
+      if (keys.length !== 1 || !ACTIONS.includes(keys[0])) errs.push(`${at}.actions[${j}]: one of ${ACTIONS.join(', ')}`);
+    });
+  });
+  return errs;
+}

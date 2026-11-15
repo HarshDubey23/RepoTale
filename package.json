@@ -1,0 +1,29 @@
+{
+  "name": "reporeel",
+  "version": "0.1.0",
+  "description": "Turn any repo into a narrated video that explains it: live demo, architecture, real code and numbers. One storyboard file, free local voice.",
+  "type": "module",
+  "bin": {
+    "reporeel": "bin/reporeel.js"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "kokoro-js": "^1.2.1",
+    "mermaid": "^12.3.0",
+    "playwright": "^1.63.0",
+    "shiki": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}
