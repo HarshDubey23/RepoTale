@@ -30,6 +30,11 @@ function files(dir: string): string[] {
   }
 }
 
+/** A plain sentence in the first lines, skipping the title, badges, images and HTML. */
+export const oneLiner = (md: string) => md.split('\n').slice(0, 15)
+  .filter(l => l.trim() && !/^\s*(#|<|!\[|\[!\[|```|---|>)/.test(l))
+  .some(l => /^[^|].{20,}/.test(l.trim()) && /[a-z]{3,}\s+[a-z]{2,}/i.test(l));
+
 export function doctor(dir: string): Report {
   const all = files(dir);
   const has = (re: RegExp) => all.some(f => re.test(f));
@@ -64,7 +69,7 @@ export function doctor(dir: string): Report {
   const c = (id: string, area: Check['area'], weight: number, ok: boolean, detail: string, fix?: string): Check => ({ id, area, weight, ok, detail, fix: ok ? undefined : fix });
   const checks: Check[] = [
     c('readme', 'first impression', 12, !!readmeFile, readmeFile ? `${readmeFile}, ${words} words` : 'no README', 'reporeel readme'),
-    c('one-liner', 'first impression', 8, /^(#[^\n]*\n+)?(\s*<[^>]+>\s*\n+)*\s*([^#\n<!\[].{20,200})$/m.test(top.split('\n').slice(0, 12).join('\n')), 'a plain sentence near the top says what this is', 'Add one sentence under the title: what it does and for whom.'),
+    c('one-liner', 'first impression', 8, oneLiner(top), 'a plain sentence near the top says what this is', 'Add one sentence under the title: what it does and for whom.'),
     c('demo-media', 'first impression', 14, media.test(top), media.test(top) ? 'a GIF, image or video in the first 40 lines' : media.test(md) ? 'media exists but is below the fold' : 'no screenshot, GIF or video', 'reporeel video  (then reporeel readme to place it)'),
     c('how-it-works', 'first impression', 6, (section(/how it works|how it is built|architecture|design|overview|under the hood|internals/) || /<summary>[^<]*(<b>)?\s*(architecture|how it works)/i.test(md)), 'an architecture or "how it works" section', 'reporeel diagram'),
     c('quickstart', 'getting started', 10, section(/install|quick ?start|getting started|setup|usage|run/) && codeBlocks.some(b => /\b(npm|npx|pnpm|yarn|pip|uv|cargo|go |docker|make|brew|curl|git clone|python)\b/.test(b[2])), 'install or quickstart section with a command', 'Add a Quickstart with the exact commands, then run reporeel verify.'),

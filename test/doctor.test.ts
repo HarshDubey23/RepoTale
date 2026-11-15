@@ -33,3 +33,9 @@ test('flags broken relative links and media below the fold', () => {
   assert.match(get(r, 'links').detail, /docs\/missing\.md/);
   assert.equal(get(r, 'demo-media').detail, 'media exists but is below the fold');
 });
+
+test('badges above the description do not hide it', async () => {
+  const { oneLiner } = await import('../src/doctor.ts');
+  assert.ok(oneLiner('# x\n\n[![npm](https://img.shields.io/npm/v/x)](https://npm.im/x) ![ci](b.svg)\n\n**x** turns any repo into a narrated video.\n'));
+  assert.ok(!oneLiner('# x\n\n[![npm](https://img.shields.io/npm/v/x)](https://npm.im/x)\n\n## Install\n'));
+});

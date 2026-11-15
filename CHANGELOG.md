@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `doctor` finds the one-line description when badges, images or HTML come first.
+
 ## 0.2.0
 
 - `reporeel setup` checks Node, ffmpeg, Chromium and keys, and says how to fix each; `--fix` installs Chromium.
