@@ -1,0 +1,17 @@
+{
+  "$schema": "../../schema/reporeel.schema.json",
+  "title": "Readable",
+  "app": { "url": "http://localhost:4321/", "start": "node server.js" },
+  "voice": { "provider": "kokoro", "voice": "af_heart" },
+  "theme": { "accent": "#e4572e" },
+  "scenes": [
+    { "type": "title", "heading": "How long will this take to read?", "sub": "Reading time and difficulty for any text.",
+      "say": "Readable tells you how long any text takes to read, and how hard it is." },
+    { "type": "web", "actions": [{ "type": ["#text", "Short sentences are easy to read. Long ones, full of clauses, are not."] }, { "click": "#measure" }, { "zoom": "#result" }],
+      "say": "Paste some text and press measure. You get the reading time, the word count and a difficulty score." },
+    { "type": "code", "file": "readable.js", "lines": [1, 10], "highlight": [[8, 8]], "caption": "the formula",
+      "say": "The score is the Flesch reading ease formula: shorter sentences and shorter words score higher." },
+    { "type": "terminal", "commands": ["node --test"], "say": "And the tests run, for real." },
+    { "type": "end", "heading": "Readable", "links": ["examples/hello"], "say": "That is Readable. Try it on your own writing." }
+  ]
+}
