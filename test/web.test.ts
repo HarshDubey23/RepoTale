@@ -3,7 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { parseRepo, importsOf, symbolsOf, resolve, buildModel, cycles, blastRadius, aliasesFrom, pickFiles, detectStack } from '../web/analyze.js';
+import { parseRepo, importsOf, symbolsOf, resolve, buildModel, cycles, blastRadius, aliasesFrom, pickFiles, detectStack, routesOf, headingOf, liveUrl } from '../web/analyze.js';
+import { forEar } from '../web/voice.js';
+import { diagramSVG } from '../web/diagram.js';
 import { buildStory, storyboardOf, pathBetween, mermaidOf } from '../web/story.js';
 
 test('parseRepo accepts what people paste and rejects the rest', () => {
@@ -63,6 +65,32 @@ test('pickFiles prefers source over tests and skips vendored code', () => {
   assert.deepEqual(pickFiles(tree), ['index.js', 'src/deep/er/x.ts', 'test/a.test.js']);
 });
 
+test('pages: routes come from the files that define them, dynamic ones are skipped', () => {
+  const paths = ['app/page.tsx', 'app/about/page.tsx', 'app/(marketing)/pricing/page.tsx', 'app/blog/[slug]/page.tsx', 'app/api/x/route.ts',
+    'pages/_app.tsx', 'pages/docs/index.mdx', 'pages/api/hello.ts', 'src/routes/contact/+page.svelte', 'index.html', '404.html', 'node_modules/x/app/page.tsx',
+    'src/pages/404.astro', 'src/pages/de/support.astro', 'src/pages/pt-br/support.astro'];
+  const texts = { 'src/App.tsx': '<Route path="/settings" element={<S/>} />\n<Route path="/user/:id" />' };
+  assert.deepEqual(routesOf(paths, texts).map(r => [r.route, r.file]), [
+    ['/', 'app/page.tsx'], ['/docs', 'pages/docs/index.mdx'], ['/about', 'app/about/page.tsx'], ['/contact', 'src/routes/contact/+page.svelte'],
+    ['/pricing', 'app/(marketing)/pricing/page.tsx'], ['/settings', 'src/App.tsx'],
+  ]);
+  assert.equal(headingOf('<main>\n  <h1 className="x">Ship faster</h1>'), 'Ship faster');
+  assert.equal(headingOf('# Getting started\ntext'), 'Getting started');
+  assert.equal(headingOf('export default () => <div/>'), null);
+  assert.equal(liveUrl({ homepage: 'https://ky.dev', owner: 'a', name: 'b' }), 'https://ky.dev/');
+  assert.equal(liveUrl({ homepage: 'https://github.com/a/b', owner: 'a', name: 'b', hasPages: true }), 'https://a.github.io/b/');
+  assert.equal(liveUrl({ homepage: null, owner: 'a', name: 'a.github.io', hasPages: true }), 'https://a.github.io/');
+  assert.equal(liveUrl({ homepage: '', owner: 'a', name: 'b' }), null);
+  assert.equal(liveUrl({ homepage: '', owner: 'a', name: 'b', readme: '[![ci](https://img.shields.io/x.svg)](https://github.com/a/b)\nSee the [live demo](https://b.example.com/app?ref=gh).' }), 'https://b.example.com/app/');
+  assert.equal(liveUrl({ homepage: '', owner: 'a', name: 'b', readme: 'Deployed at https://b-a.vercel.app.' }), 'https://b-a.vercel.app/');
+  // A "*/" inside a string is not the end of a comment.
+  assert.deepEqual(aliasesFrom('{ /* c */ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["./*"] } }, // x\n "include": ["**/*.ts"] }'), [['@', '']]);
+});
+
+test('narration is rewritten for the ear, not the eye', () => {
+  assert.equal(forEar('The heart is src/core/Ky.ts, then __main__.'), 'The heart is src Ky, then main .');
+});
+
 test('stack names come with the manifest that proves them', () => {
   const s = detectStack({ 'package.json': '{"dependencies":{"react":"^19"},"devDependencies":{"vitest":"1"}}', 'requirements.txt': 'flask==3\n' }, ['.github/workflows/ci.yml']);
   assert.deepEqual(s.map(x => [x.name, x.proof]), [['React', 'package.json'], ['Vitest', 'package.json'], ['Flask', 'requirements.txt'], ['GitHub Actions', '.github/workflows/ci.yml']]);
@@ -99,4 +127,11 @@ test('this repository, end to end: every edge resolves, every film claim cites a
   assert.equal(board.scenes.length, story.length);
   assert.ok(board.scenes.every(s => ['title', 'stats', 'diagram', 'code', 'end'].includes(s.type) && s.say));
   assert.match(mermaidOf(model), /^flowchart LR\n/);
+
+  // The diagram names every area it draws, marks the heart, and draws one arrow per forward link.
+  const svg = diagramSVG(model);
+  assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+  assert.match(svg, />HEART</);
+  assert.ok(svg.includes(`>${model.areas.find(a => a.files.includes(model.core[0].file)).name.split('/').pop().toUpperCase()}<`));
+  assert.doesNotMatch(svg, /NaN|undefined/);
 });

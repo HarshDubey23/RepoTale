@@ -1,5 +1,7 @@
 // The page: ask for a repository, read it, then show the film, the map, the evidence and the exports.
-import { analyze, parseRepo, permalink, blastRadius, RepoError } from './analyze.js';
+import { analyze, parseRepo, permalink, blastRadius, RepoError, shot } from './analyze.js';
+import { diagramSVG } from './diagram.js';
+import { VoicePool, VOICES } from './voice.js';
 import { buildStory, Player, record, storyboardOf, mermaidOf, graphOf } from './story.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -15,7 +17,9 @@ const fmt = n => Number(n).toLocaleString('en');
 const clock = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 const store = { get(k, d) { try { const v = localStorage.getItem('repotale.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('repotale.' + k, JSON.stringify(v)); } catch {} } };
 
-const opts = { voice: store.get('voice', true), captions: store.get('captions', true), tests: store.get('tests', false), back: store.get('back', false) };
+const opts = { voice: store.get('voice', true), voiceName: store.get('voiceName', 'af_heart'), captions: store.get('captions', true), tests: store.get('tests', false), back: store.get('back', false) };
+const pool = new VoicePool();
+let audioContext = null, voiceJob = 0;
 let model = null, scenes = null, player = null, selected = null, recording = null;
 
 // ------------------------------------------------------------- the O in the name: a live import graph
@@ -57,7 +61,7 @@ $$('.examples button').forEach(b => b.addEventListener('click', () => { input.va
 $('#cta').addEventListener('submit', e => { e.preventDefault(); const v = $('#cta-repo').value; input.value = v; $('#tell').scrollIntoView(); run(v); });
 
 function stage(name, text, p) {
-  const order = ['read', 'fetch', 'map', 'film'], at = order.indexOf(name);
+  const order = ['read', 'fetch', 'map', 'site', 'film'], at = order.indexOf(name);
   $$('#stages li').forEach((li, i) => {
     li.dataset.state = i < at ? 'done' : i === at ? 'now' : 'wait';
     li.style.setProperty('--p', i < at ? 1 : i === at ? p : 0);
@@ -78,8 +82,9 @@ async function run(value) {
       token: $('#token').value.trim() || undefined,
       progress: (s, d, t) => stage(s, s === 'fetch' ? `${d} / ${t}` : '', t ? d / t : 0),
     });
+    const shots = await photograph(model, $('#live').value.trim());
     stage('film', '', 0.5);
-    scenes = buildStory(model);
+    scenes = buildStory(model, { shots });
     stage('film', '', 1);
     $$('#stages li').forEach(li => { li.dataset.state = 'done'; li.style.setProperty('--p', 1); li.querySelector('b').textContent = ''; });
     history.replaceState(null, '', '#/' + model.meta.full);
@@ -92,6 +97,67 @@ async function run(value) {
     $('#ask').removeAttribute('aria-busy'); $$('.ask-go, .examples button').forEach(b => b.disabled = false);
   }
 }
+
+/** Screenshots of the running site: the home page, then pages the code defines. Pages that cannot
+ *  be photographed in time are left out of the film rather than shown broken. */
+async function photograph(model, override) {
+  const live = /^https?:\/\//.test(override) ? override.replace(/\/?$/, '/') : model.live;
+  if (!live) { stage('site', 'no live site found', 1); return []; }
+  model.live = live;
+  const home = model.pages.find(p => p.route === '/');
+  const want = [{ route: '/', file: home?.file ?? null, heading: home?.heading ?? null }, ...model.pages.filter(p => p.route !== '/')].slice(0, 5);
+  // One at a time: the free screenshot service refuses requests made in parallel.
+  const got = [];
+  for (const [k, p] of want.entries()) {
+    stage('site', `${k} / ${want.length}`, k / want.length);
+    const url = new URL(p.route.replace(/^\//, ''), live).href;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try { got.push({ ...p, url, img: await shot(url, 40000) }); break; }
+      catch { await new Promise(r => setTimeout(r, 1500)); }
+    }
+  }
+  stage('site', `${got.length} / ${want.length}`, 1);
+  return got;
+}
+
+// ------------------------------------------------------------- voice
+function voiceNote(html) { $('#voice-note').innerHTML = html; }
+/** Make the neural narration for every scene, in order, and fit each scene to its audio. */
+function prepareVoice() {
+  const job = ++voiceJob;
+  pool.clear();
+  for (const s of scenes) s.audio = null;
+  if (!opts.voice || opts.voiceName === 'browser') { voiceNote(opts.voice ? 'Using your browser’s own voice. Pick a neural voice for a natural one, and for a video with sound.' : 'Narration is off.'); return; }
+  audioContext ??= new AudioContext();
+  let ready = 0;
+  const label = VOICES.find(v => v.id === opts.voiceName)?.label ?? opts.voiceName;
+  voiceNote(`Neural voice <b>${label}</b>: starting. The first time, the voice model (about 90 MB) downloads once and is then kept by your browser.`);
+  pool.onstatus = st => {
+    if (job !== voiceJob) return;
+    if (st.loading != null && !ready) voiceNote(`Neural voice <b>${label}</b>: loading the model, ${Math.round(st.loading * 100)}%.`);
+    if (st.ready === 1 && !ready) voiceNote(`Neural voice <b>${label}</b>: model loaded, speaking the first scene.`);
+    if (st.error) voiceNote(`The neural voice could not start here (${st.error}). Choose “Browser voice” instead.`);
+  };
+  scenes.forEach(s => pool.say(s.say, opts.voiceName).then(({ audio, rate }) => {
+    if (job !== voiceJob) return;
+    const buf = audioContext.createBuffer(1, audio.length, rate);
+    buf.copyToChannel(audio, 0);
+    s.audio = buf; s.duration = Math.max(3200, Math.round(buf.duration * 1000) + 650);
+    ready++;
+    voiceNote(ready === scenes.length ? `Neural voice <b>${label}</b>: ready. Download video now includes the narration.` : `Neural voice <b>${label}</b>: ${ready} of ${scenes.length} scenes ready. You can press play; it waits for each one.`);
+    player?.emit();
+  }, () => {}));
+}
+function fillVoices() {
+  $('#voice').replaceChildren(...VOICES.map(v => h('option', { value: v.id }, `${v.label} · neural`)), h('option', { value: 'browser' }, 'Browser voice'));
+  $('#voice').value = opts.voiceName;
+}
+fillVoices();
+$('#voice').addEventListener('change', e => {
+  opts.voiceName = e.target.value; store.set('voiceName', opts.voiceName);
+  if (!scenes) return;
+  player.pause(); player.opts.voiceName = opts.voiceName; prepareVoice(); player.draw();
+});
 
 // ------------------------------------------------------------- the result
 function show() {
@@ -129,7 +195,8 @@ $$('.tabs [role="tab"]').forEach((t, i, all) => {
 // ------------------------------------------------------------- film
 function setupFilm() {
   player?.pause();
-  player = new Player($('#film'), scenes, { voice: opts.voice, captions: opts.captions, onEnd: () => $('#bigplay').classList.remove('gone') });
+  prepareVoice();
+  player = new Player($('#film'), scenes, { voice: opts.voice, voiceName: opts.voiceName, captions: opts.captions, audioContext, onEnd: () => $('#bigplay').classList.remove('gone') });
   const list = $('#script');
   list.replaceChildren(...scenes.map((s, i) => h('li', { tabindex: 0, onclick: () => { player.seek(i); }, onkeydown: e => { if (e.key === 'Enter') player.seek(i); } },
     h('h3', {}, s.heading),
@@ -160,11 +227,22 @@ $('#rec').addEventListener('click', async () => {
   if (recording) { recording.abort(); return; }
   recording = new AbortController();
   btn.textContent = 'Stop recording'; note.hidden = false;
+  const signal = recording.signal;
   try {
-    const blob = await record(scenes, { captions: true, signal: recording.signal }, p => { note.textContent = `Recording in real time: ${Math.round(p * 100)}%. Keep this tab open; captions are burned in, since browsers cannot record their own voice.`; });
+    player.pause();
+    const neural = opts.voice && opts.voiceName !== 'browser';
+    // A voiced video needs every scene's audio first.
+    while (neural && !signal.aborted && !scenes.every(s => s.audio)) {
+      note.textContent = `Waiting for the voice: ${scenes.filter(s => s.audio).length} of ${scenes.length} scenes ready.`;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    const voiced = neural && scenes.every(s => s.audio);
+    const blob = signal.aborted ? null : await record(scenes, { captions: opts.captions, audioContext: voiced ? audioContext : null, signal }, p => {
+      note.textContent = `Recording in real time: ${Math.round(p * 100)}%. Keep this tab open.${voiced ? ' The narration is recorded into the file.' : ' Choose a neural voice to record narration; browser voices cannot be recorded.'}`;
+    });
     if (blob) {
       const name = `${model.meta.name}-repotale.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`;
-      note.replaceChildren('Done. ', h('a', { href: URL.createObjectURL(blob), download: name }, `Save ${name}`), ` (${(blob.size / 1e6).toFixed(1)} MB). For a voiced HD version, export the storyboard and render it with the CLI.`);
+      note.replaceChildren('Done. ', h('a', { href: URL.createObjectURL(blob), download: name }, `Save ${name}`), ` (${(blob.size / 1e6).toFixed(1)} MB${voiced ? ', with narration' : ', silent with captions'}).`);
       download(blob, name);
     } else note.textContent = 'Recording stopped.';
   } catch (e) { note.textContent = e.message; }
@@ -213,6 +291,7 @@ function drawMap() {
   }
   svg.append(edgeLayer, nodeLayer);
   $('#map').replaceChildren(svg);
+  $('#diagram').innerHTML = diagramSVG(model);
   if (selected && pos.has(selected)) select(selected, false); else { selected = null; inspectEmpty(); }
 }
 function inspectEmpty() { $('#inspect').replaceChildren(h('p', { class: 'inspect-empty' }, 'Select a file to see what it defines, what it imports, what imports it, and what a change to it could reach.')); }
@@ -290,12 +369,8 @@ function drawExports() {
   $('#exports').replaceChildren(
     item('Share link', 'Opens this page and reads the same repository.', btn('Copy link', copy(share)), share),
     item('README badge', 'Paste into the README so visitors can open the film and the map.', btn('Copy markdown', copy(badge)), badge),
-    item('Architecture.svg', 'The map as a standalone picture, for docs and slides.', btn('Download', () => {
-      const svg = $('#map svg').cloneNode(true);
-      svg.setAttribute('xmlns', SVGNS);
-      svg.querySelectorAll('.edge').forEach(e => { e.setAttribute('fill', 'none'); e.setAttribute('stroke', '#4a3442'); e.setAttribute('stroke-width', '1.2'); });
-      download(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' }), `${meta.name}-architecture.svg`);
-    })),
+    item('Architecture.svg', 'The architecture diagram as a standalone picture, for docs and slides.', btn('Download', () => download(new Blob([diagramSVG(model)], { type: 'image/svg+xml' }), `${meta.name}-architecture.svg`))),
+    item('Architecture.png', 'The same diagram at twice its size, for places that do not take SVG.', btn('Download', async () => download(await diagramPNG(), `${meta.name}-architecture.png`))),
     item('Mermaid', 'The areas and the imports between them. GitHub renders this inside any markdown file.', btn('Copy', copy('```mermaid\n' + mer + '\n```')), mer),
     item('Storyboard', 'The film as reporeel.json. Run the CLI inside a clone to render it in HD with a local voice, and to check every citation against the code.', btn('Download', () => json(storyboardOf(model, scenes), 'reporeel.json')), `git clone ${meta.url}.git && cd ${meta.name}\n# put reporeel.json in the root, then:\nnpx @theharshdubey/reporeel video`),
     item('Graph.json', `Every module, symbol and import, pinned to commit ${meta.sha.slice(0, 7)}.`, btn('Download', () => json(graphOf(model), `${meta.name}-graph.json`))),
@@ -307,7 +382,7 @@ const STEPS = [
   ['First, read the whole tree', 'One request lists every file at the commit. Up to 220 source files are then read from GitHub\'s raw host, preferring code near the top of the tree over tests and vendored folders.'],
   ['Then, map every import', 'Imports in JavaScript, TypeScript, Python and Go are matched to the files they name. An edge exists only when the target is really in the tree; nothing is guessed.'],
   ['Next, cite every claim', 'Each finding links to the file and line it came from, pinned to the commit, so the link never drifts when the code moves on.'],
-  ['Last, write the film', 'The findings become scenes with narration. Play it with your browser\'s voice, record it to a video, or export the storyboard for the CLI.'],
+  ['Last, write the film', 'The findings and the live pages become scenes. Kokoro, an open neural voice, reads them in your browser; each scene lasts exactly as long as its sentence, and the video you download carries the voice.'],
 ];
 function fragment(i) {
   const m = model;
@@ -343,10 +418,41 @@ function syncBands() {
 $$('.band').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.key; opts[k] = !opts[k]; store.set(k, opts[k]); syncBands();
   if (!model) return;
-  if (k === 'voice' || k === 'captions') { player.opts[k] = opts[k]; if (k === 'voice' && !opts.voice) speechSynthesis?.cancel(); player.draw(); }
+  if (k === 'voice' || k === 'captions') { player.pause(); player.opts[k] = opts[k]; if (k === 'voice') { prepareVoice(); player.opts.audioContext = audioContext; } player.draw(); }
   else drawMap();
 }));
 syncBands();
+
+// ------------------------------------------------------------- diagram
+function mapView(diagram) {
+  $('#v-diagram').setAttribute('aria-pressed', diagram); $('#v-files').setAttribute('aria-pressed', !diagram);
+  $('#diagram').hidden = !diagram; $('#map-wrap').hidden = diagram;
+  $('.map-tools').classList.toggle('diagram-mode', diagram);
+}
+$('#v-diagram').addEventListener('click', () => mapView(true));
+$('#v-files').addEventListener('click', () => mapView(false));
+mapView(true);
+
+/** The diagram as a PNG. Fonts inside an SVG image cannot load from the web, so the page's own
+ *  Archivo is embedded into the SVG first when it can be fetched. */
+async function diagramPNG() {
+  let svg = diagramSVG(model);
+  try {
+    const css = await (await fetch('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap')).text();
+    const url = [...css.matchAll(/url\((https:[^)]+)\)/g)].at(-1)?.[1];
+    if (url) {
+      const b = new Uint8Array(await (await fetch(url)).arrayBuffer());
+      let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
+      svg = svg.replace('<defs>', `<defs><style>@font-face{font-family:Archivo;src:url(data:font/woff2;base64,${btoa(bin)}) format('woff2');font-weight:100 900;font-stretch:62% 125%}</style>`);
+    }
+  } catch {}
+  const img = new Image();
+  img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  await img.decode();
+  const c = Object.assign(document.createElement('canvas'), { width: img.naturalWidth * 2, height: img.naturalHeight * 2 });
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
 
 // ------------------------------------------------------------- deep links: #/owner/name
 const fromHash = () => { const m = location.hash.match(/^#\/([\w.-]+\/[\w.-]+)/); if (m) { input.value = m[1]; run(m[1]); } };

@@ -55,6 +55,7 @@
           <li data-stage="read"><span>Read the tree</span><b></b></li>
           <li data-stage="fetch"><span>Fetch the source</span><b></b></li>
           <li data-stage="map"><span>Map the imports</span><b></b></li>
+          <li data-stage="site"><span>Photograph the live site</span><b></b></li>
           <li data-stage="film"><span>Write the film</span><b></b></li>
         </ol>
         <p class="ask-error" id="ask-error" role="alert" hidden></p>
@@ -65,7 +66,9 @@
         <button type="button" data-repo="HarshDubey23/RepoTale">HarshDubey23/RepoTale</button>
       </div>
       <details class="token">
-        <summary>Private repository, or hit the rate limit?</summary>
+        <summary>Live site, private repository, or rate limit?</summary>
+        <p>If the project runs somewhere its GitHub page does not mention, give its address and the film will show its pages.</p>
+        <input id="live" type="url" placeholder="https://your-app.example.com" aria-label="Live site address" spellcheck="false">
         <p>A fine-grained token with read-only access to contents lifts the limit from 60 to 5,000 requests an hour. It stays in this tab's memory and is sent only to api.github.com.</p>
         <input id="token" type="password" placeholder="github_pat_…" aria-label="GitHub token" spellcheck="false">
       </details>
@@ -97,9 +100,12 @@
           <button class="ctl" id="prev" aria-label="Previous scene">Back</button>
           <button class="ctl" id="next" aria-label="Next scene">Next</button>
           <span class="time" id="time">0:00</span>
+          <label class="sr" for="voice">Voice</label>
+          <select id="voice" class="ctl"></select>
           <span class="grow"></span>
           <button class="ctl" id="rec">Download video</button>
         </div>
+        <p class="voice-note" id="voice-note" aria-live="polite"></p>
         <p class="rec-note" id="rec-note" hidden></p>
       </div>
       <ol class="script" id="script" aria-label="Scenes"></ol>
@@ -107,12 +113,14 @@
 
     <div class="panel" role="tabpanel" id="p-map" aria-labelledby="t-map" hidden data-ui>
       <div class="map-tools">
+        <div class="seg" role="group" aria-label="Map view"><button type="button" id="v-diagram" aria-pressed="true">Diagram</button><button type="button" id="v-files" aria-pressed="false">Files</button></div>
         <input id="find" type="search" placeholder="Find a file" aria-label="Find a file">
         <label class="chk"><input type="checkbox" id="blast"> Show blast radius on select</label>
         <span class="grow"></span>
         <span class="legend"><i class="lg-core"></i>Core <i class="lg-entry"></i>Entry <i class="lg-test"></i>Test</span>
       </div>
-      <div class="map-wrap">
+      <div class="diagram" id="diagram"></div>
+      <div class="map-wrap" id="map-wrap" hidden>
         <div class="map" id="map"></div>
         <aside class="inspect" id="inspect" aria-live="polite">
           <p class="inspect-empty">Select a file to see what it defines, what it imports, what imports it, and what a change to it could reach.</p>
@@ -147,8 +155,8 @@
 
   <!-- Options as sentences: each switch changes the result above. -->
   <section class="switches" id="switches" aria-label="Options">
-    <div class="band" data-key="voice"><p>Read the film out loud as it plays</p><button class="toggle" role="switch" aria-checked="true" aria-label="Narrate"><i></i></button><p class="band-more">Uses your browser's own voice. Each scene waits for its sentence to finish.</p></div>
-    <div class="band" data-key="captions"><p>Burn captions into every frame</p><button class="toggle" role="switch" aria-checked="true" aria-label="Captions"><i></i></button><p class="band-more">The downloaded video is silent, so captions carry the narration.</p></div>
+    <div class="band" data-key="voice"><p>Read the film out loud as it plays</p><button class="toggle" role="switch" aria-checked="true" aria-label="Narrate"><i></i></button><p class="band-more">A neural voice made in your browser, four to choose from. Each scene lasts as long as its sentence.</p></div>
+    <div class="band" data-key="captions"><p>Burn captions into every frame</p><button class="toggle" role="switch" aria-checked="true" aria-label="Captions"><i></i></button><p class="band-more">For people watching with the sound off, in the player and in the downloaded video.</p></div>
     <div class="band" data-key="tests"><p>Put test files on the map</p><button class="toggle" role="switch" aria-checked="false" aria-label="Show tests"><i></i></button><p class="band-more" id="tests-more">Tests are counted either way; this only draws them.</p></div>
     <div class="band" data-key="back"><p>Draw imports that point backward</p><button class="toggle" role="switch" aria-checked="false" aria-label="Show backward imports"><i></i></button><p class="band-more" id="back-more">A backward import goes against the flow from callers to foundations.</p></div>
   </section>

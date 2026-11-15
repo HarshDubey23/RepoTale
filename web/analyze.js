@@ -121,7 +121,8 @@ export function resolve(from, imp, lang, all, ctx = {}) {
 /** Which tsconfig/jsconfig path aliases map where, e.g. "@/" -> "src/". */
 export function aliasesFrom(tsconfigText) {
   try {
-    const j = JSON.parse(tsconfigText.replace(/\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm, '').replace(/,(\s*[}\]])/g, '$1'));
+    // Comments go, but only outside strings: "**/*.ts" holds a "*/" that is not a comment's end.
+    const j = JSON.parse(tsconfigText.replace(/("(?:\\.|[^"\\])*")|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (m, str) => str ?? '').replace(/,(\s*[}\]])/g, '$1'));
     const base = (j.compilerOptions?.baseUrl ?? '.').replace(/^\.\/?/, '');
     return Object.entries(j.compilerOptions?.paths ?? {}).map(([k, v]) => [k.replace(/\/\*$/, ''), norm(base + '/' + String(v[0]).replace(/\/\*$/, ''))]);
   } catch { return []; }
@@ -348,9 +349,88 @@ export async function analyze(input, { token, progress = () => {} } = {}) {
     stars: info.stargazers_count, forks: info.forks_count, license: info.license?.spdx_id ?? null, homepage: info.homepage || null,
     ref, sha: commit.sha, date: commit.commit?.committer?.date ?? null, url: info.html_url,
     readme: readme ? manifests[readme] : null, readmePath: readme ?? null, truncated: treeRes.truncated || paths.filter(p => CODE.test(p) && !SKIP.test(p)).length > want.length,
-    sampled: want.length,
+    sampled: want.length, hasPages: !!info.has_pages,
   };
-  return buildModel({ meta, paths, texts, manifests });
+  const model = buildModel({ meta, paths, texts, manifests });
+  // Pages the code defines; read the few page files not already fetched (.astro, .html, .md) for their headings.
+  const routes = routesOf(paths, texts).slice(0, 8);
+  await Promise.all(routes.filter(r => texts[r.file] === undefined).map(async r => { texts[r.file] = await get(r.file); }));
+  model.pages = routes.map(r => ({ ...r, heading: headingOf(texts[r.file]) }));
+  model.live = liveUrl(meta);
+  return model;
+}
+
+// ---------------------------------------------------------------- the running site
+
+/** Where the project runs, if it says: its homepage, or its GitHub Pages site. */
+export function liveUrl(meta) {
+  if (meta.homepage && /^https?:\/\//.test(meta.homepage) && !/github\.com\/|npmjs\.com\/|pypi\.org\//.test(meta.homepage)) return meta.homepage.replace(/\/?$/, '/');
+  // A demo the README links to: [Live demo](https://...), or a link on a common hosting domain.
+  const demo = meta.readme?.match(/\[[^\]]*\b(?:demo|live|preview|website|try it|playground)\b[^\]]*\]\((https?:\/\/[^)\s]+)\)/i)?.[1]
+    ?? meta.readme?.match(/https?:\/\/[\w.-]+\.(?:vercel\.app|netlify\.app|pages\.dev|github\.io|onrender\.com|fly\.dev|web\.app|surge\.sh)(?:\/[^\s)"'<>\]]*)?/)?.[0];
+  if (demo && !/github\.com\/|shields\.io|badge|\.(png|svg|gif|jpe?g)$/i.test(demo)) return demo.replace(/[#?].*$/, '').replace(/\/?$/, '/');
+  if (meta.hasPages) return meta.name.toLowerCase() === `${meta.owner}.github.io`.toLowerCase() ? `https://${meta.name}/` : `https://${meta.owner}.github.io/${meta.name}/`;
+  return null;
+}
+
+/** Pages the code defines, each with the file that defines it. Dynamic routes ([id], :id) are
+ *  skipped: they need real data to show anything. */
+export function routesOf(paths, texts = {}) {
+  const found = new Map();
+  const add = (route, file) => {
+    route = ('/' + route).replace(/\/+/g, '/').replace(/(.)\/$/, '$1');
+    if (/[[:*]/.test(route) || /(^|\/)(404|500|_error|not-found)(\.html)?$/.test(route)) return;
+    // The same page in other languages adds nothing: keep English or unprefixed ones.
+    if (/^\/(?!en(?:-[a-z]{2})?\/)[a-z]{2}(?:-[a-z]{2})?(\/|$)/i.test(route)) return;
+    if (!found.has(route)) found.set(route, file);
+  };
+  const clean = segs => segs.filter(s => !/^\(.*\)$/.test(s) && !s.startsWith('@')).join('/');
+  for (const p of paths) {
+    if (SKIP.test(p) && !/(^|\/)(app|pages|routes)\//.test(p)) continue;
+    if (/(^|\/)node_modules\//.test(p) || TEST.test(p)) continue;
+    let m;
+    if ((m = p.match(/(?:^|\/)app\/((?:[^/]+\/)*)page\.(tsx|jsx|ts|js|mdx)$/))) add(clean(m[1].split('/')), p);
+    else if ((m = p.match(/(?:^|\/)src\/routes\/((?:[^/]+\/)*)\+page\.svelte$/))) add(clean(m[1].split('/')), p);
+    else if ((m = p.match(/(?:^|\/)pages\/(.+)\.(tsx|jsx|js|mdx|md|vue|astro)$/)) && !/(^|\/)(_[^/]*|api\/.*)$/.test(m[1])) add(m[1].replace(/(^|\/)index$/, ''), p);
+    else if ((m = p.match(/^(?:public\/|docs\/|site\/)?([^/]+)\.html$/)) && !/^(404|500)$/.test(m[1])) add(m[1] === 'index' ? '' : m[1] + '.html', p);
+  }
+  // Client-side routers: <Route path="/x"> and { path: '/x' }.
+  for (const [file, text] of Object.entries(texts))
+    for (const m of text.matchAll(/\bpath\s*[=:]\s*\{?\s*["'`](\/[\w\-/.]*)["'`]/g)) add(m[1], file);
+  return [...found].map(([route, file]) => ({ route, file })).sort((a, b) => a.route.length - b.route.length || a.route.localeCompare(b.route));
+}
+
+/** The first heading a page file declares, for the narration. */
+export function headingOf(text) {
+  const m = text?.match(/<h1[^>]*>\s*([^<{}\n]{3,80}?)\s*</i) ?? text?.match(/^#\s+(.{3,80})$/m) ?? text?.match(/\btitle\s*[:=]\s*["'`]([^"'`\n]{3,80})["'`]/) ?? text?.match(/<title>([^<]{3,80})<\/title>/i);
+  return m ? m[1].trim() : null;
+}
+
+/** A screenshot of one page, as an image the canvas may record (the service sends CORS headers).
+ *  shortcut: thum.io's free tier, unauthenticated. If it throttles, add a key or self-host Playwright. */
+export function shot(url, timeout = 45000) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const t = setTimeout(() => reject(new Error('screenshot timed out')), timeout);
+    img.onload = () => { clearTimeout(t); img.naturalWidth > 200 && !looksEmpty(img) ? resolve(img) : reject(new Error('the page looks empty')); };
+    img.onerror = () => { clearTimeout(t); reject(new Error('screenshot failed')); };
+    // The free tier caps shots at 1200 by 1200; taller crops come back the same size.
+    img.src = `https://image.thum.io/get/width/1280/crop/1200/noanimate/${url}`;
+  });
+}
+
+/** A blank, transparent or one-line page ("This deployment is paused") is not worth a scene:
+ *  fewer than 2% of its pixels differ from its background. */
+function looksEmpty(img) {
+  const c = document.createElement('canvas'); c.width = 96; c.height = 96;
+  const x = c.getContext('2d'); x.drawImage(img, 0, 0, 96, 96);
+  const d = x.getImageData(0, 0, 96, 96).data, n = d.length / 4;
+  let alpha = 0; for (let i = 3; i < d.length; i += 4) alpha += d[i];
+  if (alpha / n < 128) return true;
+  const [r, g, b] = [d[0], d[1], d[2]];
+  let differ = 0; for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - r) + Math.abs(d[i + 1] - g) + Math.abs(d[i + 2] - b) > 48) differ++;
+  return differ / n < 0.02;
 }
 
 /** A permalink to the exact lines, pinned to the analysed commit so it never drifts. */

@@ -25,9 +25,22 @@ export function buildStory(model, opts = {}) {
   const { meta, totals, core, entries, stack, areas, edges, cycles } = model;
   const byFile = new Map(model.modules.map(m => [m.file, m]));
   const S = [];
-  const hook = meta.description ? meta.description.replace(/\s+/g, ' ').trim().replace(/[.!]?$/, '.') : `a ${totals.languages[0]?.[0] ?? 'software'} project.`;
+  const hook = meta.description ? meta.description.replace(/\s+/g, ' ').trim().split(/(?<=[.!?])\s/)[0].replace(/[.!]?$/, '.') :`a ${totals.languages[0]?.[0] ?? 'software'} project.`;
   S.push({ kind: 'title', heading: meta.name, sub: hook, evidence: meta.readmePath ? [{ file: meta.readmePath }] : [],
     say: `This is ${meta.name}: ${hook} Here is how it is built, read straight from its code.` });
+
+  // The running site, one scene per page that could be photographed.
+  (opts.shots ?? []).forEach((p, k) => {
+    const host = new URL(p.url).host.replace(/^www\./, '');
+    const where = p.route === '/' ? 'home page' : `${p.route.replace(/^\/|\.html$/g, '').replace(/[/_-]+/g, ' ')} page`;
+    const head = p.heading ? `, which opens with “${p.heading.replace(/[“”"]/g, '')}”` : '';
+    // app/blog/page.tsx is "app/blog": the folder is the page's name, the file name says nothing.
+    const from = p.file?.replace(/\/(?:\+?page|index)\.[a-z]+$/, '').replace(/\.[a-z]+$/, '');
+    S.push({ kind: 'site', heading: p.route, url: p.url, img: p.img,
+      say: k === 0 ? `Here it is, running live at ${host}. This is the ${where}${head}.${from ? ` It is defined in ${from}.` : ''}`
+        : `Next, the ${where}${head}${from ? `, defined in ${from}` : ''}.`,
+      evidence: p.file ? [{ file: p.file }] : [] });
+  });
 
   S.push({ kind: 'stats', heading: 'By the numbers', items: [
     { value: totals.code, label: 'source files read' }, { value: totals.lines, label: 'lines of code' },
@@ -93,7 +106,7 @@ export function buildStory(model, opts = {}) {
     say: `That is ${meta.name}. Every claim in this film links to the line of code behind it.`, evidence: [] });
 
   for (const s of S) {
-    s.evidence = (s.evidence ?? []).filter(e => e.file && (byFile.has(e.file) || e.file === meta.readmePath || /\.(json|txt|toml|mod)$|Dockerfile|workflows/.test(e.file)))
+    s.evidence = (s.evidence ?? []).filter(e => e.file && (byFile.has(e.file) || e.file === meta.readmePath || (model.pages ?? []).some(p => p.file === e.file) || /\.(json|txt|toml|mod)$|Dockerfile|workflows/.test(e.file)))
       .map(e => ({ ...e, url: permalink(meta, e.file, e.line, e.end) }));
     const words = s.say.split(/\s+/).length;
     s.duration = Math.max(4200, Math.round((words / 2.55) * 1000) + 900) / (opts.speed ?? 1);
@@ -292,6 +305,29 @@ const DRAW = {
       ctx.globalAlpha = 1;
     });
   },
+  site(ctx, s, t, ms) {
+    // A browser window rises in; inside it the real page scrolls slowly from top to bottom.
+    const rise = seg(t, 0, 0.14), x = 96, y = 104 + (1 - rise) * 60, w = W - 192, h = 520, bar = 44;
+    ctx.globalAlpha = rise;
+    ctx.fillStyle = C.surface; ctx.fillRect(x, y, w, bar);
+    [C.accent, C.muted, C.muted].forEach((c, k) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 24 + k * 22, y + bar / 2, 6, 0, 7); ctx.fill(); });
+    ctx.fillStyle = C.bg; ctx.fillRect(x + 100, y + 9, w - 200, bar - 18);
+    font(ctx, TEXT(16, 500)); ctx.fillStyle = C.ink; ctx.fillText(s.url.replace(/^https?:\/\//, '').slice(0, 90), x + 116, y + 28);
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y + bar, w, h - bar); ctx.clip();
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y + bar, w, h - bar);
+    const img = s.img, scale = (w / img.naturalWidth) * (1.06 - 0.06 * seg(t, 0.05, 0.4));
+    const ih = img.naturalHeight * scale, travel = Math.max(0, ih - (h - bar));
+    ctx.drawImage(img, x + (w - img.naturalWidth * scale) / 2, y + bar - travel * ease(seg(t, 0.22, 0.96) ** 1.2), img.naturalWidth * scale, ih);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    // The route, set large on a pink block that fills the right end of the address bar.
+    const label = s.heading === '/' ? 'HOME' : s.heading.replace(/\.html$/, '').toUpperCase();
+    font(ctx, DISPLAY(34), true); const lw = Math.min(ctx.measureText(label).width + 40, 420);
+    const lp = seg(t, 0.1, 0.25), lx = x + w - lw * lp;
+    ctx.fillStyle = C.accent; ctx.fillRect(lx, y, lw * lp, bar);
+    ctx.save(); ctx.beginPath(); ctx.rect(lx, y, lw * lp, bar); ctx.clip();
+    ctx.fillStyle = C.bg; ctx.fillText(label, x + w - lw + 20, y + 34); ctx.restore();
+  },
   end(ctx, s, t) {
     ctx.fillStyle = C.plum; ctx.fillRect(0, 0, W, H * seg(t, 0, 0.3));
     const size = fit(ctx, s.heading.toUpperCase(), W - M * 2, 220);
@@ -301,57 +337,89 @@ const DRAW = {
   },
 };
 
-/** Draw one frame. `t` is 0..1 through the scene, `ms` the absolute clock (for loops). */
+/** Draw one frame. `t` is 0..1 through the scene, `ms` the absolute clock (for loops). Each scene
+ *  after the first opens with a wipe: a plum panel led by a pink edge slides off to the right. */
 export function drawFrame(ctx, scenes, i, t, ms, opts = {}) {
   ctx.setTransform(ctx.canvas.width / W, 0, 0, ctx.canvas.height / H, 0, 0);
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   DRAW[scenes[i].kind](ctx, scenes[i], t, ms);
   chrome(ctx, scenes[i], i, scenes.length, t, opts);
+  const el = t * scenes[i].duration;
+  if (i > 0 && el < 560 && !opts.poster) {
+    const x = W * ease(el / 560);
+    ctx.fillStyle = C.plum; ctx.fillRect(x, 0, W - x, H);
+    ctx.fillStyle = C.accent; ctx.fillRect(x, 0, 14, H);
+  }
+  if (opts.waiting) {
+    font(ctx, TEXT(20, 600)); const label = 'Preparing the voice…', w = ctx.measureText(label).width + 48;
+    ctx.fillStyle = C.accent; ctx.fillRect(W / 2 - w / 2, H / 2 - 26, w, 52);
+    ctx.fillStyle = C.bg; ctx.textAlign = 'center'; ctx.fillText(label, W / 2, H / 2 + 7); ctx.textAlign = 'left';
+  }
 }
 
-/** Plays scenes on a canvas, narrating with the browser's voice when `voice` is on. A scene
- *  waits for its sentence to finish, so voice and picture never drift apart. */
+/** Plays scenes on a canvas. Narration is either a neural voice (each scene carries an AudioBuffer
+ *  and lasts as long as its audio), the browser's own voice, or nothing. A scene never ends before
+ *  its sentence does, so voice and picture stay together. */
 export class Player {
   constructor(canvas, scenes, opts = {}) {
-    Object.assign(this, { canvas, ctx: canvas.getContext('2d'), scenes, opts, i: 0, t0: 0, elapsed: 0, playing: false, spoken: true, listeners: new Set() });
+    Object.assign(this, { canvas, ctx: canvas.getContext('2d'), scenes, opts, i: 0, t0: 0, elapsed: 0, playing: false, spoken: true, waiting: false, src: null, listeners: new Set() });
     this.frame = this.frame.bind(this);
     this.draw();
   }
   on(f) { this.listeners.add(f); return () => this.listeners.delete(f); }
   emit() { for (const f of this.listeners) f(this); }
   get scene() { return this.scenes[this.i]; }
+  get mode() { return !this.opts.voice ? 'off' : this.opts.voiceName === 'browser' ? 'browser' : 'neural'; }
   // A paused scene that has not started shows its finished frame, so it reads as a poster.
-  draw(ms = performance.now()) { drawFrame(this.ctx, this.scenes, this.i, !this.playing && this.elapsed === 0 ? 0.92 : Math.min(1, this.elapsed / this.scene.duration), ms, this.opts); }
+  draw(ms = performance.now()) {
+    const poster = !this.playing && this.elapsed === 0;
+    drawFrame(this.ctx, this.scenes, this.i, poster ? 0.92 : Math.min(1, this.elapsed / this.scene.duration), ms, { ...this.opts, poster, waiting: this.playing && this.waiting });
+  }
+  hush() {
+    if (this.src) { try { this.src.stop(); } catch {} this.src = null; }
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  }
   speak() {
-    this.spoken = true;
-    if (!this.opts.voice || !('speechSynthesis' in window)) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(this.scene.say);
-    const v = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
-    u.voice = v.find(v => /natural|neural|google|samantha|daniel|aria|jenny/i.test(v.name)) ?? v[0] ?? null;
-    u.rate = 1.02; this.spoken = false;
-    u.onend = u.onerror = () => { this.spoken = true; };
-    speechSynthesis.speak(u);
+    this.hush(); this.spoken = true; this.waiting = false;
+    if (this.mode === 'neural') {
+      if (!this.scene.audio) { this.waiting = true; return; }
+      const ac = this.opts.audioContext;
+      this.src = ac.createBufferSource(); this.src.buffer = this.scene.audio; this.src.connect(ac.destination);
+      this.src.start(0, Math.min(this.elapsed / 1000, this.scene.audio.duration));
+    } else if (this.mode === 'browser' && 'speechSynthesis' in window && this.elapsed < 200) {
+      const u = new SpeechSynthesisUtterance(this.scene.say);
+      const v = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+      u.voice = v.find(v => /natural|neural|google|samantha|daniel|aria|jenny/i.test(v.name)) ?? v[0] ?? null;
+      u.rate = 1.02; this.spoken = false;
+      u.onend = u.onerror = () => { this.spoken = true; };
+      speechSynthesis.speak(u);
+    }
   }
   play() {
     if (this.playing) return;
-    if (this.i === this.scenes.length - 1 && this.elapsed >= this.scene.duration) this.seek(0);
+    if (this.i === this.scenes.length - 1 && this.elapsed >= this.scene.duration) { this.i = 0; this.elapsed = 0; }
+    this.opts.audioContext?.resume();
     this.playing = true; this.t0 = performance.now() - this.elapsed;
-    if (this.elapsed < 200) this.speak(); else this.spoken = true;
+    this.speak();
     requestAnimationFrame(this.frame); this.emit();
   }
-  pause() { this.playing = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); this.emit(); }
+  pause() { this.playing = false; this.waiting = false; this.hush(); this.draw(); this.emit(); }
   seek(i) {
     this.i = Math.max(0, Math.min(this.scenes.length - 1, i)); this.elapsed = 0; this.t0 = performance.now();
-    if (this.playing) this.speak(); else if ('speechSynthesis' in window) speechSynthesis.cancel();
+    if (this.playing) this.speak(); else this.hush();
     this.draw(); this.emit();
   }
   frame(now) {
     if (!this.playing) return;
+    if (this.waiting) {
+      // Hold the scene at its start until its audio arrives.
+      if (this.scene.audio) { this.elapsed = 0; this.t0 = now; this.speak(); this.emit(); }
+      else this.t0 = now - this.elapsed;
+    }
     this.elapsed = now - this.t0;
-    if (this.elapsed >= this.scene.duration && this.spoken) {
-      if (this.i === this.scenes.length - 1) { this.elapsed = this.scene.duration; this.draw(now); this.playing = false; this.emit(); this.opts.onEnd?.(); return; }
+    if (!this.waiting && this.elapsed >= this.scene.duration && this.spoken) {
+      if (this.i === this.scenes.length - 1) { this.elapsed = this.scene.duration; this.playing = false; this.hush(); this.draw(now); this.emit(); this.opts.onEnd?.(); return; }
       this.i++; this.elapsed = 0; this.t0 = now; this.speak(); this.emit();
     }
     this.draw(now);
@@ -360,15 +428,21 @@ export class Player {
   get total() { return this.scenes.reduce((s, x) => s + x.duration, 0); }
 }
 
-/** Record the whole film to a video file, in real time, without voice (captions are burned in). */
+/** Record the whole film to a video file in real time. With `audioContext` and every scene carrying
+ *  audio, the narration is mixed into the file; otherwise it is silent with captions. */
 export async function record(scenes, opts = {}, onProgress = () => {}) {
   const canvas = Object.assign(document.createElement('canvas'), { width: 1920, height: 1080 });
   const ctx = canvas.getContext('2d');
-  const types = ['video/mp4;codecs=avc1.640028', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  const ac = opts.audioContext, voiced = !!ac && scenes.every(s => s.audio);
+  const types = voiced
+    ? ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm']
+    : ['video/mp4;codecs=avc1.640028', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
   const mimeType = types.find(t => window.MediaRecorder?.isTypeSupported?.(t));
   if (!mimeType) throw new Error('This browser cannot record video. Try Chrome or Edge.');
   const stream = canvas.captureStream(30);
-  const rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+  let dest = null;
+  if (voiced) { await ac.resume(); dest = ac.createMediaStreamDestination(); for (const t of dest.stream.getAudioTracks()) stream.addTrack(t); }
+  const rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000, ...(voiced ? { audioBitsPerSecond: 192_000 } : {}) });
   const chunks = [];
   rec.ondataavailable = e => e.data.size && chunks.push(e.data);
   const stopped = new Promise(r => { rec.onstop = r; });
@@ -376,12 +450,18 @@ export async function record(scenes, opts = {}, onProgress = () => {}) {
   rec.start(500);
   const total = scenes.reduce((s, x) => s + x.duration, 0);
   const start = performance.now();
+  let started = -1;
+  const sources = [];
   await new Promise(done => {
     const tick = () => {
       if (opts.signal?.aborted) return done();
       const el = performance.now() - start;
       let acc = 0, i = 0;
       while (i < scenes.length - 1 && el > acc + scenes[i].duration) acc += scenes[i++].duration;
+      if (voiced && i > started) {
+        started = i;
+        const src = ac.createBufferSource(); src.buffer = scenes[i].audio; src.connect(dest); src.start(); sources.push(src);
+      }
       drawFrame(ctx, scenes, i, Math.min(1, (el - acc) / scenes[i].duration), el, opts);
       onProgress(Math.min(1, el / total));
       if (el >= total + 400) return done();
@@ -390,6 +470,7 @@ export async function record(scenes, opts = {}, onProgress = () => {}) {
     };
     tick();
   });
+  for (const s of sources) try { s.stop(); } catch {}
   rec.stop(); await stopped;
   if (opts.signal?.aborted) return null;
   return new Blob(chunks, { type: mimeType.split(';')[0] });
@@ -418,9 +499,10 @@ export function storyboardOf(model, scenes) {
     else if (s.kind === 'map') out.push({ type: 'diagram', mermaid: mermaidOf(model), caption: 'Areas of the code and the imports between them', ...common });
     else if (s.kind === 'code') out.push({ type: 'code', file: s.file, lines: [s.from, s.from + s.lines.length - 1], highlight: [[s.from, s.from]], ...common });
     else if (s.kind === 'end') out.push({ type: 'end', heading: s.heading, links: [s.sub], ...common });
+    else if (s.kind === 'site') out.push({ type: 'web', url: s.url, actions: [{ wait: 1200 }, { scroll: 1600 }], ...common });
     else out.push({ type: 'title', heading: s.heading, sub: s.kind === 'path' ? s.chain.map(base).join(' → ') : s.kind === 'blast' ? `${s.reach.length} files reached` : s.kind === 'stack' ? s.items.map(i => i.name).join(' · ') : '', ...common });
   }
-  return { $schema: 'https://raw.githubusercontent.com/HarshDubey23/RepoTale/main/schema/reporeel.schema.json', title: model.meta.name, repo: model.meta.full, voice: { provider: 'kokoro' }, theme: { accent: C.accent }, scenes: out };
+  return { $schema: 'https://raw.githubusercontent.com/HarshDubey23/RepoTale/main/schema/reporeel.schema.json', title: model.meta.name, repo: model.meta.full, ...(scenes.some(s => s.kind === 'site') ? { app: { url: model.live } } : {}), voice: { provider: 'kokoro' }, theme: { accent: C.accent }, scenes: out };
 }
 
 /** graph.json without the file contents. */
