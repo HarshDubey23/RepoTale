@@ -5,7 +5,7 @@ import { blastRadius, permalink } from './analyze.js';
 import { archBeats, drawArchBeat } from './filmarch.js';
 import { mermaidArch } from './arch.js';
 
-const C = { bg: '#ffffff', surface: '#f5f5f7', plum: '#e8e8ed', ink: '#1d1d1f', muted: '#6e6e73', accent: '#0071e3' };
+const C = { bg: '#ffffff', surface: '#ebebeb', plum: '#dedede', ink: '#0d2a1c', muted: '#5f6b64', accent: '#1f6f4a' };
 const plural = (n, w, s = w + 's') => `${n.toLocaleString('en')} ${n === 1 ? w : s}`;
 const list = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a.at(-1);
 const base = f => f.split('/').pop();
@@ -127,8 +127,8 @@ export function buildStory(model, opts = {}) {
 const W = 1280, H = 720, M = 72;
 const ease = t => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 const seg = (t, a, b) => ease((t - a) / (b - a));
-const DISPLAY = s => `700 ${s}px 'Inter Tight'`;
-const TEXT = (s, w = 400) => `${w} ${s}px 'Inter Tight'`;
+const DISPLAY = s => `700 ${s}px 'General Sans'`;
+const TEXT = (s, w = 400) => `${w} ${s}px 'General Sans'`;
 
 function font(ctx, f) { ctx.font = f; }
 function wrap(ctx, text, maxW) {
@@ -181,7 +181,7 @@ function captions(ctx, scene, t, opts) {
   font(ctx, TEXT(26, 600));
   const lines = wrap(ctx, sentence, W - M * 2 - 80).slice(0, 2);
   const lw = Math.max(...lines.map(l => ctx.measureText(l).width)), h = lines.length * 36 + 26, x = (W - lw) / 2 - 24, y = H - 34 - h;
-  ctx.fillStyle = 'rgba(29,29,31,0.92)'; ctx.beginPath(); ctx.roundRect(x, y, lw + 48, h, 14); ctx.fill();
+  ctx.fillStyle = 'rgba(13,42,28,0.92)'; ctx.beginPath(); ctx.roundRect(x, y, lw + 48, h, 14); ctx.fill();
   let seen = 0;
   lines.forEach((l, k) => {
     let cx = (W - ctx.measureText(l).width) / 2;
@@ -248,9 +248,9 @@ function ground(ctx, ms) {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
   const gx = W * (0.78 + 0.06 * Math.sin(ms / 7000)), gy = H * (0.18 + 0.05 * Math.cos(ms / 9000));
   const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 620);
-  g.addColorStop(0, 'rgba(0,113,227,0.13)'); g.addColorStop(0.5, 'rgba(247,107,21,0.05)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  g.addColorStop(0, 'rgba(31,111,74,0.13)'); g.addColorStop(0.5, 'rgba(247,107,21,0.05)'); g.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = 'rgba(29,29,31,0.07)';
+  ctx.fillStyle = 'rgba(13,42,28,0.07)';
   for (let y = 14; y < H; y += 28) for (let x = 14; x < W; x += 28) ctx.fillRect(x, y, 2, 2);
 }
 
@@ -417,7 +417,7 @@ const DRAW = {
     [C.accent, C.muted, C.muted].forEach((c, k) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 24 + k * 22, y + bar / 2, 6, 0, 7); ctx.fill(); });
     ctx.fillStyle = C.bg; ctx.fillRect(x + 100, y + 9, w - 200, bar - 18);
     font(ctx, TEXT(16, 500)); ctx.fillStyle = C.ink; ctx.fillText(s.url.replace(/^https?:\/\//, '').slice(0, 90), x + 116, y + 28);
-    ctx.save(); ctx.shadowColor = 'rgba(29,29,31,0.22)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 18;
+    ctx.save(); ctx.shadowColor = 'rgba(13,42,28,0.22)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 18;
     ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y + bar, w, h - bar); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.rect(x, y + bar, w, h - bar); ctx.clip();
     const cam = camera(s.img, t, w / (h - bar));
@@ -461,7 +461,7 @@ const DRAW = {
 function pageCard(r, url) {
   const W2 = 1280, c = document.createElement('canvas'), x = c.getContext('2d');
   const blocks = [['h1', r.h1 ?? r.title ?? url], ...(r.lead ? [['p', r.lead]] : []), ...r.sections.flatMap(sec => [['h2', sec]]), ...(r.points ?? []).map(pt => ['li', pt])];
-  const style = { h1: ["700 64px 'Inter Tight'", 76, 40], h2: ["600 34px 'Inter Tight'", 44, 36], p: ["400 26px 'Inter Tight'", 38, 28], li: ["400 24px 'Inter Tight'", 34, 14] };
+  const style = { h1: ["700 64px 'General Sans'", 76, 40], h2: ["600 34px 'General Sans'", 44, 36], p: ["400 26px 'General Sans'", 38, 28], li: ["400 24px 'General Sans'", 34, 14] };
   const lay = [];
   let y = 120;
   for (const [k, text] of blocks) {
@@ -471,10 +471,10 @@ function pageCard(r, url) {
   }
   c.width = W2; c.height = Math.max(900, y + 120);
   x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height);
-  x.fillStyle = '#f5f5f7'; x.fillRect(0, 0, c.width, 64);
-  x.font = "600 18px 'Inter Tight'"; x.fillStyle = '#1d1d1f'; x.fillText(new URL(url).host, 120, 40);
+  x.fillStyle = '#ebebeb'; x.fillRect(0, 0, c.width, 64);
+  x.font = "600 18px 'General Sans'"; x.fillStyle = '#0d2a1c'; x.fillText(new URL(url).host, 120, 40);
   for (const [k, lines, y0] of lay) {
-    x.font = style[k][0]; x.fillStyle = k === 'p' || k === 'li' ? '#424245' : '#1d1d1f';
+    x.font = style[k][0]; x.fillStyle = k === 'p' || k === 'li' ? '#33463c' : '#0d2a1c';
     lines.forEach((l, i) => x.fillText(l, 120, y0 + style[k][1] * (i + 0.8)));
   }
   c.naturalWidth = c.width; c.naturalHeight = c.height;

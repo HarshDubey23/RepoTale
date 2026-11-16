@@ -25,40 +25,35 @@ let audioContext = null, voiceJob = 0;
 let model = null, scenes = null, player = null, selected = null, recording = null;
 let arch = null, archLay = null, archTheme = 'light';
 // The film draws its type on a canvas, which only sees fonts the page has already loaded.
-for (const f of ["700 40px 'Inter Tight'", "400 16px 'Inter Tight'", "600 16px 'Inter Tight'"]) document.fonts?.load(f);
+for (const f of ["700 40px 'General Sans'", "400 16px 'General Sans'", "600 16px 'General Sans'"]) document.fonts?.load(f);
 document.fonts?.ready.then(() => player?.draw());
 
-// ------------------------------------------------------------- the O in the name: a live import graph
-(function glyph() {
-  const c = $('#glyph'), ctx = c.getContext('2d'), N = 14;
-  const nodes = Array.from({ length: N }, (_, i) => { const a = (i / N) * Math.PI * 2 - Math.PI / 2; return [160 + Math.cos(a) * 136, 160 + Math.sin(a) * 146]; });
-  const links = [[0, 5], [0, 9], [2, 7], [3, 11], [4, 12], [6, 13], [8, 1], [10, 3], [12, 6], [1, 9]];
-  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const draw = ms => {
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 320, 320);
-    ctx.lineWidth = 3;
-    links.forEach(([a, b], k) => {
-      const lit = Math.floor(ms / 700) % links.length === k;
-      ctx.strokeStyle = lit ? '#0071e3' : '#d2d2d7';
-      ctx.beginPath(); ctx.moveTo(...nodes[a]); ctx.quadraticCurveTo(160, 160, ...nodes[b]); ctx.stroke();
-      if (lit) {
-        const u = (ms % 700) / 700, [x1, y1] = nodes[a], [x2, y2] = nodes[b];
-        const x = (1 - u) ** 2 * x1 + 2 * (1 - u) * u * 160 + u * u * x2, y = (1 - u) ** 2 * y1 + 2 * (1 - u) * u * 160 + u * u * y2;
-        ctx.fillStyle = '#0071e3'; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fill();
-      }
-    });
-    ctx.strokeStyle = '#1d1d1f'; ctx.lineWidth = 22; ctx.beginPath(); ctx.ellipse(160, 160, 136, 146, 0, 0, 7); ctx.stroke();
-    nodes.forEach(([x, y], i) => { ctx.fillStyle = i % 4 === 0 ? '#0071e3' : '#ffffff'; ctx.fillRect(x - 9, y - 9, 18, 18); });
-    if (!still) requestAnimationFrame(draw);
-  };
-  requestAnimationFrame(draw);
-})();
+// Visitors who ask for less motion get the clip's poster frame instead of the loop.
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) for (const v of document.querySelectorAll('video[autoplay]')) { v.autoplay = false; v.pause(); }
+
+// ------------------------------------------------------------- the hero fragment
+// RepoTale's own architecture, rendered by arch.js at build time; it traces imports on hover and
+// opens the file on select, the same as the diagram a visitor gets for their own repository.
+fetch('hero-arch.svg').then(r => r.ok ? r.text() : '').then(svg => {
+  const box = $('#hero-arch'); if (!svg || !box) return;
+  box.innerHTML = svg;
+  const el = box.querySelector('svg');
+  for (const n of $$('.node', el)) {
+    const id = n.dataset.id, file = n.dataset.file;
+    n.addEventListener('mouseenter', () => trace(el, id)); n.addEventListener('mouseleave', () => trace(el, null));
+    n.addEventListener('focus', () => trace(el, id)); n.addEventListener('blur', () => trace(el, null));
+    if (file) {
+      const go = () => window.open(`https://github.com/HarshDubey23/RepoTale/blob/main/${file}`, '_blank', 'noopener');
+      n.addEventListener('click', go); n.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    }
+  }
+}).catch(() => {});
 
 // ------------------------------------------------------------- chrome: bar, entrances
 let lastY = 0;
 addEventListener('scroll', () => { const y = scrollY; $('.bar').classList.toggle('away', y > lastY && y > 400); lastY = y; }, { passive: true });
 const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.15 });
-for (const el of $$('.how-text, .switches, .cta-form, .foot-top, .r-head')) { el.classList.add('reveal'); io.observe(el); }
+for (const el of $$('.how-text, .switches, .cta-form, .foot-top, .r-head, .still, .stills-title')) { el.classList.add('reveal'); io.observe(el); }
 
 // ------------------------------------------------------------- asking
 const input = $('#repo');
@@ -367,12 +362,12 @@ function drawMap() {
   areas.forEach((a, k) => a.files.forEach((f, r) => pos.set(f, { x: PAD + k * (CW + GAP), y: TOP + r * RH, col: k })));
   const W = PAD * 2 + areas.length * (CW + GAP) - GAP, H = TOP + Math.max(...areas.map(a => a.files.length)) * RH + PAD;
   const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Architecture of ${model.meta.full}: ${areas.length} areas, ${model.edges.length} imports` });
-  svg.append(s('rect', { width: W, height: H, fill: '#f5f5f7' }));
+  svg.append(s('rect', { width: W, height: H, fill: '#ebebeb' }));
   const edgeLayer = s('g'), nodeLayer = s('g');
   areas.forEach((a, k) => {
     const x = PAD + k * (CW + GAP);
-    svg.append(s('text', { x, y: 40, fill: '#1d1d1f', 'font-family': 'Inter Tight', 'font-weight': 700, 'font-size': 24 }, base(a.name).slice(0, 18)));
-    svg.append(s('text', { x, y: 62, fill: '#6e6e73', 'font-family': 'Inter Tight', 'font-size': 13 }, `${a.name === base(a.name) ? '' : a.name + ' · '}${a.files.length} file${a.files.length === 1 ? '' : 's'}`));
+    svg.append(s('text', { x, y: 40, fill: '#0d2a1c', 'font-family': 'General Sans', 'font-weight': 700, 'font-size': 24 }, base(a.name).slice(0, 18)));
+    svg.append(s('text', { x, y: 62, fill: '#5f6b64', 'font-family': 'General Sans', 'font-size': 13 }, `${a.name === base(a.name) ? '' : a.name + ' · '}${a.files.length} file${a.files.length === 1 ? '' : 's'}`));
   });
   for (const e of model.edges) {
     const A = pos.get(e.from), B = pos.get(e.to); if (!A || !B) continue;
@@ -386,10 +381,10 @@ function drawMap() {
     const m = byFile.get(f);
     const g = s('g', { class: 'node', transform: `translate(${p.x} ${p.y})`, tabindex: 0, role: 'button', 'data-file': f, 'aria-label': `${f}, imported by ${m.importedBy.length}` });
     g.append(s('title', {}, f));
-    g.append(s('rect', { width: CW, height: 24, fill: '#e8e8ed' }));
-    g.append(s('rect', { width: 5, height: 24, fill: core.has(f) ? '#0071e3' : entry.has(f) ? '#1d1d1f' : m.test ? '#6e6e73' : '#e8e8ed' }));
-    g.append(s('text', { x: 14, y: 16.5, fill: m.test ? '#6e6e73' : '#1d1d1f', 'font-family': 'Inter Tight', 'font-size': 13 }, base(f).length > 24 ? base(f).slice(0, 23) + '…' : base(f)));
-    if (m.importedBy.length) g.append(s('text', { x: CW - 8, y: 16.5, fill: '#6e6e73', 'font-family': 'Inter Tight', 'font-size': 12, 'text-anchor': 'end' }, m.importedBy.length));
+    g.append(s('rect', { width: CW, height: 24, fill: '#dedede' }));
+    g.append(s('rect', { width: 5, height: 24, fill: core.has(f) ? '#1f6f4a' : entry.has(f) ? '#0d2a1c' : m.test ? '#5f6b64' : '#dedede' }));
+    g.append(s('text', { x: 14, y: 16.5, fill: m.test ? '#5f6b64' : '#0d2a1c', 'font-family': 'General Sans', 'font-size': 13 }, base(f).length > 24 ? base(f).slice(0, 23) + '…' : base(f)));
+    if (m.importedBy.length) g.append(s('text', { x: CW - 8, y: 16.5, fill: '#5f6b64', 'font-family': 'General Sans', 'font-size': 12, 'text-anchor': 'end' }, m.importedBy.length));
     g.addEventListener('click', () => select(f));
     g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(f); } });
     nodeLayer.append(g);
@@ -532,15 +527,14 @@ let fontData = null;
 async function withFont(svg) {
   try {
     fontData ??= (async () => {
-      const css = await (await fetch('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;600;700&display=swap')).text();
-      // Only the latin subsets: the diagram's text is file names and English.
-      const blocks = css.split('/*').filter(b => b.startsWith(' latin */')).map(b => b.slice(10));
+      const css = await (await fetch('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap')).text();
       const out = [];
-      for (const b of blocks) {
-        const url = b.match(/url\((https:[^)]+)\)/)[1];
-        const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
-        let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-        out.push(b.replace(url, 'data:font/woff2;base64,' + btoa(bin)));
+      for (const block of css.match(/@font-face\s*{[^}]*}/g) ?? []) {
+        const url = block.match(/url\(['"]?([^'")]+\.woff2)['"]?\)/)?.[1];
+        if (!url) continue;
+        const bytes = new Uint8Array(await (await fetch(url.startsWith('//') ? 'https:' + url : url)).arrayBuffer());
+        let bin = ''; for (let k = 0; k < bytes.length; k += 0x8000) bin += String.fromCharCode(...bytes.subarray(k, k + 0x8000));
+        out.push(block.replace(/src:[^;]*;/, `src:url(data:font/woff2;base64,${btoa(bin)}) format('woff2');`));
       }
       return out.join('');
     })();

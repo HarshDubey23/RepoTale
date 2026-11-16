@@ -7,16 +7,18 @@
 <meta name="description" content="Paste a GitHub repository. RepoTale reads its code in your browser and gives you the architecture, a narrated film, and a link to the line behind every claim.">
 <meta property="og:title" content="RepoTale — any repo, mapped and filmed">
 <meta property="og:description" content="Architecture map and a narrated film from a repo link. Every claim cites its file and line.">
-<meta name="theme-color" content="#0d060b">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231d1d1f'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%230071e3' stroke-width='4'/%3E%3Ccircle cx='16' cy='7' r='3' fill='%23ffffff'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#f7f7f7">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d2a1c'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23f6e016' stroke-width='4'/%3E%3Ccircle cx='16' cy='7' r='3' fill='%23ffffff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"> <!-- taste-skill-ignore: for code blocks only -->
 <link rel="stylesheet" href="style.css">
 <script type="module" src="app.js"></script>
 </head>
 <body>
-<a class="skip" href="#tell">Skip to the repository field</a>
+<a class="skip" href="#repo">Skip to the repository field</a>
 
 <header class="bar">
   <a class="mark" href="#top" aria-label="RepoTale, back to top">RepoTale</a>
@@ -30,21 +32,14 @@
 </header>
 
 <main id="top">
-  <!-- The name, with its O drawn as a live import graph. -->
-  <section class="hero" aria-labelledby="hero-title">
-    <h1 id="hero-title" class="hero-name">
-      <span>Rep</span><span class="glyph" aria-hidden="true"><canvas id="glyph" width="320" height="320"></canvas></span><span class="sr">o</span><span>Tale</span>
-    </h1>
-    <div class="hero-foot">
-      <p class="hero-line">Paste a GitHub repository or any website. Get its architecture, a narrated film of every page, and the exact source behind every claim.</p>
-      <a class="btn" href="#tell">Tell a repo's tale</a>
-    </div>
-  </section>
-
-  <!-- The live thing: the headline is the input. -->
-  <section class="ask" id="tell" aria-labelledby="ask-label">
+  <!-- The product performs: its one interaction is the hero, and beside it, on the yellow stage,
+       RepoTale's own architecture as RepoTale draws it. -->
+  <section class="ask" id="tell" aria-labelledby="hero-title">
+    <div class="ask-copy">
+      <h1 id="hero-title" class="hero-title">Any repo, mapped and filmed.</h1>
+      <p class="hero-line">Paste a GitHub repository or any website. RepoTale draws its architecture, films every page with a real voice, and links each claim to the line behind it.</p>
     <form id="ask" class="ask-form" autocomplete="off" data-ui>
-      <label id="ask-label" for="repo" class="sr">GitHub repository</label>
+      <label id="ask-label" for="repo" class="sr">GitHub repository or website</label>
       <div class="ask-line">
         <input id="repo" name="repo" class="ask-input" value="sindresorhus/ky" spellcheck="false" autocapitalize="off" aria-describedby="ask-help" required>
         <button class="ask-go" type="submit" aria-label="Read this repository">Read</button>
@@ -76,6 +71,11 @@
         <input id="jina-key" type="password" placeholder="jina_…" aria-label="Jina API key" spellcheck="false">
       </details>
     </form>
+    </div>
+    <figure class="stage" aria-label="RepoTale's own architecture, drawn by RepoTale from its code. Hover a part to trace its imports; select it to open the file.">
+      <div class="stage-ui" id="hero-arch" data-ui></div>
+      <figcaption>RepoTale, read by RepoTale: 14 parts, every arrow a real import.</figcaption>
+    </figure>
   </section>
 
   <!-- The result: film, map, evidence, export. -->
@@ -161,6 +161,15 @@
     <div class="panel" role="tabpanel" id="p-export" aria-labelledby="t-export" hidden data-ui>
       <ul class="exports" id="exports"></ul>
     </div>
+  </section>
+
+  <!-- Stills: real frames from films RepoTale made, rendered by the same code a visitor runs. -->
+  <section class="stills" aria-labelledby="stills-title">
+    <h2 id="stills-title" class="stills-title">Stills from real films</h2>
+    <figure class="still still-lead"><video src="assets/film-loop.mp4" poster="assets/still-site.jpg" width="1280" height="720" autoplay muted loop playsinline preload="metadata" aria-label="A film scene: the expressjs.com home page in a browser window; the camera pushes in on its headline, the cursor clicks it, the narration is captioned below."></video><figcaption>expressjs.com, filmed from its link. The camera found the headline on its own and the narration reads the page’s first sentence.</figcaption></figure>
+    <figure class="still"><img src="assets/still-arch.jpg" width="1600" height="900" alt="A film frame: the architecture of the ky HTTP client, its subsystems drawn and connected by labelled imports." loading="lazy"><figcaption>sindresorhus/ky: the whole system builds itself before the tour starts.</figcaption></figure>
+    <figure class="still"><img src="assets/still-subsystem.jpg" width="1600" height="900" alt="A film frame: the camera on ky's Source subsystem, the rest of the diagram dimmed." loading="lazy"><figcaption>Then the camera visits each part and names the import that ties it in.</figcaption></figure>
+    <figure class="still"><img src="assets/still-site-2.jpg" width="1600" height="900" alt="A film frame: a second expressjs.com page scrolled to its detail, with its caption." loading="lazy"><figcaption>Every page of a website gets its own scene, read from the live page.</figcaption></figure>
   </section>
 
   <!-- How it works: one slider drives both fields. -->

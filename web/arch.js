@@ -49,7 +49,7 @@ const SERVICES = [
 ];
 
 // Twelve hues that read on the dark ground, each with a deep tint for its subsystem's field.
-const HUES = ['#0071e3', '#e5484d', '#12a594', '#f76b15', '#8e4ec6', '#0090ff', '#d6409f', '#46a758', '#ad7f58', '#3e63dd', '#e0a400', '#00a2c7'];
+const HUES = ['#1f6f4a', '#e5484d', '#12a594', '#f76b15', '#8e4ec6', '#0090ff', '#d6409f', '#46a758', '#ad7f58', '#3e63dd', '#e0a400', '#00a2c7'];
 
 /** Pick the components, group them, and connect them. Pure: no layout, no DOM. */
 export function buildArch(model, { max = 24 } = {}) {
@@ -135,7 +135,7 @@ function labelOf(names, count) {
 
 // ---------------------------------------------------------------- layout
 
-const FONT = `'Inter Tight', 'Segoe UI', system-ui, sans-serif`;
+const FONT = `'General Sans', 'Segoe UI', system-ui, sans-serif`;
 const tw = (s, px) => Math.ceil(String(s).length * px * 0.56);
 const nodeSize = n => n.kind === 'actor' ? { width: 120, height: 120 } : { width: Math.max(168, tw(n.title, 15) + 44, tw(base(n.file ?? n.pkgs?.[0] ?? ''), 12) + 44), height: ({ data: 78, cache: 78, cloud: 92, ui: 74, queue: 66 })[n.kind] ?? 62 };
 
@@ -242,8 +242,8 @@ const ICON = {
 /** The whole diagram as an SVG string. `theme` is 'dark' (the page) or 'light' (READMEs). */
 export function renderArch(arch, lay, { theme = 'light', title = true } = {}) {
   const T = theme === 'dark'
-    ? { bg: '#1d1d1f', dot: '#2c2c2e', ink: '#ffffff', muted: '#a1a1a6', node: '#2c2c2e', node2: '#3a3a3c', edge: '#86868b', labelBg: '#1d1d1f' }
-    : { bg: '#ffffff', dot: '#e8e8ed', ink: '#1d1d1f', muted: '#6e6e73', node: '#ffffff', node2: '#f5f5f7', edge: '#86868b', labelBg: '#ffffff' };
+    ? { bg: '#0d2a1c', dot: '#2c2c2e', ink: '#ffffff', muted: '#a1a1a6', node: '#2c2c2e', node2: '#3a3a3c', edge: '#86868b', labelBg: '#0d2a1c' }
+    : { bg: '#ffffff', dot: '#dedede', ink: '#0d2a1c', muted: '#5f6b64', node: '#ffffff', node2: '#ebebeb', edge: '#86868b', labelBg: '#ffffff' };
   const head = title ? 120 : 0;
   const W = Math.ceil(lay.width), H = Math.ceil(lay.height) + head + 40;
   const color = new Map([...arch.groups.map(g => [g.id, g.color]), ...arch.nodes.map(n => [n.id, n.color])]);

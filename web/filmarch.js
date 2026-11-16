@@ -5,7 +5,7 @@
 
 import { shapeOf, textTop } from './arch.js';
 
-const C = { bg: '#ffffff', node: '#ffffff', node2: '#f5f5f7', ink: '#1d1d1f', muted: '#6e6e73', edge: '#86868b', accent: '#0071e3' };
+const C = { bg: '#ffffff', node: '#ffffff', node2: '#ebebeb', ink: '#0d2a1c', muted: '#5f6b64', edge: '#86868b', accent: '#1f6f4a' };
 const W = 1280, H = 720;
 const ease = t => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 const seg = (t, a, b) => ease((t - a) / (b - a));
@@ -106,7 +106,7 @@ export function drawArchBeat(ctx, s, t, ms, el) {
     ctx.globalAlpha = a;
     rr(ctx, b.x, b.y, b.w, b.h, 18); ctx.fillStyle = g.color + '14'; ctx.fill(); ctx.strokeStyle = g.color + '66'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = g.color; ctx.beginPath(); ctx.arc(b.x + 26, b.y + 29, 6, 0, 7); ctx.fill();
-    ctx.font = "600 17px 'Inter Tight'"; ctx.fillStyle = C.ink; ctx.fillText(g.label, b.x + 42, b.y + 35);
+    ctx.font = "600 17px 'General Sans'"; ctx.fillStyle = C.ink; ctx.fillText(g.label, b.x + 42, b.y + 35);
   });
   const eById = new Map(arch.edges.map(e => [e.id, e]));
   lay.edges.forEach((e, i) => {
@@ -132,7 +132,7 @@ export function drawArchBeat(ctx, s, t, ms, el) {
     if (e.label && p === 1 && (on || s.beat === 0)) {
       ctx.globalAlpha = (on ? 1 : dim) * seg(build, 0.8, 0.95);
       rr(ctx, e.label.x, e.label.y, e.label.w, e.label.h, 11); ctx.fillStyle = C.bg; ctx.fill(); ctx.strokeStyle = C.node2; ctx.lineWidth = 1; ctx.stroke();
-      ctx.font = "12px 'Inter Tight'"; ctx.fillStyle = C.muted; ctx.textAlign = 'center'; ctx.fillText(a.label, e.label.x + e.label.w / 2, e.label.y + 15); ctx.textAlign = 'left';
+      ctx.font = "12px 'General Sans'"; ctx.fillStyle = C.muted; ctx.textAlign = 'center'; ctx.fillText(a.label, e.label.x + e.label.w / 2, e.label.y + 15); ctx.textAlign = 'left';
     }
   });
   const nodes = [...arch.nodes, ...arch.services, ...(arch.actor ? [arch.actor] : [])];
@@ -145,18 +145,18 @@ export function drawArchBeat(ctx, s, t, ms, el) {
     if (n.kind === 'actor') {
       ctx.fillStyle = C.node; ctx.strokeStyle = C.ink; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(b.x + b.w / 2, b.y + b.h / 2 + lift, b.w / 2, 0, 7); ctx.fill(); ctx.stroke();
-      ctx.font = "700 14px 'Inter Tight'"; ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.fillText(n.title, b.x + b.w / 2, b.y + b.h / 2 + 5 + lift); ctx.textAlign = 'left';
+      ctx.font = "700 14px 'General Sans'"; ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.fillText(n.title, b.x + b.w / 2, b.y + b.h / 2 + 5 + lift); ctx.textAlign = 'left';
       return;
     }
     const sh = shapeOf(n.kind, b.x, b.y + lift, b.w, b.h), body = new Path2D(sh.body);
-    ctx.save(); ctx.shadowColor = 'rgba(29,29,31,0.10)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; ctx.fillStyle = svc ? C.node2 : C.node; ctx.fill(body); ctx.restore();
+    ctx.save(); ctx.shadowColor = 'rgba(13,42,28,0.10)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; ctx.fillStyle = svc ? C.node2 : C.node; ctx.fill(body); ctx.restore();
     ctx.strokeStyle = svc ? C.ink : col; ctx.lineWidth = n.heart ? 3 : 1.8; ctx.setLineDash(svc && n.kind !== 'cloud' ? [6, 5] : []); ctx.stroke(body); ctx.setLineDash([]);
     if (sh.lines) { ctx.lineCap = 'round'; ctx.stroke(new Path2D(sh.lines)); ctx.lineCap = 'butt'; }
     const ty = b.y + textTop(n.kind) + lift;
     ctx.fillStyle = svc ? C.ink : col; ctx.fillRect(b.x + 16, ty - 13, 4, 20);
-    ctx.font = "600 15px 'Inter Tight'"; ctx.fillStyle = C.ink; ctx.fillText(n.title, b.x + 28, ty);
-    ctx.font = "12px 'Inter Tight'"; ctx.fillStyle = C.muted; ctx.fillText(svc ? n.pkgs.slice(0, 2).join(', ') : n.file.split('/').pop(), b.x + 28, ty + 19);
-    if (n.heart) { rr(ctx, b.x + b.w - 58, b.y - 11 + lift, 50, 20, 10); ctx.fillStyle = col; ctx.fill(); ctx.font = "800 10.5px 'Inter Tight'"; ctx.fillStyle = C.bg; ctx.textAlign = 'center'; ctx.fillText('CORE', b.x + b.w - 33, b.y + 3 + lift); ctx.textAlign = 'left'; }
+    ctx.font = "600 15px 'General Sans'"; ctx.fillStyle = C.ink; ctx.fillText(n.title, b.x + 28, ty);
+    ctx.font = "12px 'General Sans'"; ctx.fillStyle = C.muted; ctx.fillText(svc ? n.pkgs.slice(0, 2).join(', ') : n.file.split('/').pop(), b.x + 28, ty + 19);
+    if (n.heart) { rr(ctx, b.x + b.w - 58, b.y - 11 + lift, 50, 20, 10); ctx.fillStyle = col; ctx.fill(); ctx.font = "800 10.5px 'General Sans'"; ctx.fillStyle = C.bg; ctx.textAlign = 'center'; ctx.fillText('CORE', b.x + b.w - 33, b.y + 3 + lift); ctx.textAlign = 'left'; }
   });
   ctx.restore();
   ctx.globalAlpha = 1;
@@ -164,7 +164,7 @@ export function drawArchBeat(ctx, s, t, ms, el) {
   if (s.beat > 0) {
     const a = seg(el / 1000, 0.6, 1.2);
     ctx.globalAlpha = a;
-    ctx.font = "700 52px 'Inter Tight'";
+    ctx.font = "700 52px 'General Sans'";
     ctx.fillStyle = C.ink; ctx.fillText(s.heading, 72, 150);
     ctx.globalAlpha = 1;
   }
