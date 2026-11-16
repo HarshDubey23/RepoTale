@@ -4,6 +4,7 @@ import { startHere, prImpact, retrieve, excerpt, verifyCitations, answerFromGrap
 import { buildArch, overviewArch, focusArch, layoutArch, renderArch, mermaidArch, loadElk } from './arch.js';
 import { VoicePool, VOICES, ELEVEN, elevenSay } from './voice.js';
 import { score } from './music.js';
+import { archBeats } from './filmarch.js';
 import { buildStory, buildSiteStory, Player, record, storyboardOf, graphOf } from './story.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -49,6 +50,8 @@ function drawLevels() {
     return b;
   };
   const ov = levels.overview.arch;
+  // What this level shows, in a sentence: the same words the film says over it.
+  $('#dz-say').textContent = archView === 'all' ? '' : archBeats(archView === 'overview' ? [levels.overview] : [levels.overview, cur()]).at(-1).say.replace(/^Open (.+?)\. /, '$1: ');
   nav.replaceChildren(...[
     ov.nodes.length >= 3 ? btn('overview', 'Overview') : null,
     ...(ov.nodes.length >= 3 ? ov.nodes.map(n => btn(n.area, n.title, n.color)) : []),

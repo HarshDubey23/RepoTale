@@ -19,10 +19,10 @@ function bounds(rects, pad = 40) {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-/** The beats, from the diagram's levels: [overview, ...subsystems opened]. A single level (a flat
- *  package) gets one canvas the camera tours instead. Every beat carries its own diagram. */
+/** The beats, from the diagram's levels: [overview, ...subsystems opened]. Without an overview (a
+ *  flat package) one canvas is toured by the camera instead. Every beat carries its own diagram. */
 export function archBeats(levels) {
-  if (levels.length === 1) return tourBeats(levels[0].arch, levels[0].lay).map(b => ({ ...b, arch: levels[0].arch, lay: levels[0].lay, fresh: b.beat === 0 }));
+  if (levels[0].arch.level !== 'overview') return tourBeats(levels[0].arch, levels[0].lay).map(b => ({ ...b, arch: levels[0].arch, lay: levels[0].lay, fresh: b.beat === 0 }));
   const [ov, ...open] = levels;
   const name = id => ov.arch.nodes.find(n => n.id === id)?.title ?? id;
   const inner = ov.arch.edges.filter(e => !e.external && e.from !== 'actor');
@@ -35,7 +35,8 @@ export function archBeats(levels) {
     const own = a.edges.find(e => !e.external && a.nodes.find(n => n.id === e.to)?.file && a.nodes.find(n => n.id === e.from)?.file);
     const out = a.edges.find(e => e.to.startsWith('a:')), inn = a.edges.find(e => e.from.startsWith('a:'));
     const title = id => a.nodes.find(n => n.id === id)?.title ?? id;
-    const why = e => e.label && !/imports?$/.test(e.label) ? `, for ${list(e.label.replace(/ \+\d+$/, '').split(', ').map(ear))}` : '';
+    // "for X" only when it adds something: not when X is just the name of what is imported.
+    const why = e => { const w = e.label && !/imports?$/.test(e.label) ? e.label.replace(/ \+\d+$/, '').split(', ').map(ear).filter(x => x !== title(e.to).toLowerCase()) : []; return w.length ? `, for ${list(w)}` : ''; };
     beats.push({ arch: a, lay: f.lay, fresh: true, focus: bounds([...f.lay.boxes.values()], 30), highlight: null, heading: g.label,
       say: `Open ${g.label}. ${plural(g.files, 'file')}, led by ${list(files.slice(0, 3).map(n => n.title.toLowerCase()))}.${own ? ` ${title(own.from)} uses ${title(own.to)}${why(own)}.` : ''}${out ? ` It leans on ${title(out.to)}` + (inn ? `, and ${title(inn.from)} leans on it.` : '.') : inn ? ` ${title(inn.from)} leans on it.` : ''}`,
       evidence: [own, out, inn].filter(e => e?.at).map(e => ({ file: e.at, line: e.line })).slice(0, 3) });
