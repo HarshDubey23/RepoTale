@@ -1,6 +1,6 @@
 // The page: ask for a repository, read it, then show the film, the map, the evidence and the exports.
 import { analyze, parseRepo, permalink, blastRadius, RepoError, shot, readPage, crawlSite, setJinaKey , parsePull, fetchPull } from './analyze.js';
-import { startHere, prImpact, retrieve, excerpt, verifyCitations } from './insight.js';
+import { startHere, prImpact, retrieve, excerpt, verifyCitations, answerFromGraph } from './insight.js';
 import { buildArch, layoutArch, renderArch, mermaidArch, loadElk } from './arch.js';
 import { VoicePool, VOICES, ELEVEN, elevenSay } from './voice.js';
 import { buildStory, buildSiteStory, Player, record, storyboardOf, graphOf } from './story.js';
@@ -537,28 +537,70 @@ function setupAsk() {
   box.replaceChildren(
     h('div', { class: 'askr-head' },
       h('h3', {}, 'Ask this repository'),
-      h('p', {}, 'RepoTale finds the files that answer your question by their names, declarations and imports, gives Claude their numbered lines, and then checks every line Claude cites against the code. A citation that does not exist is flagged, never hidden.')),
+      h('p', {}, 'Free and instant: RepoTale finds the functions that answer your question, shows their code at its real lines, and how the files connect. Want it written up as prose? Use the AI built into Chrome for free on your device, or Claude with your own key. Either way, every line the AI cites is checked against the code.')),
     h('form', { class: 'askr-form', id: 'askr-form' },
       h('label', { class: 'sr', for: 'askr-q' }, 'Question'),
       h('input', { id: 'askr-q', placeholder: examples[0], autocomplete: 'off', required: true }),
       h('button', { class: 'btn', type: 'submit' }, 'Ask')),
     h('div', { class: 'askr-examples' }, examples.map(q => h('button', { type: 'button', onclick: () => { $('#askr-q').value = q; $('#askr-form').requestSubmit(); } }, q))),
-    h('div', { class: 'askr-key', id: 'askr-key', hidden: !!anthropicKey },
-      h('label', { for: 'askr-k' }, 'Your Anthropic API key'),
-      h('input', { id: 'askr-k', type: 'password', placeholder: 'sk-ant-…', autocomplete: 'off', spellcheck: 'false' }),
-      h('p', {}, 'Kept in this tab only and sent nowhere but api.anthropic.com. Each question costs a few cents on your account (Claude Opus 5.5, about 10,000 tokens in).')),
-    h('div', { class: 'askr-out', id: 'askr-out', 'aria-live': 'polite' }));
+    h('div', { class: 'askr-out', id: 'askr-out', 'aria-live': 'polite' }),
+    h('div', { class: 'askr-ai', id: 'askr-ai', hidden: true }),
+    h('div', { class: 'askr-prose', id: 'askr-prose', 'aria-live': 'polite' }));
   $('#askr-form').addEventListener('submit', e => { e.preventDefault(); ask($('#askr-q').value.trim()); });
 }
 
-async function ask(question) {
-  const out = $('#askr-out');
-  anthropicKey = anthropicKey || $('#askr-k').value.trim();
+/** The free answer, at once; then the offer to have an AI write it up. */
+function ask(question) {
   if (!question) return;
-  if (!anthropicKey) { out.replaceChildren(h('p', { class: 'askr-warn' }, 'Add your Anthropic API key above to ask.')); $('#askr-k').focus(); return; }
+  const a = answerFromGraph(model, question), out = $('#askr-out');
+  const at = (f, s, e) => permalink(model.meta, f, s, e);
+  out.replaceChildren(...[
+    h('p', { class: 'askr-sum' }, a.summary.replace(/`/g, '')),
+    ...a.focus.map(f => h('figure', { class: 'askr-code' },
+      h('figcaption', {}, h('a', { href: at(f.file, f.start, f.end), target: '_blank', rel: 'noopener' }, `${f.file}:${f.start}-${f.end}`), f.name ? h('span', {}, `${f.kind ?? ''} ${f.name}`) : null),
+      h('pre', {}, h('code', {}, f.code.split('\n').map((l, i) => `${String(f.start + i).padStart(4)}  ${l}`).join('\n'))))),
+    a.usedBy.length ? h('p', { class: 'askr-src' }, `${base(a.files[0])} is used by `, ...a.usedBy.flatMap((e, i) => [i ? ', ' : '', h('a', { href: at(e.from, e.line), target: '_blank', rel: 'noopener' }, `${base(e.from)}:${e.line}`)])) : null].filter(Boolean));
+  offerAI(question);
+}
+
+async function offerAI(question) {
+  const box = $('#askr-ai');
+  $('#askr-prose').replaceChildren();
+  const chrome = self.LanguageModel ? await LanguageModel.availability().catch(() => 'unavailable') : 'unavailable';
+  box.hidden = false;
+  box.replaceChildren(...[
+    h('p', {}, 'Write this up as an explanation:'),
+    chrome !== 'unavailable' ? h('button', { class: 'ctl', type: 'button', onclick: () => askChrome(question) }, chrome === 'available' ? 'Chrome AI · free, on your device' : 'Chrome AI · free, downloads once') : null,
+    h('button', { class: 'ctl', type: 'button', onclick: () => { $('#askr-key').hidden = false; $('#askr-k').focus(); } }, 'Claude · your API key'),
+    h('div', { class: 'askr-key', id: 'askr-key', hidden: true },
+      h('label', { for: 'askr-k' }, 'Your Anthropic API key'),
+      h('input', { id: 'askr-k', type: 'password', placeholder: 'sk-ant-…', autocomplete: 'off', spellcheck: 'false', value: anthropicKey }),
+      h('button', { class: 'btn', type: 'button', onclick: () => { anthropicKey = $('#askr-k').value.trim(); if (anthropicKey) askClaude(question); } }, 'Write it with Claude'),
+      h('p', {}, 'Kept in this tab only and sent nowhere but api.anthropic.com. A few cents per question on your account.')),
+    chrome === 'unavailable' ? h('p', { class: 'askr-src' }, 'Chrome\'s free built-in AI is not available in this browser or on this device.') : null].filter(Boolean));
+}
+
+/** Chrome's built-in model: free and on the device, with a small context, so three short excerpts. */
+async function askChrome(question) {
+  const out = $('#askr-prose'), files = retrieve(model, question, 3);
+  out.replaceChildren(h('p', { class: 'askr-wait' }, 'Starting Chrome\'s built-in AI…'));
+  try {
+    const session = await LanguageModel.create({
+      initialPrompts: [{ role: 'system', content: ASK_SYSTEM }],
+      monitor(m) { m.addEventListener('downloadprogress', e => { out.replaceChildren(h('p', { class: 'askr-wait' }, `Chrome is downloading its AI model, once: ${Math.round(e.loaded * 100)}%`)); }); },
+    });
+    out.replaceChildren(h('p', { class: 'askr-wait' }, 'Writing…'));
+    const text = await session.prompt(`Repository: ${model.meta.full}\n\nSource excerpts:\n\n${files.map(f => `=== ${f.file}\n${excerpt(model, f.file, question, 40)}`).join('\n\n')}\n\nQuestion: ${question}`);
+    session.destroy?.();
+    showAnswer(out, text.trim(), files, false);
+  } catch (e) { out.replaceChildren(h('p', { class: 'askr-warn' }, `Chrome's AI could not answer: ${e.message}`)); }
+}
+
+async function askClaude(question) {
+  const out = $('#askr-prose');
   const files = retrieve(model, question, 8);
   const context = files.map(f => `=== ${f.file}\n${excerpt(model, f.file, question, 90)}`).join('\n\n');
-  out.replaceChildren(h('p', { class: 'askr-wait' }, `Reading ${files.length} files: ${files.map(f => base(f.file)).join(', ')}…`));
+  out.replaceChildren(h('p', { class: 'askr-wait' }, `Claude is reading ${files.length} files…`));
   try {
     const { default: Anthropic } = await import('https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.3.0/+esm');
     const client = new Anthropic({ apiKey: anthropicKey, dangerouslyAllowBrowser: true });
@@ -581,7 +623,7 @@ async function ask(question) {
       : e instanceof A.RateLimitError ? 'Rate limited by the API. Wait a moment and ask again.'
       : e instanceof A.APIError ? `The API answered ${e.status ?? 'with an error'}: ${e.message}`
       : `Could not reach the API: ${e.message}`;
-    if (e instanceof A.AuthenticationError) { anthropicKey = ''; $('#askr-key').hidden = false; }
+    if (e instanceof A.AuthenticationError) anthropicKey = '';
     out.replaceChildren(h('p', { class: 'askr-warn' }, msg));
   }
 }
@@ -597,11 +639,11 @@ function showAnswer(out, text, files, cut) {
     return c.ok ? h('a', { class: 'cite ok', href: permalink(model.meta, c.file, c.start ?? undefined, c.end ?? undefined), target: '_blank', rel: 'noopener', title: c.file }, label)
       : h('span', { class: 'cite bad', title: c.why }, `${label} (unverified: ${c.why})`);
   }));
-  out.replaceChildren(
+  out.replaceChildren(...[
     h('p', { class: `askr-check ${ok === checks.length && checks.length ? 'all' : 'some'}` }, checks.length ? `${ok} of ${checks.length} citations checked against the code${ok === checks.length ? '' : '; the rest are flagged below'}.` : 'This answer cites no lines, so none of it could be checked.'),
     ...text.split(/\n{2,}/).map(para),
     cut ? h('p', { class: 'askr-warn' }, 'The answer was cut off at the length limit.') : null,
-    h('p', { class: 'askr-src' }, 'Files given to Claude: ', ...files.flatMap((f, i) => [i ? ', ' : '', h('a', { href: permalink(model.meta, f.file), target: '_blank', rel: 'noopener' }, f.file)])));
+    h('p', { class: 'askr-src' }, 'Files given to Claude: ', ...files.flatMap((f, i) => [i ? ', ' : '', h('a', { href: permalink(model.meta, f.file), target: '_blank', rel: 'noopener' }, f.file)]))].filter(Boolean));
 }
 
 // ------------------------------------------------------------- evidence

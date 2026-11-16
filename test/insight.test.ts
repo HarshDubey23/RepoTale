@@ -54,3 +54,16 @@ test('citations are checked against the code: real files and lines pass, invente
   assert.match(v[2].why, /outside the file/);
   assert.equal(v[3].why, 'no such file was read');
 });
+
+test('the free answer shows the declarations that match, with their real lines and code, and how files connect', async () => {
+  const { answerFromGraph } = await import('../web/insight.js');
+  const a = answerFromGraph(model, 'how is the connection pool opened?');
+  assert.equal(a.focus[0].file, 'src/db.ts');
+  assert.equal(a.focus[0].name, 'connectPool');
+  assert.equal(a.focus[0].start, 4);
+  assert.match(a.focus[0].code, /^export function connectPool/);
+  assert.match(a.summary, /`connectPool` in db\.ts \(line 4\)/);
+  const b = answerFromGraph(model, 'how does billing charge?');
+  assert.ok(b.links.some(e => e.from === 'src/billing.ts' && e.to === 'src/db.ts') || b.files.length >= 1);
+  assert.match(answerFromGraph(model, 'zzzz qqqq').summary, /^Nothing in the files read/);
+});

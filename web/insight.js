@@ -70,7 +70,7 @@ export function prImpact(model, changes) {
 }
 
 const STOP = new Set('the a an and or of to in on for is are was be how does do what where which who why when this that it its with from by as at into can i we you'.split(' '));
-const words = s => s.toLowerCase().replace(/([a-z])([A-Z])/g, '$1 $2').split(/[^a-z0-9]+/).filter(w => w.length > 2 && !STOP.has(w));
+const words = s => s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2 && !STOP.has(w));
 
 /** The files most likely to answer a question: words of the question found in a file's path,
  *  its declarations and its text, then the graph (a file that imports a match counts a little). */
@@ -121,4 +121,39 @@ export function verifyCitations(answer, model) {
     out.push({ text: whole, file, start, end, ok, why: !mod ? 'no such file was read' : ok ? '' : `lines outside the file (it has ${mod.lines})` });
   }
   return out;
+}
+
+/** A word reduced to its stem, so retries finds retry and handled finds handle. */
+const stem = w => w.replace(/ies$/, 'y').replace(/(ing|ions?|ed|es|s)$/, '') || w;
+
+/** A free, instant answer with no model: the code that answers the question in the files that hold
+ *  it (declarations named after it first, then the densest block of lines that mention it), with
+ *  real lines, and how those files connect. Everything is read from the code, nothing is claimed. */
+export function answerFromGraph(model, question, k = 3) {
+  const q = [...new Set(words(question).map(stem))];
+  const near = w => q.some(x => x === w || (Math.min(x.length, w.length) >= 4 && (x.startsWith(w) || w.startsWith(x))));
+  const byFile = new Map(model.modules.map(m => [m.file, m]));
+  const top = retrieve(model, question, 6).map(r => byFile.get(r.file)).filter(Boolean);
+  const focus = [];
+  for (const [rank, m] of top.slice(0, k).entries()) {
+    const lines = (m.text ?? '').split('\n');
+    const syms = [...m.symbols].sort((a, b) => a.line - b.line);
+    const picks = syms.map((s, i) => ({ name: s.name, kind: s.kind, start: s.line, end: Math.min((syms[i + 1]?.line ?? lines.length + 1) - 1, s.line + 24), score: words(s.name).map(stem).filter(near).length * 3 }))
+      .filter(x => x.score > 0);
+    // The densest 16-line block that mentions the question, for code inside classes and functions.
+    const hits = lines.map(l => words(l).map(stem).filter(near).length);
+    let best = 0, at = -1;
+    for (let i = 0; i < lines.length; i++) { let n = 0; for (let j = i; j < Math.min(lines.length, i + 16); j++) n += hits[j]; if (n > best) { best = n; at = i; } }
+    if (at >= 0 && best >= 2) picks.push({ name: null, kind: null, start: at + 1, end: Math.min(lines.length, at + 16), score: best });
+    const chosen = [];
+    for (const p of picks.sort((a, b) => b.score - a.score)) if (chosen.length < (rank === 0 ? 3 : 1) && !chosen.some(c => p.start <= c.end && c.start <= p.end)) chosen.push(p);
+    for (const c of chosen.sort((a, b) => a.start - b.start)) focus.push({ file: m.file, ...c, code: lines.slice(c.start - 1, c.end).join('\n') });
+  }
+  const files = [...new Set(focus.map(f => f.file))];
+  const links = model.edges.filter(e => files.includes(e.from) && files.includes(e.to) && e.from !== e.to).slice(0, 2);
+  const usedBy = files[0] ? model.edges.filter(e => e.to === files[0]).slice(0, 5) : [];
+  const said = focus.filter(f => f.name).map(f => `\`${f.name}\` in ${base(f.file)} (line ${f.start})`);
+  const summary = !focus.length ? 'Nothing in the files read matches this question. Try the words the code would use, such as a function or file name.'
+    : `Most of it is in ${base(files[0])}${said.length ? `: ${said.slice(0, 3).join(', ')}` : ''}.${links.length ? ' ' + links.map(e => `${base(e.from)} imports ${base(e.to)}${e.names?.length ? ` for ${e.names.slice(0, 3).join(', ')}` : ''}`).join('; ') + '.' : ''}`;
+  return { summary, focus, links, usedBy, files };
 }

@@ -648,3 +648,14 @@ body.has-result .ask .ask-form { margin-top: 0; }
 .askr-src a { color: var(--ink); }
 .askr-wait { color: var(--muted); }
 .askr-warn { background: var(--accent); color: var(--ink); padding: 10px 14px; display: inline-block; }
+
+.askr-sum { font-size: var(--step-lead); line-height: 1.4; max-width: 60ch; }
+.askr-code { margin: 0 0 12px; background: var(--ink); color: var(--bg); }
+.askr-code figcaption { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 16px; background: var(--surface-2); color: var(--ink); font-size: var(--step-small); }
+.askr-code figcaption a { color: var(--ink); font-weight: 600; }
+.askr-code pre { margin: 0; padding: 14px 16px; overflow: auto; max-height: 360px; font-size: 13px; line-height: 1.55; }
+.askr-ai { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 28px; padding-top: 20px; }
+.askr-ai > p { margin: 0 12px 0 0; font-weight: 600; }
+.askr-ai .askr-key { flex-basis: 100%; }
+.askr-prose { margin-top: 24px; font-size: var(--step-body); line-height: 1.6; }
+.askr-prose p { margin: 0 0 14px; max-width: 68ch; }
