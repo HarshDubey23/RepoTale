@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { parseRepo, importsOf, symbolsOf, resolve, buildModel, cycles, blastRadius, aliasesFrom, pickFiles, detectStack, routesOf, headingOf, liveUrl, pageFacts, siteLinks, fromUngh } from '../web/analyze.js';
 import { forEar } from '../web/voice.js';
-import { buildArch, mermaidArch, nameOf, kindOf } from '../web/arch.js';
+import { buildArch, overviewArch, focusArch, mermaidArch, nameOf, kindOf } from '../web/arch.js';
 import { buildStory, storyboardOf, pathBetween, mermaidOf } from '../web/story.js';
 
 test('parseRepo accepts what people paste and rejects the rest', () => {
@@ -200,4 +200,38 @@ test('this repository, end to end: every edge resolves, every film claim cites a
   assert.ok(mer.startsWith('flowchart TD\n'));
   assert.equal((mer.match(/^  subgraph /gm) ?? []).length, arch.groups.length);
   assert.doesNotMatch(mer, /undefined|NaN/);
+
+  // The overview: one box per subsystem; an arrow's count is exactly the real imports between the
+  // two subsystems, both directions together when it has two heads.
+  const ov = overviewArch(model, arch);
+  assert.deepEqual(ov.nodes.map(n => n.area), arch.groups.map(g => g.area));
+  const areaOf = new Map(model.modules.map(m => [m.file, m.area]));
+  const real = (a: string, b: string) => model.edges.filter(e => !model.modules.find(m => m.file === e.from)?.test && !model.modules.find(m => m.file === e.to)?.test
+    && areaOf.get(e.from) === a && areaOf.get(e.to) === b).length;
+  const byId = new Map(ov.nodes.map(n => [n.id, n]));
+  const ovInner = ov.edges.filter(e => !e.external && e.from !== 'actor');
+  assert.ok(ovInner.length > 0 && ovInner.length <= 9);
+  for (const e of ovInner) {
+    const a = byId.get(e.from).area, b = byId.get(e.to).area;
+    assert.notEqual(a, b);
+    assert.equal(e.count, real(a, b) + (e.both ? real(b, a) : 0), `${a} -> ${b}`);
+    assert.equal(e.both, real(b, a) > 0);
+    assert.ok(e.count >= real(b, a), 'an arrow points the heavier way');
+  }
+  assert.doesNotMatch(mermaidArch(ov), /undefined|NaN/);
+
+  // A subsystem opened: its own busiest files, its neighbours as single boxes joined to the
+  // subsystem as a whole, and no arrow between two neighbours.
+  const src = arch.groups.find(g => g.area === 'src');
+  const f = focusArch(model, arch, 'src');
+  const files = f.nodes.filter(n => n.file);
+  assert.ok(files.length > 0 && files.length <= 14 && files.every(n => areaOf.get(n.file) === 'src'));
+  const nbr = new Set(f.nodes.filter(n => n.neighbour).map(n => n.id));
+  assert.ok(nbr.size > 0 && [...nbr].every(id => id.startsWith('a:') && id !== 'a:src'));
+  for (const e of f.edges.filter(e => !e.external)) {
+    assert.ok(!(nbr.has(e.from) && nbr.has(e.to)), 'no neighbour-to-neighbour arrow');
+    if (nbr.has(e.from)) assert.equal(e.to, src.id);
+    if (nbr.has(e.to)) assert.equal(e.from, src.id);
+    if (nbr.has(e.from)) assert.equal(e.count, real(e.from.slice(2), 'src'));
+  }
 });

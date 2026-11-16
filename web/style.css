@@ -388,6 +388,13 @@ select.ctl option { background: var(--surface); }
 
 /* ------------------------------------------------------------- architecture viewer */
 .dz-wrap { background: var(--bg); }
+.dz-levels { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-bottom: 8px; }
+.dz-levels button { min-height: 40px; padding: 0 16px; border: 0; background: var(--surface-2); cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: background-color .18s; }
+.dz-levels button:hover { background: var(--plum); }
+.dz-levels button[aria-current="true"] { background: var(--ink); color: var(--bg); }
+.dz-levels .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.dz-levels .sep { color: var(--muted); padding: 0 2px; }
+.dz .node.area:hover > path:first-of-type, .dz .node.area:focus > path:first-of-type { stroke-width: 3.4; }
 .dz-tools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-bottom: 8px; }
 .dz-tools .ctl { min-height: 44px; padding: 0 16px; }
 .dz-tools .btn { min-height: 44px; }

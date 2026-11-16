@@ -3,7 +3,7 @@
 // subsystem while the narration names its parts and the real imports between them. Consecutive
 // beats share the canvas, so the camera move is the transition.
 
-import { shapeOf, textTop } from './arch.js';
+import { shapeOf, textTop, subOf, clip, edgeWidth } from './arch.js';
 
 const C = { bg: '#ffffff', node: '#ffffff', node2: '#ebebeb', ink: '#0d2a1c', muted: '#5f6b64', edge: '#86868b', accent: '#1f6f4a' };
 const W = 1280, H = 720;
@@ -19,8 +19,33 @@ function bounds(rects, pad = 40) {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-/** The beats: one overview, then the busiest subsystems, then the outside services. */
-export function archBeats(arch, lay) {
+/** The beats, from the diagram's levels: [overview, ...subsystems opened]. A single level (a flat
+ *  package) gets one canvas the camera tours instead. Every beat carries its own diagram. */
+export function archBeats(levels) {
+  if (levels.length === 1) return tourBeats(levels[0].arch, levels[0].lay).map(b => ({ ...b, arch: levels[0].arch, lay: levels[0].lay, fresh: b.beat === 0 }));
+  const [ov, ...open] = levels;
+  const name = id => ov.arch.nodes.find(n => n.id === id)?.title ?? id;
+  const inner = ov.arch.edges.filter(e => !e.external && e.from !== 'actor');
+  const top = inner[0], svc = ov.arch.services.map(s => s.title);
+  const beats = [{ arch: ov.arch, lay: ov.lay, fresh: true, focus: bounds([...ov.lay.boxes.values()], 30), highlight: null, heading: 'The architecture',
+    say: `Seen from above, it is ${plural(ov.arch.nodes.length, 'subsystem')}: ${list(ov.arch.nodes.slice(0, 5).map(n => n.title))}.${top ? ` The heaviest traffic runs from ${name(top.from)} to ${name(top.to)}, ${plural(top.count, 'import')}.` : ''}${svc.length ? ` Outside the code, it reaches ${list(svc.slice(0, 3))}.` : ''}`,
+    evidence: inner.slice(0, 2).filter(e => e.at).map(e => ({ file: e.at, line: e.line })) }];
+  for (const f of open) {
+    const a = f.arch, g = a.groups[0], files = a.nodes.filter(n => n.file).sort((x, y) => y.users - x.users);
+    const own = a.edges.find(e => !e.external && a.nodes.find(n => n.id === e.to)?.file && a.nodes.find(n => n.id === e.from)?.file);
+    const out = a.edges.find(e => e.to.startsWith('a:')), inn = a.edges.find(e => e.from.startsWith('a:'));
+    const title = id => a.nodes.find(n => n.id === id)?.title ?? id;
+    const why = e => e.label && !/imports?$/.test(e.label) ? `, for ${list(e.label.replace(/ \+\d+$/, '').split(', ').map(ear))}` : '';
+    beats.push({ arch: a, lay: f.lay, fresh: true, focus: bounds([...f.lay.boxes.values()], 30), highlight: null, heading: g.label,
+      say: `Open ${g.label}. ${plural(g.files, 'file')}, led by ${list(files.slice(0, 3).map(n => n.title.toLowerCase()))}.${own ? ` ${title(own.from)} uses ${title(own.to)}${why(own)}.` : ''}${out ? ` It leans on ${title(out.to)}` + (inn ? `, and ${title(inn.from)} leans on it.` : '.') : inn ? ` ${title(inn.from)} leans on it.` : ''}`,
+      evidence: [own, out, inn].filter(e => e?.at).map(e => ({ file: e.at, line: e.line })).slice(0, 3) });
+  }
+  beats.forEach((b, i) => { b.from = b.focus; b.beat = i; });
+  return beats;
+}
+
+/** One canvas, toured: the overview, then the busiest subsystems, then the outside services. */
+function tourBeats(arch, lay) {
   const box = id => lay.boxes.get(id);
   const title = id => (arch.nodes.find(n => n.id === id) ?? arch.services.find(s => s.id === id) ?? arch.actor)?.title ?? id;
   const all = bounds([...lay.boxes.values()], 30);
@@ -85,7 +110,7 @@ export function drawArchBeat(ctx, s, t, ms, el) {
   const { arch, lay } = s;
   const fx = 40, fy = 92, fw = W - 80, fh = H - 92 - 140;
   // Camera: ease from the previous beat's view to this one over the first 1.1 seconds.
-  const c = s.beat === 0 ? 1 : ease(el / 1100);
+  const c = s.fresh ? 1 : ease(el / 1100);
   const f = { x: s.from.x + (s.focus.x - s.from.x) * c, y: s.from.y + (s.focus.y - s.from.y) * c, w: s.from.w + (s.focus.w - s.from.w) * c, h: s.from.h + (s.focus.h - s.from.h) * c };
   const k = Math.min(fw / f.w, fh / f.h, 1.6);
   ctx.save();
@@ -93,10 +118,10 @@ export function drawArchBeat(ctx, s, t, ms, el) {
   ctx.translate(fx + fw / 2 - (f.x + f.w / 2) * k, fy + fh / 2 - (f.y + f.h / 2) * k);
   ctx.scale(k, k);
   // How far the build has got: complete after the overview.
-  const build = s.beat === 0 ? t : 1;
+  const build = s.fresh ? t : 1;
   const color = new Map([...arch.groups.map(g => [g.id, g.color]), ...arch.nodes.map(n => [n.id, n.color])]);
   const lit = id => !s.highlight || s.highlight === id || (s.highlight === 'services' ? id.startsWith('svc:') || arch.edges.some(e => e.to.startsWith('svc:') && e.from === id) : arch.nodes.find(n => n.id === id)?.group === s.highlight);
-  const dim = s.beat === 0 ? 1 : 0.22 + 0.78 * (1 - ease((el - 400) / 900));
+  const dim = s.fresh ? 1 : 0.22 + 0.78 * (1 - ease((el - 400) / 900));
   const alphaFor = id => lit(id) ? 1 : dim;
 
   arch.groups.forEach((g, i) => {
@@ -115,12 +140,13 @@ export function drawArchBeat(ctx, s, t, ms, el) {
     const on = lit(a.from) || lit(a.to);
     const col = a.external ? C.edge : a.from === 'actor' ? C.ink : color.get(a.from) ?? C.edge;
     ctx.globalAlpha = on ? 0.9 : dim * 0.6;
-    ctx.strokeStyle = col; ctx.lineWidth = Math.min(3.4, 1.6 + a.count * 0.25); ctx.setLineDash(a.external ? [6, 5] : []);
+    ctx.strokeStyle = col; ctx.lineWidth = edgeWidth(a.count); ctx.setLineDash(a.external ? [6, 5] : []);
     const [x, y, dx, dy] = partial(ctx, e.pts, p);
     ctx.setLineDash([]);
     arrowHead(ctx, x, y, dx, dy, 11, col);
+    if (a.both) { const [p0, p1] = e.pts; arrowHead(ctx, p0[0], p0[1], p0[0] - p1[0], p0[1] - p1[1], 11, col); }
     // In a lit beat, a pulse runs along each lit arrow.
-    if (s.beat > 0 && on && p === 1) {
+    if ((s.beat > 0 || s.fresh) && on && p === 1) {
       const L = polyLength(e.pts), d = ((ms / 1400 + i * 0.17) % 1) * L;
       let run = 0;
       for (let j = 1; j < e.pts.length; j++) {
@@ -129,7 +155,7 @@ export function drawArchBeat(ctx, s, t, ms, el) {
         run += l;
       }
     }
-    if (e.label && p === 1 && (on || s.beat === 0)) {
+    if (e.label && p === 1 && (on || s.fresh)) {
       ctx.globalAlpha = (on ? 1 : dim) * seg(build, 0.8, 0.95);
       rr(ctx, e.label.x, e.label.y, e.label.w, e.label.h, 11); ctx.fillStyle = C.bg; ctx.fill(); ctx.strokeStyle = C.node2; ctx.lineWidth = 1; ctx.stroke();
       ctx.font = "12px 'General Sans'"; ctx.fillStyle = C.muted; ctx.textAlign = 'center'; ctx.fillText(a.label, e.label.x + e.label.w / 2, e.label.y + 15); ctx.textAlign = 'left';
@@ -148,14 +174,20 @@ export function drawArchBeat(ctx, s, t, ms, el) {
       ctx.font = "700 14px 'General Sans'"; ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.fillText(n.title, b.x + b.w / 2, b.y + b.h / 2 + 5 + lift); ctx.textAlign = 'left';
       return;
     }
-    const sh = shapeOf(n.kind, b.x, b.y + lift, b.w, b.h), body = new Path2D(sh.body);
+    const sh = shapeOf(n.area && !n.neighbour ? 'core' : n.kind, b.x, b.y + lift, b.w, b.h), body = new Path2D(sh.body);
     ctx.save(); ctx.shadowColor = 'rgba(13,42,28,0.10)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; ctx.fillStyle = svc ? C.node2 : C.node; ctx.fill(body); ctx.restore();
-    ctx.strokeStyle = svc ? C.ink : col; ctx.lineWidth = n.heart ? 3 : 1.8; ctx.setLineDash(svc && n.kind !== 'cloud' ? [6, 5] : []); ctx.stroke(body); ctx.setLineDash([]);
+    ctx.strokeStyle = svc ? C.ink : col; ctx.lineWidth = n.heart ? 3 : 1.8; ctx.setLineDash((svc && n.kind !== 'cloud') || n.neighbour ? [6, 5] : []); ctx.stroke(body); ctx.setLineDash([]);
     if (sh.lines) { ctx.lineCap = 'round'; ctx.stroke(new Path2D(sh.lines)); ctx.lineCap = 'butt'; }
-    const ty = b.y + textTop(n.kind) + lift;
-    ctx.fillStyle = svc ? C.ink : col; ctx.fillRect(b.x + 16, ty - 13, 4, 20);
-    ctx.font = "600 15px 'General Sans'"; ctx.fillStyle = C.ink; ctx.fillText(n.title, b.x + 28, ty);
-    ctx.font = "12px 'General Sans'"; ctx.fillStyle = C.muted; ctx.fillText(svc ? n.pkgs.slice(0, 2).join(', ') : n.file.split('/').pop(), b.x + 28, ty + 19);
+    if (n.area && !n.neighbour) {
+      ctx.fillStyle = col; ctx.fillRect(b.x + 18, b.y + 20 + lift, 6, 34);
+      ctx.font = "700 26px 'General Sans'"; ctx.fillStyle = C.ink; ctx.fillText(n.title, b.x + 36, b.y + 46 + lift);
+      ctx.font = "15px 'General Sans'"; ctx.fillStyle = C.muted; ctx.fillText(clip(subOf(n), b.w - 56, 15), b.x + 36, b.y + 74 + lift);
+    } else {
+      const ty = b.y + textTop(n.kind) + lift;
+      ctx.fillStyle = svc ? C.ink : col; ctx.fillRect(b.x + 16, ty - 13, 4, 20);
+      ctx.font = "600 15px 'General Sans'"; ctx.fillStyle = C.ink; ctx.fillText(n.title, b.x + 28, ty);
+      ctx.font = "12px 'General Sans'"; ctx.fillStyle = C.muted; ctx.fillText(clip(subOf(n), b.w - 44, 12), b.x + 28, ty + 19);
+    }
     if (n.heart) { rr(ctx, b.x + b.w - 58, b.y - 11 + lift, 50, 20, 10); ctx.fillStyle = col; ctx.fill(); ctx.font = "800 10.5px 'General Sans'"; ctx.fillStyle = C.bg; ctx.textAlign = 'center'; ctx.fillText('CORE', b.x + b.w - 33, b.y + 3 + lift); ctx.textAlign = 'left'; }
   });
   ctx.restore();

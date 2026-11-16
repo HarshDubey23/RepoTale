@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Architecture has levels. The overview shows each subsystem as one card and every import between two subsystems as one arrow, with the exact count (two heads when they import each other). Select a subsystem to open it: its own files inside, the subsystems that use it and that it uses as single boxes around it. "Every component" keeps the full diagram. Exports follow the level on screen.
+- Film: the architecture is told as a drill-down. The overview builds itself, then the two busiest subsystems open one after the other, each narrated from its real imports.
+
 - Film: an original score composed in code with a whoosh at each scene change (Music toggle), letter-by-letter titles, a code editor that types itself with syntax colours, and a vertical 9:16 export with large word-by-word captions.
 - Ask is free by default: answers from the code itself, Chrome's built-in AI where available, Claude optional.
 

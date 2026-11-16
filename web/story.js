@@ -66,7 +66,7 @@ export function buildStory(model, opts = {}) {
   }
   if (opts.arch) {
     // The architecture as one continuous canvas: an overview, then the camera visits each subsystem.
-    for (const b of archBeats(opts.arch.arch, opts.arch.lay)) S.push({ kind: 'arch', ...b, arch: opts.arch.arch, lay: opts.arch.lay });
+    for (const b of archBeats(opts.arch)) S.push({ kind: 'arch', ...b });
   } else if (shown.length > 1) {
     const flat = shown[0].files.length === 1 && shown[0].name === shown[0].files[0];
     const first = shown[0].name, last = shown.at(-1).name;

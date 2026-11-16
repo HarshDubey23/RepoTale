@@ -1,7 +1,7 @@
 // The page: ask for a repository, read it, then show the film, the map, the evidence and the exports.
 import { analyze, parseRepo, permalink, blastRadius, RepoError, shot, readPage, crawlSite, setJinaKey , parsePull, fetchPull } from './analyze.js';
 import { startHere, prImpact, retrieve, excerpt, verifyCitations, answerFromGraph } from './insight.js';
-import { buildArch, layoutArch, renderArch, mermaidArch, loadElk } from './arch.js';
+import { buildArch, overviewArch, focusArch, layoutArch, renderArch, mermaidArch, loadElk } from './arch.js';
 import { VoicePool, VOICES, ELEVEN, elevenSay } from './voice.js';
 import { score } from './music.js';
 import { buildStory, buildSiteStory, Player, record, storyboardOf, graphOf } from './story.js';
@@ -26,6 +26,35 @@ const pool = new VoicePool({ studio: store.get('studio', true) });
 let audioContext = null, voiceJob = 0;
 let model = null, scenes = null, player = null, selected = null, recording = null;
 let arch = null, archLay = null, archTheme = 'light';
+// The diagram's levels: the overview, every component, and each subsystem opened (laid out on
+// first visit). `archView` is 'overview', 'all' or an area path.
+let levels = null, archView = 'overview';
+const cur = () => archView === 'overview' ? levels.overview : archView === 'all' ? levels.all : levels.focus.get(archView);
+const busiest = ov => [...ov.nodes].map(n => ({ a: n.area, n: ov.edges.filter(e => e.from === n.id || e.to === n.id).reduce((s, e) => s + e.count, 0) }))
+  .filter(x => x.n > 0).sort((a, b) => b.n - a.n).map(x => x.a);
+async function focusLevel(area) {
+  if (!levels.focus.has(area)) { const a = focusArch(model, arch, area); levels.focus.set(area, { arch: a, lay: await layoutArch(a, await loadElk()) }); }
+  return levels.focus.get(area);
+}
+async function openLevel(v) {
+  if (v !== 'overview' && v !== 'all') await focusLevel(v);
+  archView = v; paintArch(); $('#dz').focus({ preventScroll: true });
+}
+function drawLevels() {
+  const nav = $('#dz-levels');
+  if (!levels) { nav.replaceChildren(); return; }
+  const btn = (v, label, color) => {
+    const b = h('button', { type: 'button', 'aria-current': String(archView === v) }, ...[color ? h('span', { class: 'dot', style: `background:${color}` }) : null, label].filter(Boolean));
+    b.addEventListener('click', () => openLevel(v));
+    return b;
+  };
+  const ov = levels.overview.arch;
+  nav.replaceChildren(...[
+    ov.nodes.length >= 3 ? btn('overview', 'Overview') : null,
+    ...(ov.nodes.length >= 3 ? ov.nodes.map(n => btn(n.area, n.title, n.color)) : []),
+    btn('all', 'Every component'),
+  ].filter(Boolean));
+}
 // The film's score: rendered for the current scene lengths, and again whenever they change (the
 // voice sets them as each scene's audio arrives).
 let scoreBuf = null, scoreKey = '', musicOn = store.get('music', true);
@@ -206,10 +235,18 @@ async function run(value) {
     const shots = await photograph(model, $('#live').value.trim());
     stage('film', 'laying out the architecture', 0.3);
     // The diagram and the film's architecture beats share one layout.
-    arch = null; archLay = null;
-    try { const elk = await loadElk(); arch = buildArch(model); archLay = await layoutArch(arch, elk); } catch (e) { console.warn('layout', e); }
+    arch = null; archLay = null; levels = null;
+    try {
+      const elk = await loadElk(); arch = buildArch(model); archLay = await layoutArch(arch, elk);
+      const ov = overviewArch(model, arch);
+      levels = { overview: { arch: ov, lay: await layoutArch(ov, elk) }, all: { arch, lay: archLay }, focus: new Map() };
+      // A flat package has nothing to zoom out of: show every component straight away.
+      archView = ov.nodes.length >= 3 ? 'overview' : 'all';
+      // The film opens the two busiest subsystems after the overview.
+      if (archView === 'overview') for (const a of busiest(ov).slice(0, 2)) await focusLevel(a);
+    } catch (e) { console.warn('layout', e); }
     stage('film', '', 0.7);
-    scenes = buildStory(model, { shots, arch: arch && archLay ? { arch, lay: archLay } : null });
+    scenes = buildStory(model, { shots, arch: !levels ? null : archView === 'all' ? [levels.all] : [levels.overview, ...levels.focus.values()] });
     stage('film', '', 1);
     $$('#stages li').forEach(li => { li.dataset.state = 'done'; li.style.setProperty('--p', 1); li.querySelector('b').textContent = ''; });
     history.replaceState(null, '', model.pull ? '#pr=' + encodeURIComponent(model.pull.url) : '#/' + model.meta.full);
@@ -796,14 +833,15 @@ async function svgPNG(svg, scale = 2) {
 }
 
 function drawArch() {
-  if (!arch || !archLay) { $('#dz').replaceChildren(h('p', { class: 'dz-wait' }, 'The layout engine could not load, so the diagram is missing. The Files view still works.')); return; }
+  if (!levels) { $('#dz').replaceChildren(h('p', { class: 'dz-wait' }, 'The layout engine could not load, so the diagram is missing. The Files view still works.')); return; }
   // Painted after the tab is visible, so fitting it measures a real size.
   requestAnimationFrame(paintArch);
 }
 
 function paintArch() {
   const dz = $('#dz');
-  dz.innerHTML = renderArch(arch, archLay, { theme: archTheme });
+  drawLevels();
+  dz.innerHTML = renderArch(cur().arch, cur().lay, { theme: archTheme });
   const svg = dz.querySelector('svg');
   svg.removeAttribute('width'); svg.removeAttribute('height');
   const [, , W, H] = svg.getAttribute('viewBox').split(' ').map(Number);
@@ -811,6 +849,8 @@ function paintArch() {
   dz.classList.toggle('dark', archTheme === 'dark');
   const changed = new Set(model.pull?.files.map(f => f.filename) ?? []);
   for (const n of $$('.node[data-file]', svg)) n.classList.toggle('changed', changed.has(n.dataset.file));
+  const areaOf = new Map(model.modules.map(m => [m.file, m.area]));
+  for (const n of $$('.node[data-area]', svg)) n.classList.toggle('changed', [...changed].some(f => areaOf.get(f) === n.dataset.area));
   fitArch();
   for (const n of $$('.node', svg)) {
     const id = n.dataset.id;
@@ -823,6 +863,12 @@ function paintArch() {
       const open = () => { if (!dragged) window.open(permalink(model.meta, file), '_blank', 'noopener'); };
       n.addEventListener('click', open);
       n.addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
+    }
+    const area = n.dataset.area;
+    if (area) {
+      const go = () => { if (!dragged) openLevel(area); };
+      n.addEventListener('click', go);
+      n.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
     }
   }
 }
@@ -889,20 +935,21 @@ $('#dz-out').addEventListener('click', () => zoomAt(1 / 1.3, $('#dz').clientWidt
 $('#dz-fit').addEventListener('click', fitArch);
 $('#dz-full').addEventListener('click', () => { const w = $('#dz-wrap'); document.fullscreenElement ? document.exitFullscreen() : w.requestFullscreen?.(); });
 document.addEventListener('fullscreenchange', () => { $('#dz-full').textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'; setTimeout(fitArch, 60); });
-addEventListener('resize', () => { if (arch && !$('#p-arch').hidden) fitArch(); });
+addEventListener('resize', () => { if (levels && !$('#p-arch').hidden) fitArch(); });
 $('#dz-theme').addEventListener('click', e => {
   archTheme = archTheme === 'dark' ? 'light' : 'dark';
   e.currentTarget.textContent = archTheme === 'dark' ? 'Light' : 'Dark';
   e.currentTarget.setAttribute('aria-pressed', archTheme === 'dark');
-  if (arch) paintArch();
+  if (levels) paintArch();
 });
-const archName = ext => `${model.meta.name}-architecture${archTheme === 'dark' ? '-dark' : ''}.${ext}`;
-$('#dz-svg').addEventListener('click', () => arch && download(new Blob([renderArch(arch, archLay, { theme: archTheme })], { type: 'image/svg+xml' }), archName('svg')));
-$('#dz-png').addEventListener('click', async e => { if (!arch) return; const b = e.currentTarget; b.disabled = true; download(await svgPNG(renderArch(arch, archLay, { theme: archTheme })), archName('png')); b.disabled = false; });
+const archName = ext => `${model.meta.name}-architecture${archView === 'overview' ? '' : '-' + (archView === 'all' ? 'all' : archView.replace(/[^\w-]+/g, '-'))}${archTheme === 'dark' ? '-dark' : ''}.${ext}`;
+const archSVG = () => renderArch(cur().arch, cur().lay, { theme: archTheme });
+$('#dz-svg').addEventListener('click', () => levels && download(new Blob([archSVG()], { type: 'image/svg+xml' }), archName('svg')));
+$('#dz-png').addEventListener('click', async e => { if (!levels) return; const b = e.currentTarget; b.disabled = true; download(await svgPNG(archSVG()), archName('png')); b.disabled = false; });
 $('#dz-mermaid').addEventListener('click', async e => {
-  if (!arch) return;
+  if (!levels) return;
   const b = e.currentTarget;
-  try { await navigator.clipboard.writeText('```mermaid\n' + mermaidArch(arch) + '\n```'); b.textContent = 'Copied'; } catch { b.textContent = 'Copy failed'; }
+  try { await navigator.clipboard.writeText('```mermaid\n' + mermaidArch(cur().arch) + '\n```'); b.textContent = 'Copied'; } catch { b.textContent = 'Copy failed'; }
   setTimeout(() => { b.textContent = 'Copy Mermaid'; }, 1600);
 });
 
