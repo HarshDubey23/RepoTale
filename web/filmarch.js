@@ -36,7 +36,8 @@ export function archBeats(levels) {
     const out = a.edges.find(e => e.to.startsWith('a:')), inn = a.edges.find(e => e.from.startsWith('a:'));
     const title = id => a.nodes.find(n => n.id === id)?.title ?? id;
     // "for X" only when it adds something: not when X is just the name of what is imported.
-    const why = e => { const w = e.label && !/imports?$/.test(e.label) ? e.label.replace(/ \+\d+$/, '').split(', ').map(ear).filter(x => x !== title(e.to).toLowerCase()) : []; return w.length ? `, for ${list(w)}` : ''; };
+    // Only short names are worth saying aloud; "deleted parameters symbol" is noise to a listener.
+    const why = e => { const w = e.label && !/imports?$/.test(e.label) ? e.label.replace(/ \+\d+$/, '').split(', ').map(ear).filter(x => x !== title(e.to).toLowerCase()) : []; return w.length && w.every(x => x.split(' ').length <= 2) ? `, for ${list(w)}` : ''; };
     beats.push({ arch: a, lay: f.lay, fresh: true, focus: bounds([...f.lay.boxes.values()], 30), highlight: null, heading: g.label,
       say: `Open ${g.label}. ${plural(g.files, 'file')}, led by ${list(files.slice(0, 3).map(n => n.title.toLowerCase()))}.${own ? ` ${title(own.from)} uses ${title(own.to)}${why(own)}.` : ''}${out ? ` It leans on ${title(out.to)}` + (inn ? `, and ${title(inn.from)} leans on it.` : '.') : inn ? ` ${title(inn.from)} leans on it.` : ''}`,
       evidence: [own, out, inn].filter(e => e?.at).map(e => ({ file: e.at, line: e.line })).slice(0, 3) });
@@ -119,7 +120,8 @@ export function drawArchBeat(ctx, s, t, ms, el) {
   ctx.translate(fx + fw / 2 - (f.x + f.w / 2) * k, fy + fh / 2 - (f.y + f.h / 2) * k);
   ctx.scale(k, k);
   // How far the build has got: complete after the overview.
-  const build = s.fresh ? t : 1;
+  // A new diagram builds in its first four seconds, however long the narration over it runs.
+  const build = s.fresh ? Math.min(1, el / 4000) : 1;
   const color = new Map([...arch.groups.map(g => [g.id, g.color]), ...arch.nodes.map(n => [n.id, n.color])]);
   const lit = id => !s.highlight || s.highlight === id || (s.highlight === 'services' ? id.startsWith('svc:') || arch.edges.some(e => e.to.startsWith('svc:') && e.from === id) : arch.nodes.find(n => n.id === id)?.group === s.highlight);
   const dim = s.fresh ? 1 : 0.22 + 0.78 * (1 - ease((el - 400) / 900));
