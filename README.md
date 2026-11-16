@@ -2,6 +2,8 @@
 
 [![website](https://img.shields.io/badge/try%20it-harshdubey23.github.io%2FRepoTale-ff488b)](https://harshdubey23.github.io/RepoTale/) [![npm](https://img.shields.io/npm/v/@theharshdubey/reporeel?color=ff488b&label=npm)](https://www.npmjs.com/package/@theharshdubey/reporeel) [![CI](https://github.com/HarshDubey23/RepoTale/actions/workflows/ci.yml/badge.svg)](https://github.com/HarshDubey23/RepoTale/actions/workflows/ci.yml) ![license](https://img.shields.io/badge/license-MIT-blue)
 
+[![RepoTale films a repository: the architecture builds itself while the narration explains it](web/assets/repotale-demo.gif)](https://harshdubey23.github.io/RepoTale/#demo)
+
 **Every claim about your code, with the line that proves it.** Paste a GitHub link and RepoTale maps the architecture, tells you what a change would reach, and makes a narrated film of the repository, where every sentence links to the file and line behind it.
 
 Two ways to use it:

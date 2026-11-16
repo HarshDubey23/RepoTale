@@ -31,6 +31,54 @@ document.fonts?.ready.then(() => player?.draw());
 // Visitors who ask for less motion get the clip's poster frame instead of the loop.
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) for (const v of document.querySelectorAll('video[autoplay]')) { v.autoplay = false; v.pause(); }
 
+// ------------------------------------------------------------- motion
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// The headline arrives word by word.
+for (const h of $$('.hero-title, .demo-title, .stills-title')) {
+  if (calm) break;
+  h.innerHTML = h.textContent.split(' ').map((w, i) => `<span class="w" style="--i:${i}">${w}</span>`).join(' ');
+  h.classList.add('words');
+}
+/** The diagram assembles itself: parts settle in, arrows draw from caller to callee, then pulses
+ *  keep travelling the real import paths, one after another. */
+function perform(svg) {
+  if (calm) return;
+  const nodes = $$('.node, .grp', svg), edges = $$('.edge', svg);
+  nodes.forEach((n, i) => { n.style.animation = `pop .7s var(--ease) ${200 + i * 45}ms both`; n.style.transformBox = 'fill-box'; n.style.transformOrigin = 'center'; });
+  edges.forEach((e, i) => { const L = e.getTotalLength(); e.style.strokeDasharray = L; e.style.strokeDashoffset = L; e.style.transition = `stroke-dashoffset 1.1s var(--ease) ${900 + i * 55}ms`; });
+  requestAnimationFrame(() => requestAnimationFrame(() => edges.forEach(e => { e.style.strokeDashoffset = 0; })));
+  const NS = 'http://www.w3.org/2000/svg', inner = edges.filter(e => !e.getAttribute('stroke-dasharray'));
+  const dots = Array.from({ length: 4 }, () => { const c = document.createElementNS(NS, 'circle'); c.setAttribute('r', 6); c.setAttribute('fill', '#0d2a1c'); c.style.opacity = 0; svg.querySelector('g')?.append(c); return c; });
+  const start = performance.now() + 900 + edges.length * 55 + 1100;
+  const run = now => {
+    if (now > start) dots.forEach((d, k) => {
+      const e = inner[(Math.floor((now - start) / 2200) * 3 + k * 5) % inner.length]; if (!e) return;
+      const L = e.getTotalLength(), u = ((now - start + k * 550) % 2200) / 2200, p = e.getPointAtLength(L * u);
+      d.setAttribute('cx', p.x); d.setAttribute('cy', p.y); d.style.opacity = Math.sin(Math.PI * u).toFixed(2);
+    });
+    if (document.contains(svg)) requestAnimationFrame(run);
+  };
+  requestAnimationFrame(run);
+}
+
+// The yellow stage drifts a little slower than the page.
+if (!calm) addEventListener('scroll', () => { const st = document.querySelector('.stage'); if (st && scrollY < innerHeight * 1.5) st.style.transform = `translateY(${(scrollY * -0.08).toFixed(1)}px)`; }, { passive: true });
+
+// ------------------------------------------------------------- the demo film
+{
+  const v = $('#demo-video'), play = $('#demo-play');
+  const go = () => { v.muted = false; v.play().catch(() => {}); play.hidden = true; };
+  play.addEventListener('click', go);
+  v.addEventListener('play', () => { play.hidden = true; });
+  for (const b of $$('.voices button')) b.addEventListener('click', () => {
+    // Switching voice keeps the place in the film.
+    const at = v.currentTime, playing = !v.paused;
+    $$('.voices button').forEach(x => x.setAttribute('aria-checked', x === b));
+    v.src = `assets/demo-${b.dataset.voice}.mp4`;
+    v.addEventListener('loadedmetadata', () => { v.currentTime = Math.min(at, v.duration - 0.2); if (playing) v.play().catch(() => {}); }, { once: true });
+  });
+}
+
 // ------------------------------------------------------------- the hero fragment
 // RepoTale's own architecture, rendered by arch.js at build time; it traces imports on hover and
 // opens the file on select, the same as the diagram a visitor gets for their own repository.
@@ -38,6 +86,7 @@ fetch('hero-arch.svg').then(r => r.ok ? r.text() : '').then(svg => {
   const box = $('#hero-arch'); if (!svg || !box) return;
   box.innerHTML = svg;
   const el = box.querySelector('svg');
+  perform(el);
   for (const n of $$('.node', el)) {
     const id = n.dataset.id, file = n.dataset.file;
     n.addEventListener('mouseenter', () => trace(el, id)); n.addEventListener('mouseleave', () => trace(el, null));
@@ -53,7 +102,7 @@ fetch('hero-arch.svg').then(r => r.ok ? r.text() : '').then(svg => {
 let lastY = 0;
 addEventListener('scroll', () => { const y = scrollY; $('.bar').classList.toggle('away', y > lastY && y > 400); lastY = y; }, { passive: true });
 const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.15 });
-for (const el of $$('.how-text, .switches, .cta-form, .foot-top, .r-head, .still, .stills-title')) { el.classList.add('reveal'); io.observe(el); }
+for (const el of $$('.how-text, .switches, .cta-form, .foot-top, .r-head, .still, .demo-head, .demo-screen, .stills-title')) { el.classList.add('reveal'); io.observe(el); }
 
 // ------------------------------------------------------------- asking
 const input = $('#repo');

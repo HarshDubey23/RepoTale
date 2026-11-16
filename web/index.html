@@ -23,6 +23,7 @@
 <header class="bar">
   <a class="mark" href="#top" aria-label="RepoTale, back to top">RepoTale</a>
   <nav aria-label="Sections">
+    <a href="#demo">Demo</a>
     <a href="#how">How</a>
     <a href="#switches">Options</a>
     <a href="#cli">CLI</a>
@@ -74,7 +75,7 @@
     </div>
     <figure class="stage" aria-label="RepoTale's own architecture, drawn by RepoTale from its code. Hover a part to trace its imports; select it to open the file.">
       <div class="stage-ui" id="hero-arch" data-ui></div>
-      <figcaption>RepoTale, read by RepoTale: 14 parts, every arrow a real import.</figcaption>
+      <figcaption>RepoTale, drawn by RepoTale</figcaption>
     </figure>
   </section>
 
@@ -160,6 +161,23 @@
 
     <div class="panel" role="tabpanel" id="p-export" aria-labelledby="t-export" hidden data-ui>
       <ul class="exports" id="exports"></ul>
+    </div>
+  </section>
+
+  <!-- A film RepoTale made, ready to watch at once, in three voices. -->
+  <section class="demo" id="demo" aria-labelledby="demo-title">
+    <div class="demo-head">
+      <h2 id="demo-title" class="demo-title">Watch one it made</h2>
+      <p class="demo-line">Forty seconds on the ky HTTP client and the expressjs.com website, rendered and narrated by RepoTale in your browser. Pick a voice.</p>
+      <div class="voices" role="radiogroup" aria-label="Narrator">
+        <button type="button" role="radio" aria-checked="true" data-voice="af_heart">Heart <span>American</span></button>
+        <button type="button" role="radio" aria-checked="false" data-voice="am_michael">Michael <span>American</span></button>
+        <button type="button" role="radio" aria-checked="false" data-voice="bm_george">George <span>British</span></button>
+      </div>
+    </div>
+    <div class="demo-screen">
+      <video id="demo-video" src="assets/demo-af_heart.mp4" poster="assets/still-arch.jpg" width="1280" height="720" controls playsinline preload="metadata"></video>
+      <button type="button" class="demo-play" id="demo-play" aria-label="Play the film with sound"><span></span></button>
     </div>
   </section>
 
