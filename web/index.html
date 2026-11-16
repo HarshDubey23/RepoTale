@@ -36,7 +36,7 @@
       <span>Rep</span><span class="glyph" aria-hidden="true"><canvas id="glyph" width="320" height="320"></canvas></span><span class="sr">o</span><span>Tale</span>
     </h1>
     <div class="hero-foot">
-      <p class="hero-line">Paste any GitHub repository. Get its architecture, a narrated film, and the exact line of code behind every claim.</p>
+      <p class="hero-line">Paste a GitHub repository or any website. Get its architecture, a narrated film of every page, and the exact source behind every claim.</p>
       <a class="btn" href="#tell">Tell a repo's tale</a>
     </div>
   </section>
@@ -64,6 +64,7 @@
         <button type="button" data-repo="expressjs/express">expressjs/express</button>
         <button type="button" data-repo="pallets/flask">pallets/flask</button>
         <button type="button" data-repo="HarshDubey23/RepoTale">HarshDubey23/RepoTale</button>
+        <button type="button" data-repo="https://expressjs.com">expressjs.com (website)</button>
       </div>
       <details class="token">
         <summary>Live site, private repository, or rate limit?</summary>
@@ -71,6 +72,8 @@
         <input id="live" type="url" placeholder="https://your-app.example.com" aria-label="Live site address" spellcheck="false">
         <p>A fine-grained token with read-only access to contents lifts the limit from 60 to 5,000 requests an hour. It stays in this tab's memory and is sent only to api.github.com.</p>
         <input id="token" type="password" placeholder="github_pat_…" aria-label="GitHub token" spellcheck="false">
+        <p>Reading many website pages? A free key from jina.ai lifts the limit of 20 pages a minute. It stays in this tab and goes only to r.jina.ai.</p>
+        <input id="jina-key" type="password" placeholder="jina_…" aria-label="Jina API key" spellcheck="false">
       </details>
     </form>
   </section>

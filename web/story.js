@@ -454,6 +454,59 @@ const DRAW = {
   },
 };
 
+/** A film of a website: a title, then each page in depth (what it leads with, what it says,
+ *  how it is organised, its key points), then an ending. */
+/** When a page could not be photographed: the page drawn from what it says, as a tall image the
+ *  camera can travel over like a screenshot. */
+function pageCard(r, url) {
+  const W2 = 1280, c = document.createElement('canvas'), x = c.getContext('2d');
+  const blocks = [['h1', r.h1 ?? r.title ?? url], ...(r.lead ? [['p', r.lead]] : []), ...r.sections.flatMap(sec => [['h2', sec]]), ...(r.points ?? []).map(pt => ['li', pt])];
+  const style = { h1: ["700 64px 'Inter Tight'", 76, 40], h2: ["600 34px 'Inter Tight'", 44, 36], p: ["400 26px 'Inter Tight'", 38, 28], li: ["400 24px 'Inter Tight'", 34, 14] };
+  const lay = [];
+  let y = 120;
+  for (const [k, text] of blocks) {
+    x.font = style[k][0];
+    const lines = wrap(x, (k === 'li' ? '•  ' : '') + text, W2 - 240);
+    lay.push([k, lines, y]); y += lines.length * style[k][1] + style[k][2];
+  }
+  c.width = W2; c.height = Math.max(900, y + 120);
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height);
+  x.fillStyle = '#f5f5f7'; x.fillRect(0, 0, c.width, 64);
+  x.font = "600 18px 'Inter Tight'"; x.fillStyle = '#1d1d1f'; x.fillText(new URL(url).host, 120, 40);
+  for (const [k, lines, y0] of lay) {
+    x.font = style[k][0]; x.fillStyle = k === 'p' || k === 'li' ? '#424245' : '#1d1d1f';
+    lines.forEach((l, i) => x.fillText(l, 120, y0 + style[k][1] * (i + 0.8)));
+  }
+  c.naturalWidth = c.width; c.naturalHeight = c.height;
+  return c;
+}
+
+export function buildSiteStory(site) {
+  // A heading or bullet on several pages is the site's menu or footer, not what a page is about.
+  const seen = new Map();
+  for (const p of site.pages) for (const x of new Set([...p.read.sections, ...(p.read.points ?? [])])) seen.set(x, (seen.get(x) ?? 0) + 1);
+  const own = a => site.pages.length > 2 ? a.filter(x => seen.get(x) < 2) : a;
+  site.pages.forEach(p => { p.read = { ...p.read, sections: own(p.read.sections), points: own(p.read.points ?? []) }; });
+  const S = [];
+  const name = site.title?.split(/\s[|–—·-]\s/)[0]?.trim() || site.host;
+  S.push({ kind: 'title', heading: name, sub: `${site.host} · ${plural(site.pages.length, 'page')}`, evidence: [{ file: site.host, url: site.start }],
+    say: `This is ${name}, at ${site.host}. We will walk through ${plural(site.pages.length, 'page')} and see what each one says and offers.` });
+  site.pages.forEach((p, k) => {
+    const r = p.read;
+    const where = p.route === '/' ? 'home page' : `${p.route.replace(/^\/|\/$|\.html$/g, '').split('/').pop().replace(/[-_]+/g, ' ')} page`;
+    const bits = [k === 0 ? `We start on the ${where}.` : `Next, the ${where}.`];
+    if (r.h1) bits.push(`It leads with “${r.h1.replace(/[“”"]/g, '')}”.`);
+    if (r.lead) bits.push(r.lead);
+    if (r.sections.length > 1) bits.push(`The page is organised into ${list(r.sections.slice(0, 4).map(x => x.toLowerCase()))}.`);
+    if (r.points?.length) bits.push(`Key points: ${r.points.slice(0, 3).map(x => x.replace(/[.;:]$/, '')).join('; ')}.`);
+    S.push({ kind: 'site', heading: p.route, url: p.url, img: p.img ?? pageCard(r, p.url), say: bits.join(' '), evidence: [{ file: p.route, url: p.url }] });
+  });
+  S.push({ kind: 'end', heading: name, sub: site.host, evidence: [],
+    say: `That is ${name}: ${plural(site.pages.length, 'page')}, each read from the live site.` });
+  for (const x of S) x.duration = Math.max(4200, Math.min(26000, 1400 + x.say.split(/\s+/).length * 330));
+  return S;
+}
+
 /** Draw one frame. `t` is 0..1 through the scene, `ms` the absolute clock (for loops). Each scene
  *  after the first opens with a wipe: a plum panel led by a pink edge slides off to the right. */
 export function drawFrame(ctx, scenes, i, t, ms, opts = {}) {

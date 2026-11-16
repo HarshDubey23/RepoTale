@@ -315,9 +315,29 @@ export class RepoError extends Error {}
 async function gh(url, token) {
   const r = await fetch(url, { headers: { Accept: 'application/vnd.github+json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
   if (r.status === 404) throw new RepoError('That repository does not exist or is private. Add a token for private repositories.');
-  if (r.status === 403 || r.status === 429) throw new RepoError('GitHub rate limit reached (60 requests an hour without a token). Add a token, or try again in a few minutes.');
+  if (r.status === 403 || r.status === 429) throw Object.assign(new RepoError('GitHub rate limit reached (60 requests an hour without a token). Add a token, or try again in a few minutes.'), { limited: true });
   if (!r.ok) throw new RepoError(`GitHub answered ${r.status}.`);
   return r.json();
+}
+
+/** The three GitHub API answers analyze needs, rebuilt from ungh.cc (a public GitHub proxy).
+ *  shortcut: no license or homepage there; those show as unknown on this path. */
+export async function viaUngh(repo) {
+  const get = async u => { const r = await fetch('https://ungh.cc/repos/' + u); if (!r.ok) throw new RepoError(r.status === 404 ? 'That repository does not exist or is private. Add a token for private repositories.' : 'GitHub rate limit reached and the fallback did not answer. Try again in a few minutes, or add a token.'); return r.json(); };
+  const { repo: m } = await get(`${repo.owner}/${repo.name}`);
+  const branch = repo.ref ?? m.defaultBranch;
+  const files = await get(`${repo.owner}/${repo.name}/files/${encodeURIComponent(branch)}`);
+  return fromUngh(m, branch, files);
+}
+/** Pure: ungh's answers in the shape of GitHub's. */
+export function fromUngh(m, branch, files) {
+  const [owner, name] = m.repo.split('/');
+  return {
+    info: { owner: { login: owner }, name, full_name: m.repo, description: m.description, stargazers_count: m.stars, forks_count: m.forks, license: null, homepage: null,
+      html_url: `https://github.com/${m.repo}`, has_pages: false, default_branch: m.defaultBranch },
+    commit: { sha: files.meta.sha, commit: { committer: { date: m.pushedAt ?? null } } },
+    treeRes: { truncated: false, tree: files.files.map(f => ({ path: f.path, type: 'blob', size: f.size })) },
+  };
 }
 
 /** Fetch and analyse. `progress(stage, done, total)` is called as work proceeds. */
@@ -326,10 +346,18 @@ export async function analyze(input, { token, progress = () => {} } = {}) {
   if (!repo) throw new RepoError('Paste a GitHub repository, like owner/name or a github.com link.');
   const api = `https://api.github.com/repos/${repo.owner}/${repo.name}`;
   progress('read', 0, 1);
-  const info = await gh(api, token);
+  let info, commit, treeRes;
+  try {
+    info = await gh(api, token);
+    commit = await gh(`${api}/commits/${encodeURIComponent(repo.ref ?? info.default_branch)}`, token);
+    treeRes = await gh(`${api}/git/trees/${commit.sha}?recursive=1`, token);
+  } catch (e) {
+    // Out of GitHub API calls: read a public repository through ungh.cc instead, which serves the
+    // same metadata, the pinned commit and the full file list without GitHub's hourly limit.
+    if (!e.limited || token) throw e;
+    ({ info, commit, treeRes } = await viaUngh(repo));
+  }
   const ref = repo.ref ?? info.default_branch;
-  const commit = await gh(`${api}/commits/${encodeURIComponent(ref)}`, token);
-  const treeRes = await gh(`${api}/git/trees/${commit.sha}?recursive=1`, token);
   const tree = treeRes.tree;
   const paths = tree.filter(t => t.type === 'blob').map(t => t.path);
   const raw = p => `https://raw.githubusercontent.com/${info.full_name}/${commit.sha}/${p.split('/').map(encodeURIComponent).join('/')}`;
@@ -430,10 +458,24 @@ export function headingOf(text) {
  *  walks through, and its first real sentence. Read through r.jina.ai, which loads the page in a
  *  browser and returns Markdown.
  *  shortcut: Jina's free tier, 20 pages a minute without a key; add a key header past that. */
-export async function readPage(url, timeout = 25000) {
+// Jina allows 20 requests a minute without a key: requests are spaced to stay under it, and a
+// refused one (429) is tried once more after a pause. A key (free at jina.ai) lifts the limit.
+let jinaKey = '', next = 0;
+export const setJinaKey = k => { jinaKey = k?.trim() ?? ''; };
+async function jina(url, format, signal) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!jinaKey) { const now = Date.now(), wait = Math.max(0, next - now); next = Math.max(now, next) + 3200; if (wait) await new Promise(r => setTimeout(r, wait)); }
+    const r = await fetch('https://r.jina.ai/' + url, { headers: { 'X-Return-Format': format, ...(jinaKey ? { Authorization: `Bearer ${jinaKey}` } : {}) }, signal });
+    if (r.status !== 429) return r;
+    await new Promise(r => setTimeout(r, 4000));
+  }
+  return { ok: false };
+}
+
+export async function readPage(url, timeout = 45000) {
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeout);
   try {
-    const r = await fetch('https://r.jina.ai/' + url, { headers: { 'X-Return-Format': 'markdown' }, signal: ctl.signal });
+    const r = await jina(url, 'markdown', ctl.signal);
     return r.ok ? pageFacts(await r.text()) : null;
   } catch { return null; } finally { clearTimeout(t); }
 }
@@ -442,7 +484,7 @@ export async function readPage(url, timeout = 25000) {
 export function pageFacts(md) {
   const title = md.match(/^Title: (.+)$/m)?.[1]?.trim() ?? null;
   const body = md.split(/^Markdown Content:\s*$/m)[1] ?? md;
-  const clean = h => h.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim();
+  const clean = h => h.replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim();
   const nav = /^(main menu|menu|navigation|skip|search|table of contents|on this page|contents|footer|sign in|log in)$/i;
   const heads = [...body.matchAll(/^(#{1,3}) (.+)$/gm)].map(m => ({ level: m[1].length, text: clean(m[2]), at: m.index })).filter(h => h.text.length > 2 && h.text.length < 90 && !nav.test(h.text));
   const h1 = heads.find(h => h.level === 1) ?? null;
@@ -451,20 +493,75 @@ export function pageFacts(md) {
   const named = hs => hs.map(h => h.text.replace(/[.!:]$/, '')).filter(t => !/[.!?] /.test(t) && t.split(' ').length <= 6);
   const sections = [...new Set(named(after).length >= 2 ? named(after) : named(heads.filter(h => h !== h1)))].slice(0, 4);
   const lead = body.split('\n').map(l => clean(l)).find(l => l.length > 60 && l.length < 260 && /[a-z]/.test(l) && !/^(!|\||http)/.test(l) && /[.!?]$/.test(l)) ?? null;
-  return { title, h1: h1?.text ?? null, sections, lead };
+  // Key points: list items under the headline that say something (not menus of bare links).
+  const after1 = h1 ? body.slice(h1.at) : body;
+  const points = [...new Set([...after1.matchAll(/^\s*(?:[-*+]|\d+\.) (.+)$/gm)].map(m => m[1]).filter(l => !/^\[[^\]]*\]\([^)]*\)\s*$/.test(l.trim())).map(clean)
+    .filter(l => l.length > 14 && l.length < 160 && /[a-z]{3}/.test(l)))].slice(0, 4);
+  const links = [...body.matchAll(/\]\((https?:\/\/[^)\s]+)/g)].map(m => m[1]);
+  return { title, h1: h1?.text ?? null, sections, lead, points, links };
+}
+
+// Links a crawl must never follow: they sign out, destroy, or are files.
+const UNSAFE = /log-?out|sign-?out|delete|remove|destroy|unsubscribe|deactivate|reset/i;
+const FILEX = /\.(pdf|zip|csv|xlsx?|docx?|png|jpe?g|gif|svg|webp|mp4|webm|xml|json|txt)$/i;
+/** Pages of the same site worth a scene, in the order the page lists them. Pure. */
+export function siteLinks(base, hrefs) {
+  const origin = new URL(base).origin, out = new Set();
+  for (const h of hrefs) {
+    let u; try { u = new URL(h, base); } catch { continue; }
+    if (u.origin !== origin || FILEX.test(u.pathname) || UNSAFE.test(u.pathname + u.search)) continue;
+    u.hash = ''; out.add(u.href.replace(/\/$/, ''));
+  }
+  out.delete(base.replace(/\/$/, ''));
+  return [...out];
+}
+
+/** A public website, page by page: the start page, then the pages it links to, each read and
+ *  photographed. Pages that cannot be read or photographed are left out.
+ *  shortcut: public pages only; signing in needs a real browser, which is what `repotale tour` does. */
+export async function crawlSite(start, { max = 7, progress = () => {} } = {}) {
+  const home = start.replace(/#.*$/, '');
+  progress('read', 0, 1);
+  const first = await readPage(home);
+  if (!first) throw new RepoError('That website could not be read. Check the address, or try again in a minute.');
+  const queue = [home, ...siteLinks(home, first.links)], pages = [];
+  // Three pages at a time: each needs a read and a shot, and Jina allows twenty requests a minute.
+  const one = async (url, k) => {
+    const [read, img] = await Promise.all([k === 0 ? first : readPage(url), shot(url).catch(() => null)]);
+    return read && (read.h1 || read.lead || read.sections.length) ? { url, route: new URL(url).pathname || '/', read, img } : null;
+  };
+  for (let k = 0; k < Math.min(queue.length, max * 2) && pages.length < max; k += 3) {
+    progress('site', pages.length, max);
+    const got = await Promise.all(queue.slice(k, k + 3).map((u, j) => one(u, k + j)));
+    for (const g of got) if (g && pages.length < max) pages.push(g);
+  }
+  progress('site', pages.length, max);
+  if (!pages.length) throw new RepoError('No page of that website could be read. It may block readers, or need a sign-in.');
+  return { start: home, host: new URL(home).host.replace(/^www\./, ''), title: first.title, pages };
 }
 
 /** A screenshot of one page, as an image the canvas may record (the service sends CORS headers).
  *  shortcut: thum.io's free tier, unauthenticated. If it throttles, add a key or self-host Playwright. */
-export function shot(url, timeout = 45000) {
+export async function shot(url, timeout = 60000) {
+  // First choice: Jina's full-page shot (the whole page, so the camera has something to scroll).
+  // shortcut: shares Jina's 20 requests a minute with readPage; thum.io (1200x1200) is the fallback.
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeout);
+  try {
+    const r = await jina(url, 'pageshot', ctl.signal);
+    const src = r.ok ? (await r.text()).trim().split(/\s/)[0] : '';
+    if (/^https:\/\//.test(src)) return await loadImage(src, timeout);
+  } catch {} finally { clearTimeout(t); }
+  return loadImage(`https://image.thum.io/get/width/1280/crop/1200/noanimate/${url}`, timeout);
+}
+
+function loadImage(src, timeout) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     const t = setTimeout(() => reject(new Error('screenshot timed out')), timeout);
     img.onload = () => { clearTimeout(t); img.naturalWidth > 200 && !looksEmpty(img) ? resolve(img) : reject(new Error('the page looks empty')); };
     img.onerror = () => { clearTimeout(t); reject(new Error('screenshot failed')); };
-    // The free tier caps shots at 1200 by 1200; taller crops come back the same size.
-    img.src = `https://image.thum.io/get/width/1280/crop/1200/noanimate/${url}`;
+    img.src = src;
   });
 }
 

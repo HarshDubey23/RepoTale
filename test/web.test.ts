@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { parseRepo, importsOf, symbolsOf, resolve, buildModel, cycles, blastRadius, aliasesFrom, pickFiles, detectStack, routesOf, headingOf, liveUrl, pageFacts } from '../web/analyze.js';
+import { parseRepo, importsOf, symbolsOf, resolve, buildModel, cycles, blastRadius, aliasesFrom, pickFiles, detectStack, routesOf, headingOf, liveUrl, pageFacts, siteLinks, fromUngh } from '../web/analyze.js';
 import { forEar } from '../web/voice.js';
 import { buildArch, mermaidArch, nameOf, kindOf } from '../web/arch.js';
 import { buildStory, storyboardOf, pathBetween, mermaidOf } from '../web/story.js';
@@ -117,8 +117,23 @@ Express is a [minimal](https://x) and flexible Node.js framework for web and mob
 ## Middleware
 `;
   assert.deepEqual(pageFacts(md), { title: 'Express - Node.js web framework', h1: 'Fast, minimalist web framework', sections: ['Getting started', 'Routing', 'Middleware'],
-    lead: 'Express is a minimal and flexible Node.js framework for web and mobile applications.' });
-  assert.deepEqual(pageFacts('Markdown Content:\nnothing here'), { title: null, h1: null, sections: [], lead: null });
+    lead: 'Express is a minimal and flexible Node.js framework for web and mobile applications.', points: [], links: ['https://x', 'https://x'] });
+  assert.deepEqual(pageFacts('Markdown Content:\nnothing here'), { title: null, h1: null, sections: [], lead: null, points: [], links: [] });
+});
+
+test('a website is walked through its own pages only, never its sign-out or its files', () => {
+  assert.deepEqual(siteLinks('https://site.test/', ['https://site.test/', 'https://site.test/pricing', 'https://site.test/pricing#faq', 'https://other.test/', 'https://site.test/logout', 'https://site.test/brochure.pdf', 'https://site.test/docs/']),
+    ['https://site.test/pricing', 'https://site.test/docs']);
+  const md = 'Markdown Content:\n# Plans\n- [Home](https://site.test/)\n- [![Image 4: Partner logo](https://a/b.png)](https://partner.test/)\n- Unlimited projects for every team member\n- ok\n';
+  assert.deepEqual(pageFacts(md).points, ['Unlimited projects for every team member']);
+});
+
+test('when GitHub runs out of calls, ungh answers are reshaped into the same model', () => {
+  const r = fromUngh({ repo: 'a/b', description: 'd', stars: 5, forks: 1, defaultBranch: 'main', pushedAt: '2026-01-01T00:00:00Z' }, 'main',
+    { meta: { sha: 'abc123' }, files: [{ path: 'src/x.ts', size: 10 }] });
+  assert.equal(r.info.full_name, 'a/b'); assert.equal(r.info.owner.login, 'a'); assert.equal(r.info.stargazers_count, 5);
+  assert.equal(r.commit.sha, 'abc123');
+  assert.deepEqual(r.treeRes.tree, [{ path: 'src/x.ts', type: 'blob', size: 10 }]);
 });
 
 test('narration is rewritten for the ear, not the eye', () => {

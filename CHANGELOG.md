@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Website: paste any website link to get a narrated film of its pages, read and photographed through r.jina.ai (paced under the free limit; optional Jina key). Public repositories still open when GitHub rate-limits, through ungh.cc.
+
 - The film reads each live page through r.jina.ai and narrates what it actually says: its headline, the sections it walks through, or its first sentence. The browser's built-in voice is no longer offered, and a saved choice of it falls back to the neural voice.
 
 - Website redesign, Apple-minimal: white, near-black ink, one blue, bold tightly tracked Inter Tight; the same look on the page, in the film and in the diagram (light by default, dark on request). Diagram parts are drawn by kind: cylinders for databases, a cloud for hosted services, a pipe for queues, a browser window for UI, cut corners for APIs, a folded page for config, side rails for tools. Page scenes have a camera that finds the two busiest regions of each page, pushes in on them with a cursor that clicks, and scrolls to the end; each scene enters with a transition chosen from what it is and what came before (zoom, iris, slide, wipe, blur, rise).

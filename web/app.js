@@ -1,8 +1,8 @@
 // The page: ask for a repository, read it, then show the film, the map, the evidence and the exports.
-import { analyze, parseRepo, permalink, blastRadius, RepoError, shot, readPage } from './analyze.js';
+import { analyze, parseRepo, permalink, blastRadius, RepoError, shot, readPage, crawlSite, setJinaKey } from './analyze.js';
 import { buildArch, layoutArch, renderArch, mermaidArch, loadElk } from './arch.js';
 import { VoicePool, VOICES, ELEVEN, elevenSay } from './voice.js';
-import { buildStory, Player, record, storyboardOf, graphOf } from './story.js';
+import { buildStory, buildSiteStory, Player, record, storyboardOf, graphOf } from './story.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -62,6 +62,9 @@ for (const el of $$('.how-text, .switches, .cta-form, .foot-top, .r-head')) { el
 
 // ------------------------------------------------------------- asking
 const input = $('#repo');
+// A long name shrinks to fit the box instead of running under the button.
+const fitAsk = () => { input.style.fontSize = ''; let f = parseFloat(getComputedStyle(input).fontSize); while (input.scrollWidth > input.clientWidth && f > 18) { f -= 3; input.style.fontSize = f + 'px'; } };
+input.addEventListener('input', fitAsk); addEventListener('resize', fitAsk); requestAnimationFrame(fitAsk);
 $('#ask').addEventListener('submit', e => { e.preventDefault(); run(input.value); });
 $$('.examples button').forEach(b => b.addEventListener('click', () => { input.value = b.dataset.repo; run(b.dataset.repo); }));
 $('#cta').addEventListener('submit', e => { e.preventDefault(); const v = $('#cta-repo').value; input.value = v; $('#tell').scrollIntoView(); run(v); });
@@ -75,11 +78,61 @@ function stage(name, text, p) {
   });
 }
 
+/** Any link that is not GitHub is a website to walk through. */
+const siteOf = v => { if (!/^https?:\/\//i.test(v.trim())) return null; try { const u = new URL(v.trim()); return /(^|\.)github\.com$/i.test(u.host) ? null : u.href; } catch { return null; } };
+
+// The stage list speaks about code; for a website it names what actually happens.
+const stageLabels = () => $$('#stages li span').map(x => x.textContent);
+const repoStages = stageLabels();
+const label = names => $$('#stages li').forEach((li, i) => { li.querySelector('span').textContent = names[i]; li.hidden = !names[i]; });
+
+async function runSite(url) {
+  const err = $('#ask-error');
+  setJinaKey($('#jina-key').value);
+  label(['Open the website', '', '', 'Read and photograph each page', 'Write the film']);
+  player?.pause();
+  $('.ask-note').hidden = true; $('#stages').hidden = false;
+  $('#ask').setAttribute('aria-busy', 'true'); $$('.ask-go, .examples button').forEach(b => b.disabled = true);
+  try {
+    const site = await crawlSite(url, { progress: (st, d, t) => stage(st, st === 'site' ? `${d} / ${t} pages` : 'opening the site', t ? d / t : 0) });
+    stage('film', '', 0.6);
+    scenes = buildSiteStory(site);
+    model = { meta: { name: site.host, full: site.host }, site };
+    $$('#stages li').forEach(li => { li.dataset.state = 'done'; li.style.setProperty('--p', 1); li.querySelector('b').textContent = ''; });
+    history.replaceState(null, '', '#site=' + encodeURIComponent(site.start));
+    showSite(site);
+  } catch (e) {
+    err.textContent = e instanceof RepoError ? e.message : `Something went wrong reading that website: ${e.message}`;
+    err.hidden = false; $('#stages').hidden = true; console.error(e);
+  } finally {
+    $('#ask').removeAttribute('aria-busy'); $$('.ask-go, .examples button').forEach(b => b.disabled = false);
+  }
+}
+
+/** A website has a film and nothing else: no code, so no architecture, files or evidence. */
+function showSite(site) {
+  $('#result').hidden = false;
+  document.body.classList.add('has-result');
+  $('#r-name').textContent = site.host;
+  $('#r-desc').textContent = site.title ?? '';
+  $('#r-meta').replaceChildren(`${site.pages.length} pages read and photographed from `, h('a', { href: site.start, target: '_blank', rel: 'noopener' }, site.start));
+  document.title = `${site.host} — RepoTale`;
+  for (const t of ['arch', 'map', 'evidence', 'export']) $('#t-' + t).hidden = true;
+  selectTab('film');
+  setupFilm();
+  $('#result').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+}
+
 async function run(value) {
+  fitAsk();
+  const site = siteOf(value);
+  if (site) return runSite(site);
+  for (const t of ['arch', 'map', 'evidence', 'export']) $('#t-' + t).hidden = false;
+  label(repoStages);
   const repo = parseRepo(value);
   const err = $('#ask-error');
   err.hidden = true;
-  if (!repo) { err.textContent = 'That does not look like a repository. Try owner/name, or paste its github.com link.'; err.hidden = false; return; }
+  if (!repo) { err.textContent = 'That does not look like a repository or a website. Try owner/name, a github.com link, or https://any-website.com.'; err.hidden = false; return; }
   player?.pause();
   $('.ask-note').hidden = true; $('#stages').hidden = false;
   $('#ask').setAttribute('aria-busy', 'true'); $$('.ask-go, .examples button').forEach(b => b.disabled = true);
@@ -617,6 +670,11 @@ $('#dz-mermaid').addEventListener('click', async e => {
 });
 
 // ------------------------------------------------------------- deep links: #/owner/name
-const fromHash = () => { const m = location.hash.match(/^#\/([\w.-]+\/[\w.-]+)/); if (m) { input.value = m[1]; run(m[1]); } };
-addEventListener('hashchange', () => { if (!model || !location.hash.endsWith(model.meta.full)) fromHash(); });
+const fromHash = () => {
+  requestAnimationFrame(fitAsk);
+  const site = location.hash.match(/^#site=(.+)$/);
+  if (site) { input.value = decodeURIComponent(site[1]); return run(input.value); }
+  const m = location.hash.match(/^#\/([\w.-]+\/[\w.-]+)/); if (m) { input.value = m[1]; run(m[1]); }
+};
+addEventListener('hashchange', () => { if (!model || (!location.hash.endsWith(model.meta.full) && !model.site)) fromHash(); });
 fromHash();
