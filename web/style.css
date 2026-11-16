@@ -511,8 +511,8 @@ body { font-feature-settings: "ss01", "cv11"; }
 .ask .token { margin-top: 14px; }
 .stage { position: absolute; left: 44vw; right: 0; top: 42%; bottom: 0; margin: 0; background: var(--accent); overflow: hidden;
   clip-path: polygon(220px 0, 100% 0, 100% 100%, 0 100%, 0 120px); }
-.stage-ui { position: absolute; left: 56px; top: 56px; width: 1630px; overflow: hidden; background: #fff; transform-origin: 0 0; animation: stage-in 1.1s var(--ease) both; }
-.stage-ui svg { display: block; width: 1630px; height: auto; margin-top: -150px; }
+.stage-ui { position: absolute; left: 56px; top: 56px; width: min(1100px, calc(56vw - 112px)); overflow: hidden; background: #fff; transform-origin: 0 0; animation: stage-in 1.1s var(--ease) both; }
+.stage-ui svg { display: block; width: 100%; height: auto; }
 .stage-ui .node { cursor: pointer; transition: opacity .18s; }
 .stage-ui svg.tracing .node:not(.on), .stage-ui svg.tracing .edge:not(.on), .stage-ui svg.tracing .elabel:not(.on) { opacity: .12; }
 .stage figcaption { position: absolute; right: var(--m); top: 18px; z-index: 1; font-size: 14px; font-weight: 500; color: var(--accent-ink); background: var(--accent); padding: 6px 0 0 12px; }
@@ -526,8 +526,8 @@ body.has-result .ask .ask-form { margin-top: 0; }
   .ask-copy { width: auto; }
   .hero-title { font-size: 11vw; }
   .hero-line { font-size: 16px; }
-  .stage { position: relative; left: auto; top: auto; margin: 40px calc(-1 * var(--m)) 0; height: 64svh; clip-path: polygon(72px 0, 100% 0, 100% 100%, 0 100%, 0 48px); }
-  .stage-ui { left: 16px; top: 40px; }
+  .stage { position: relative; left: auto; top: auto; margin: 40px calc(-1 * var(--m)) 0; height: auto; clip-path: polygon(72px 0, 100% 0, 100% 100%, 0 100%, 0 48px); }
+  .stage-ui { position: relative; left: 16px; top: 0; width: calc(100% - 32px); margin: 56px 0 40px; }
 }
 @media (prefers-reduced-motion: reduce) { .stage-ui { animation: none; } }
 .cites a, .rec-note a { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 4px; text-underline-offset: 3px; }

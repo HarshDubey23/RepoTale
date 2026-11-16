@@ -98,9 +98,10 @@ export function resolve(from, imp, lang, all, ctx = {}) {
     if (spec.startsWith('.')) base = norm(dir(from) + '/' + spec);
     else if (ctx.alias) { for (const [k, v] of ctx.alias) if (spec === k || spec.startsWith(k + '/')) base = norm(v + spec.slice(k.length)); }
     if (base === undefined) return null;
-    const stem = base.replace(/\.(js|mjs|cjs|jsx)$/, '');
-    const cands = [base, ...JS_EXT.map(e => stem + e), ...JS_EXT.map(e => base + '/index' + e)];
-    return cands.find(c => all.has(c)) ?? null;
+    const find = b => { const stem = b.replace(/\.(js|mjs|cjs|jsx)$/, ''); return [b, ...JS_EXT.map(e => stem + e), ...JS_EXT.map(e => b + '/index' + e)].find(c => all.has(c)); };
+    // A bin script often imports the compiled build (dist/cli.js), which is not in the repository:
+    // the source it was built from is the same path under src/.
+    return find(base) ?? (/^(dist|build|out)\//.test(base) ? find(base.replace(/^(dist|build|out)\//, 'src/')) : null) ?? null;
   }
   if (lang === 'py') {
     const dots = spec.match(/^\.*/)[0].length;

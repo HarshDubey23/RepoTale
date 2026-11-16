@@ -132,11 +132,11 @@ fetch('hero-arch.svg').then(r => r.ok ? r.text() : '').then(svg => {
   const el = box.querySelector('svg');
   perform(el);
   for (const n of $$('.node', el)) {
-    const id = n.dataset.id, file = n.dataset.file;
+    const id = n.dataset.id, file = n.dataset.file, area = n.dataset.area;
     n.addEventListener('mouseenter', () => trace(el, id)); n.addEventListener('mouseleave', () => trace(el, null));
     n.addEventListener('focus', () => trace(el, id)); n.addEventListener('blur', () => trace(el, null));
-    if (file) {
-      const go = () => window.open(`https://github.com/HarshDubey23/RepoTale/blob/main/${file}`, '_blank', 'noopener');
+    if (file || area) {
+      const go = () => window.open(`https://github.com/HarshDubey23/RepoTale/${file ? 'blob' : 'tree'}/main/${file ?? area}`, '_blank', 'noopener');
       n.addEventListener('click', go); n.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
     }
   }

@@ -41,6 +41,10 @@ test('resolve only links to files that exist', () => {
   assert.equal(resolve('src/a.ts', { spec: '@/lib' }, 'js', all, { alias: aliasesFrom('{"compilerOptions":{"paths":{"@/*":["src/*"]}}}') }), 'src/lib/index.ts');
   assert.equal(resolve('pkg/views.py', { spec: '.models', names: ['User'] }, 'py', all), 'pkg/models.py');
   assert.equal(resolve('pkg/views.py', { spec: 'pkg', names: ['models'] }, 'py', all), 'pkg/models.py');
+  // A bin script importing the compiled build lands on the source it came from, and only if it exists.
+  assert.equal(resolve('bin/cli.js', { spec: '../dist/a.js' }, 'js', all), 'src/a.ts');
+  assert.equal(resolve('bin/cli.js', { spec: '../dist/missing.js' }, 'js', all), null);
+  assert.equal(resolve('bin/cli.js', { spec: '../dist/lib' }, 'js', new Set([...all, 'dist/lib/index.js'])), 'dist/lib/index.js', 'a real dist file wins');
 });
 
 test('cycles and blast radius follow the edges exactly', () => {
@@ -204,8 +208,15 @@ test('this repository, end to end: every edge resolves, every film claim cites a
   // The overview: one box per subsystem; an arrow's count is exactly the real imports between the
   // two subsystems, both directions together when it has two heads.
   const ov = overviewArch(model, arch);
-  assert.deepEqual(ov.nodes.map(n => n.area), arch.groups.map(g => g.area));
   const areaOf = new Map(model.modules.map(m => [m.file, m.area]));
+  // Every subsystem is drawn, except a one-file folder with no imports either way (bin/ here).
+  const code = model.modules.filter(m => !m.test);
+  for (const g of arch.groups) {
+    const drawn = ov.nodes.some(n => n.area === g.area), files = code.filter(m => m.area === g.area);
+    const linked = model.edges.some(e => (areaOf.get(e.from) === g.area) !== (areaOf.get(e.to) === g.area) && code.some(m => m.file === e.from) && code.some(m => m.file === e.to));
+    assert.equal(drawn, linked || files.length > 1, g.area);
+  }
+  assert.ok(!ov.nodes.some(n => n.area === 'bin'));
   const real = (a: string, b: string) => model.edges.filter(e => !model.modules.find(m => m.file === e.from)?.test && !model.modules.find(m => m.file === e.to)?.test
     && areaOf.get(e.from) === a && areaOf.get(e.to) === b).length;
   const byId = new Map(ov.nodes.map(n => [n.id, n]));

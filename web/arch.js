@@ -203,6 +203,10 @@ export function overviewArch(model, arch) {
     e.label = e.both ? `${e.count} imports, both ways` : plural(e.count, 'import');
   }
   for (const n of nodes) n.users = edges.filter(e => e.to === n.id).reduce((s, e) => s + e.count, 0);
+  // A one-file folder that imports nothing and nothing imports (a bin shim, a bench script) says
+  // nothing about the shape; it stays in "Every component".
+  const linked = new Set(merge(model, key).flatMap(e => [e.from, e.to]));
+  for (let i = nodes.length - 1; i >= 0; i--) if (!linked.has(nodes[i].id) && code.filter(m => m.area === nodes[i].area).length === 1) nodes.splice(i, 1);
   const svc = servicesFor(model, key);
   const all = [...edges, ...svc.edges];
   const starts = [...new Set(model.entries.map(m => key(m.file)).filter(Boolean))].slice(0, 2);

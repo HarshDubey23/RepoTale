@@ -356,7 +356,7 @@ const DRAW = {
     const total = L.reduce((a, l) => a + l.length + 1, 0), typed = seg(t, 0.06, 0.55) * total;
     const band = seg(t, 0.58, 0.95);
     if (band > 0) { ctx.fillStyle = '#1f4a35'; ctx.fillRect(x, y + pad + Math.min(n - 1, Math.floor(band * n)) * lh - 17, w, lh); }
-    ctx.font = '15px "JetBrains Mono", ui-monospace, Consolas, monospace';
+    ctx.font = '15px "JetBrains Mono", ui-monospace, Consolas, monospace'; // taste-skill-ignore: literal source code in the film's editor
     let left = typed, cx = 0, cy = 0;
     L.forEach((raw, k) => {
       const l = raw.replace(/\t/g, '  ').slice(0, 72), ly = y + pad + k * lh;
