@@ -13,7 +13,7 @@
 | **Ask how something works** | `owner/repo` → **Ask** | An answer from Claude (with your own API key) where every citation is checked against the code: real ones link to the exact lines, invented ones are flagged in red, never hidden. |
 | **Give your AI agent the real structure** | `npx @theharshdubey/reporeel mcp` | An MCP server: `impact`, `who_imports`, `explain_file`, `import_path`, `start_here`, `repo_overview`, answered from the import graph of your working tree. |
 | **See the architecture** | `owner/repo` | An interactive diagram laid out by ELK, every arrow a real import labelled with what it imports. SVG, PNG, Mermaid. |
-| **Explain a project on film** | `owner/repo` or any website link | A narrated film: the system builds itself, the camera tours it, live pages scroll by. Download as MP4 with the voice. |
+| **Explain a project on film** | `owner/repo` or any website link | A narrated film with an original score: titles that rise letter by letter, the system building itself, the camera touring it, the core module typing itself into an editor, live pages scrolling by. Download as MP4 with voice and music, or as a vertical 9:16 cut for Reels, Shorts and TikTok. |
 
 ### Plug it into your coding agent
 

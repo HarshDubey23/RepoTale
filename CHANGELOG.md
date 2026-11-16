@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Film: an original score composed in code with a whoosh at each scene change (Music toggle), letter-by-letter titles, a code editor that types itself with syntax colours, and a vertical 9:16 export with large word-by-word captions.
+- Ask is free by default: answers from the code itself, Chrome's built-in AI where available, Claude optional.
+
 ## 0.3.0 (2026-11-16)
 
 - Pull request review on the website: paste a PR link to see what it can break (dependents through imports, tests on those paths, untested changes, a verdict), with changed files outlined on the diagram. Changed files and their tests are always read.
