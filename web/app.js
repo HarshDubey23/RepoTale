@@ -3,6 +3,7 @@ import { analyze, parseRepo, permalink, blastRadius, RepoError, shot, readPage, 
 import { startHere, prImpact, retrieve, excerpt, verifyCitations, answerFromGraph } from './insight.js';
 import { buildArch, layoutArch, renderArch, mermaidArch, loadElk } from './arch.js';
 import { VoicePool, VOICES, ELEVEN, elevenSay } from './voice.js';
+import { score } from './music.js';
 import { buildStory, buildSiteStory, Player, record, storyboardOf, graphOf } from './story.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -25,6 +26,16 @@ const pool = new VoicePool({ studio: store.get('studio', true) });
 let audioContext = null, voiceJob = 0;
 let model = null, scenes = null, player = null, selected = null, recording = null;
 let arch = null, archLay = null, archTheme = 'light';
+// The film's score: rendered for the current scene lengths, and again whenever they change (the
+// voice sets them as each scene's audio arrives).
+let scoreBuf = null, scoreKey = '', musicOn = store.get('music', true);
+function refreshScore() {
+  if (!scenes) return;
+  const key = scenes.map(s => Math.round(s.duration)).join(',');
+  if (key === scoreKey) return;
+  scoreKey = key; scoreBuf = null;
+  score(scenes.map(s => s.duration)).then(b => { if (key !== scoreKey) return; scoreBuf = b; if (player?.playing) player.music(); }).catch(() => {});
+}
 // The film draws its type on a canvas, which only sees fonts the page has already loaded.
 for (const f of ["700 40px 'General Sans'", "400 16px 'General Sans'", "600 16px 'General Sans'"]) document.fonts?.load(f);
 document.fonts?.ready.then(() => player?.draw());
@@ -259,6 +270,7 @@ function prepareVoice() {
     buf.copyToChannel(audio, 0);
     s.audio = buf; s.duration = Math.max(3200, Math.round(buf.duration * 1000) + 650);
     ready++;
+    if (ready === scenes.length) refreshScore();
     voiceNote(ready === scenes.length ? `Neural voice <b>${label}</b>: ready. Download video now includes the narration.` : `Neural voice <b>${label}</b>: ${ready} of ${scenes.length} scenes ready. You can press play; it waits for each one.`);
     player?.emit();
   }, () => {}));
@@ -278,7 +290,8 @@ function prepareEleven(job) {
       const buf = await audioContext.decodeAudioData(await elevenSay(s.say, voice, key));
       if (job !== voiceJob) return;
       s.audio = buf; s.duration = Math.max(3200, Math.round(buf.duration * 1000) + 650);
-      ready++; voiceNote(ready === scenes.length ? 'ElevenLabs: ready. Download video now includes the narration.' : `ElevenLabs: ${ready} of ${scenes.length} scenes ready.`);
+      ready++; if (ready === scenes.length) refreshScore();
+      voiceNote(ready === scenes.length ? 'ElevenLabs: ready. Download video now includes the narration.' : `ElevenLabs: ${ready} of ${scenes.length} scenes ready.`);
       player?.emit();
       next(i + 1);
     } catch (e) { voiceNote(`${e.message} Choose another voice, or check the key.`); }
@@ -341,7 +354,9 @@ $$('.tabs [role="tab"]').forEach((t, i, all) => {
 function setupFilm() {
   player?.pause();
   prepareVoice();
-  player = new Player($('#film'), scenes, { voice: opts.voice, voiceName: opts.voiceName, captions: opts.captions, audioContext, onEnd: () => $('#bigplay').classList.remove('gone') });
+  audioContext ??= new AudioContext();
+  player = new Player($('#film'), scenes, { voice: opts.voice, voiceName: opts.voiceName, captions: opts.captions, audioContext, music: () => musicOn ? scoreBuf : null, onEnd: () => $('#bigplay').classList.remove('gone') });
+  refreshScore();
   const list = $('#script');
   list.replaceChildren(...scenes.map((s, i) => h('li', { tabindex: 0, onclick: () => { player.seek(i); }, onkeydown: e => { if (e.key === 'Enter') player.seek(i); } },
     h('h3', {}, s.heading),
@@ -379,8 +394,16 @@ addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const d = e.key === 'ArrowRight' ? 1 : -1; e.shiftKey ? player.seek(player.i + d) : player.seekTo(Math.max(0, player.time + d * 5000)); }
   if (e.key === 'f' || e.key === 'F') fullscreen(!document.fullscreenElement);
 });
-$('#rec').addEventListener('click', async () => {
-  const btn = $('#rec'), note = $('#rec-note');
+$('#music').addEventListener('click', e => {
+  musicOn = !musicOn; store.set('music', musicOn);
+  e.currentTarget.setAttribute('aria-pressed', musicOn); e.currentTarget.textContent = musicOn ? 'Music on' : 'Music off';
+  if (player?.playing) player.music();
+});
+$('#music').setAttribute('aria-pressed', musicOn); $('#music').textContent = musicOn ? 'Music on' : 'Music off';
+$('#rec').addEventListener('click', () => recordFilm(false));
+$('#rec-v').addEventListener('click', () => recordFilm(true));
+async function recordFilm(vertical) {
+  const btn = $(vertical ? '#rec-v' : '#rec'), note = $('#rec-note');
   if (recording) { recording.abort(); return; }
   recording = new AbortController();
   btn.textContent = 'Stop recording'; note.hidden = false;
@@ -394,17 +417,19 @@ $('#rec').addEventListener('click', async () => {
       await new Promise(r => setTimeout(r, 500));
     }
     const voiced = neural && scenes.every(s => s.audio);
-    const blob = signal.aborted ? null : await record(scenes, { captions: opts.captions, audioContext: voiced ? audioContext : null, signal }, p => {
+    refreshScore();
+    while (musicOn && !scoreBuf && !signal.aborted) await new Promise(r => setTimeout(r, 200));
+    const blob = signal.aborted ? null : await record(scenes, { captions: opts.captions, audioContext, musicBuffer: musicOn ? scoreBuf : null, vertical, title: model.meta.name, signal }, p => {
       note.textContent = `Recording in real time: ${Math.round(p * 100)}%. Keep this tab open.${voiced ? ' The narration is recorded into the file.' : ' Choose a neural voice to record narration; browser voices cannot be recorded.'}`;
     });
     if (blob) {
-      const name = `${model.meta.name}-repotale.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`;
+      const name = `${model.meta.name}-repotale${vertical ? '-vertical' : ''}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`;
       note.replaceChildren('Done. ', h('a', { href: URL.createObjectURL(blob), download: name }, `Save ${name}`), ` (${(blob.size / 1e6).toFixed(1)} MB${voiced ? ', with narration' : ', silent with captions'}).`);
       download(blob, name);
     } else note.textContent = 'Recording stopped.';
   } catch (e) { note.textContent = e.message; }
-  recording = null; btn.textContent = 'Download video';
-});
+  recording = null; btn.textContent = vertical ? 'Vertical video' : 'Download video';
+}
 
 // ------------------------------------------------------------- map
 const SVGNS = 'http://www.w3.org/2000/svg';

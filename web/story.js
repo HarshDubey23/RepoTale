@@ -29,7 +29,7 @@ export function buildStory(model, opts = {}) {
   const S = [];
   const hook = meta.description ? meta.description.replace(/\s+/g, ' ').trim().split(/(?<=[.!?])\s/)[0].replace(/[.!]?$/, '.') :`a ${totals.languages[0]?.[0] ?? 'software'} project.`;
   S.push({ kind: 'title', heading: meta.name, sub: hook, evidence: meta.readmePath ? [{ file: meta.readmePath }] : [],
-    say: `This is ${meta.name}: ${hook} Here is how it is built, read straight from its code.` });
+    say: `This is ${meta.name}: ${hook} In the next minute: how it is built, the one module everything leans on, and what to watch when you change it.` });
 
   // The running site, one scene per page that could be photographed.
   (opts.shots ?? []).forEach((p, k) => {
@@ -170,14 +170,7 @@ function chrome(ctx, scene, i, n, t, opts) {
  *  said in full ink, the rest soft. Timing is spread over the audio by characters, which tracks
  *  Kokoro's even pace closely. */
 function captions(ctx, scene, t, opts) {
-  const el = t * scene.duration;
-  const speak = scene.audio ? scene.audio.duration * 1000 : scene.duration - 650;
-  const spoken = opts.poster ? 1 : Math.min(1, el / Math.max(1, speak));
-  const sentences = scene.say.split(/(?<=[.!?])\s+/);
-  const total = scene.say.length, pos = spoken * total;
-  let start = 0, idx = 0;
-  for (; idx < sentences.length - 1; idx++) { if (start + sentences[idx].length >= pos) break; start += sentences[idx].length + 1; }
-  const sentence = sentences[idx], local = pos - start;
+  const { sentence, local } = spokenAt(scene, t, opts);
   font(ctx, TEXT(26, 600));
   const lines = wrap(ctx, sentence, W - M * 2 - 80).slice(0, 2);
   const lw = Math.max(...lines.map(l => ctx.measureText(l).width)), h = lines.length * 36 + 26, x = (W - lw) / 2 - 24, y = H - 34 - h;
@@ -257,15 +250,24 @@ function ground(ctx, ms) {
 const DRAW = {
   arch(ctx, s, t, ms) { drawArchBeat(ctx, s, t, ms, t * s.duration); },
   title(ctx, s, t, ms) {
+    // Each letter rises into place a beat after the one before; the accent bar follows the word.
     const size = fit(ctx, s.heading, W - M * 2, 210);
-    const reveal = seg(t, 0, 0.25);
-    ctx.save(); ctx.beginPath(); ctx.rect(M, 0, (W - M * 2) * reveal + 4, H); ctx.clip();
-    font(ctx, DISPLAY(size), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading, M, 330);
-    ctx.restore();
-    ctx.fillStyle = C.accent; ctx.fillRect(M, 360, (W - M * 2) * seg(t, 0.15, 0.4), 10);
-    font(ctx, TEXT(34)); ctx.fillStyle = C.ink; ctx.globalAlpha = seg(t, 0.25, 0.45);
-    wrap(ctx, s.sub, 900).slice(0, 3).forEach((l, k) => ctx.fillText(l, M, 430 + k * 46));
+    font(ctx, DISPLAY(size), true);
+    let x = M;
+    [...s.heading].forEach((ch, i) => {
+      const p = seg(t, 0.02 + i * 0.018, 0.16 + i * 0.018);
+      ctx.globalAlpha = p; ctx.fillStyle = C.ink;
+      ctx.fillText(ch, x, 330 + (1 - p) * 60);
+      x += ctx.measureText(ch).width;
+    });
     ctx.globalAlpha = 1;
+    ctx.fillStyle = C.accent; ctx.fillRect(M, 360, (x - M) * seg(t, 0.18, 0.42), 10);
+    font(ctx, TEXT(34));
+    const words = s.sub.split(' '), lines = wrap(ctx, s.sub, 900).slice(0, 3);
+    let k = 0;
+    lines.forEach((l, li) => { let lx = M; for (const w of l.split(' ')) { const p = seg(t, 0.3 + k * 0.012, 0.4 + k * 0.012); ctx.globalAlpha = p; ctx.fillStyle = C.ink; ctx.fillText(w, lx, 430 + li * 46 + (1 - p) * 12); lx += ctx.measureText(w + ' ').width; k++; } });
+    ctx.globalAlpha = 1;
+    void words;
   },
   stats(ctx, s, t) {
     font(ctx, DISPLAY(72), true); ctx.fillStyle = C.ink; ctx.fillText(s.heading, M, 170);
@@ -342,21 +344,38 @@ const DRAW = {
       }
     }
   },
-  code(ctx, s, t) {
+  code(ctx, s, t, ms) {
     font(ctx, DISPLAY(Math.min(64, fit(ctx, base(s.file), 560, 64))), true); ctx.fillStyle = C.ink; ctx.fillText(base(s.file), M, 170);
     font(ctx, TEXT(20)); ctx.fillStyle = C.muted; ctx.fillText(s.file, M, 204);
-    const x = M, y = 236, w = 760, lh = 24;
-    ctx.fillStyle = C.surface; ctx.fillRect(x, y, w, s.lines.length * lh + 32);
-    const hl = Math.floor(seg(t, 0.15, 0.85) * s.lines.length);
-    ctx.fillStyle = C.plum; ctx.fillRect(x, y + 16 + Math.min(hl, s.lines.length - 1) * lh - 4, w, lh);
-    ctx.font = '16px "JetBrains Mono", ui-monospace, Consolas, monospace';
-    s.lines.forEach((l, k) => {
-      ctx.globalAlpha = seg(t, k * 0.02, 0.2 + k * 0.02);
-      ctx.fillStyle = C.muted; ctx.fillText(String(s.from + k).padStart(4), x + 12, y + 32 + k * lh);
-      ctx.fillStyle = k === 0 ? C.accent : C.ink; ctx.fillText(l.replace(/\t/g, '  ').slice(0, 70), x + 70, y + 32 + k * lh);
+    // Twelve lines at most, so the editor never reaches the captions.
+    const L = s.lines.slice(0, 12), x = M, y = 226, w = 790, lh = 23, n = L.length, pad = 44;
+    ctx.fillStyle = '#0d2a1c'; ctx.fillRect(x, y, w, n * lh + pad + 20);
+    ['#ff5f57', '#febc2e', '#28c840'].forEach((c, k) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 22 + k * 18, y + 18, 5, 0, 7); ctx.fill(); });
+    font(ctx, TEXT(13, 500)); ctx.fillStyle = '#9fb3a8'; ctx.fillText(s.file, x + 86, y + 23);
+    // After typing, a band walks down the lines as the narration talks about them.
+    const total = L.reduce((a, l) => a + l.length + 1, 0), typed = seg(t, 0.06, 0.55) * total;
+    const band = seg(t, 0.58, 0.95);
+    if (band > 0) { ctx.fillStyle = '#1f4a35'; ctx.fillRect(x, y + pad + Math.min(n - 1, Math.floor(band * n)) * lh - 17, w, lh); }
+    ctx.font = '15px "JetBrains Mono", ui-monospace, Consolas, monospace';
+    let left = typed, cx = 0, cy = 0;
+    L.forEach((raw, k) => {
+      const l = raw.replace(/\t/g, '  ').slice(0, 72), ly = y + pad + k * lh;
+      ctx.fillStyle = '#5f7d6e'; ctx.fillText(String(s.from + k).padStart(4), x + 12, ly);
+      if (left <= 0) return;
+      let px = x + 66, shown = 0;
+      for (const [text, color] of tokens(l)) {
+        if (left <= 0) break;
+        const part = text.slice(0, Math.max(0, Math.floor(left)));
+        ctx.fillStyle = color; ctx.fillText(part, px, ly);
+        px += ctx.measureText(part).width; left -= part.length; shown += part.length;
+        if (part.length < text.length) break;
+      }
+      cx = px; cy = ly; left -= 1;
     });
+    // The cursor blinks where the typing is.
+    if (t < 0.6 && Math.floor((ms ?? 0) / 450) % 2 === 0) { ctx.fillStyle = C.accent; ctx.fillRect(cx + 1, cy - 14, 9, 18); }
     ctx.globalAlpha = seg(t, 0.3, 0.5);
-    font(ctx, DISPLAY(200), true); ctx.fillStyle = C.accent; ctx.fillText(String(Math.round(s.users * seg(t, 0.3, 0.7))), 900, 420);
+    font(ctx, DISPLAY(200), true); ctx.fillStyle = C.ink; ctx.fillText(String(Math.round(s.users * seg(t, 0.3, 0.7))), 900, 420);
     font(ctx, TEXT(26, 500)); ctx.fillStyle = C.ink; wrap(ctx, `files import it`, 300).forEach((l, k) => ctx.fillText(l, 904, 466 + k * 34));
     ctx.globalAlpha = 1;
   },
@@ -507,6 +526,29 @@ export function buildSiteStory(site) {
   return S;
 }
 
+/** Colour a line of code: comments, strings, numbers and keywords, the rest in the editor's ink. */
+const KEYWORDS = /^(import|export|from|const|let|var|function|return|if|else|for|while|class|extends|new|async|await|def|self|None|True|False|in|of|type|interface|public|private|static|func|package|struct|go|default|try|catch|throw|yield|lambda|with|as|pass|elif|null|undefined|this)$/;
+function tokens(line) {
+  const out = [], re = /(\/\/.*|#.*)|('(?:[^'\\]|\\.)*'?|"(?:[^"\\]|\\.)*"?|`[^`]*`?)|(\b\d[\d_.]*\b)|([A-Za-z_$][\w$]*)|(\s+|.)/g;
+  for (const m of line.matchAll(re)) {
+    const [t, comment, str, num, word] = m;
+    out.push([t, comment ? '#7f9a8c' : str ? '#9be7b4' : num ? '#ffb38a' : word && KEYWORDS.test(word) ? '#f6e016' : '#e8f0ea']);
+  }
+  return out;
+}
+
+/** The sentence being spoken at time t, and how far into it the voice is. */
+function spokenAt(scene, t, opts) {
+  const el = t * scene.duration;
+  const speak = scene.audio ? scene.audio.duration * 1000 : scene.duration - 650;
+  const spoken = opts.poster ? 1 : Math.min(1, el / Math.max(1, speak));
+  const sentences = scene.say.split(/(?<=[.!?])\s+/);
+  const pos = spoken * scene.say.length;
+  let start = 0, idx = 0;
+  for (; idx < sentences.length - 1; idx++) { if (start + sentences[idx].length >= pos) break; start += sentences[idx].length + 1; }
+  return { sentence: sentences[idx], local: pos - start };
+}
+
 /** Draw one frame. `t` is 0..1 through the scene, `ms` the absolute clock (for loops). Each scene
  *  after the first opens with a wipe: a plum panel led by a pink edge slides off to the right. */
 export function drawFrame(ctx, scenes, i, t, ms, opts = {}) {
@@ -573,18 +615,27 @@ export class Player {
       speechSynthesis.speak(u);
     }
   }
+  /** The score, from where the film is now. `opts.music()` returns the rendered buffer, or null while it renders. */
+  music() {
+    this.quiet();
+    const ac = this.opts.audioContext, buf = this.opts.music?.();
+    if (!ac || !buf || !this.playing) return;
+    this.mus = ac.createBufferSource(); this.mus.buffer = buf; this.mus.connect(ac.destination);
+    this.mus.start(0, Math.min(this.time / 1000, buf.duration - 0.05));
+  }
+  quiet() { try { this.mus?.stop(); } catch {} this.mus = null; }
   play() {
     if (this.playing) return;
     if (this.i === this.scenes.length - 1 && this.elapsed >= this.scene.duration) { this.i = 0; this.elapsed = 0; }
     this.opts.audioContext?.resume();
     this.playing = true; this.t0 = performance.now() - this.elapsed;
-    this.speak();
+    this.speak(); this.music();
     requestAnimationFrame(this.frame); this.emit();
   }
-  pause() { this.playing = false; this.waiting = false; this.hush(); this.draw(); this.emit(); }
+  pause() { this.playing = false; this.waiting = false; this.hush(); this.quiet(); this.draw(); this.emit(); }
   seek(i) {
     this.i = Math.max(0, Math.min(this.scenes.length - 1, i)); this.elapsed = 0; this.t0 = performance.now();
-    if (this.playing) this.speak(); else this.hush();
+    if (this.playing) { this.speak(); this.music(); } else this.hush();
     this.draw(); this.emit();
   }
   frame(now) {
@@ -596,7 +647,7 @@ export class Player {
     }
     this.elapsed = now - this.t0;
     if (!this.waiting && this.elapsed >= this.scene.duration && this.spoken) {
-      if (this.i === this.scenes.length - 1) { this.elapsed = this.scene.duration; this.playing = false; this.hush(); this.draw(now); this.emit(); this.opts.onEnd?.(); return; }
+      if (this.i === this.scenes.length - 1) { this.elapsed = this.scene.duration; this.playing = false; this.hush(); this.quiet(); this.draw(now); this.emit(); this.opts.onEnd?.(); return; }
       this.i++; this.elapsed = 0; this.t0 = now; this.speak(); this.emit();
     }
     this.draw(now);
@@ -609,31 +660,62 @@ export class Player {
     let i = 0;
     while (i < this.scenes.length - 1 && ms >= this.scenes[i].duration) { ms -= this.scenes[i].duration; i++; }
     this.i = i; this.elapsed = Math.max(0, Math.min(ms, this.scene.duration)); this.t0 = performance.now() - this.elapsed;
-    if (this.playing) this.speak(); else this.hush();
+    if (this.playing) { this.speak(); this.music(); } else this.hush();
     this.draw(); this.emit();
   }
+}
+
+/** The vertical frame: the film's name and the scene's heading on top, the 16:9 film in the
+ *  middle, and the sentence being spoken set large below, the words already said in full ink. */
+function portrait(ctx, film, scenes, i, t, opts) {
+  const VW = 1080, VH = 1920, s = scenes[i];
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, VW, VH);
+  ctx.fillStyle = C.accent; ctx.fillRect(0, 0, VW * ((i + t) / scenes.length), 14);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.font = `700 92px 'General Sans'`; ctx.fillStyle = C.ink;
+  const name = opts.title ?? scenes[0].heading;
+  ctx.fillText(name.length > 18 ? name.slice(0, 17) + '…' : name, 64, 250);
+  ctx.font = `600 40px 'General Sans'`; ctx.fillStyle = C.muted;
+  ctx.fillText(String(s.heading ?? '').slice(0, 40), 64, 320);
+  ctx.drawImage(film, 0, 470, VW, VW * 9 / 16);
+  const { sentence, local } = spokenAt(s, t, opts);
+  ctx.font = `700 54px 'General Sans'`;
+  const lines = wrap(ctx, sentence, VW - 128).slice(0, 6);
+  let seen = 0;
+  lines.forEach((l, k) => {
+    let x = 64;
+    for (const w of l.split(' ')) { ctx.fillStyle = seen + w.length * 0.5 <= local ? C.ink : 'rgba(13,42,28,0.28)'; ctx.fillText(w, x, 1220 + k * 72); x += ctx.measureText(w + ' ').width; seen += w.length + 1; }
+  });
+  ctx.font = `500 34px 'General Sans'`; ctx.fillStyle = C.muted; ctx.fillText('Made with RepoTale', 64, VH - 90);
 }
 
 /** Record the whole film to a video file in real time. With `audioContext` and every scene carrying
  *  audio, the narration is mixed into the file; otherwise it is silent with captions. */
 export async function record(scenes, opts = {}, onProgress = () => {}) {
-  const canvas = Object.assign(document.createElement('canvas'), { width: 1920, height: 1080 });
+  // A vertical cut (9:16) frames the film between a title and large captions, for phones.
+  const vertical = !!opts.vertical;
+  const canvas = Object.assign(document.createElement('canvas'), vertical ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 });
   const ctx = canvas.getContext('2d');
-  const ac = opts.audioContext, voiced = !!ac && scenes.every(s => s.audio);
-  const types = voiced
+  const inner = vertical ? Object.assign(document.createElement('canvas'), { width: 1920, height: 1080 }) : canvas, ictx = inner.getContext('2d');
+  const ac = opts.audioContext, voiced = !!ac && scenes.every(s => s.audio), music = ac ? opts.musicBuffer : null;
+  const sound = voiced || !!music;
+  const types = sound
     ? ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm']
     : ['video/mp4;codecs=avc1.640028', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
   const mimeType = types.find(t => window.MediaRecorder?.isTypeSupported?.(t));
   if (!mimeType) throw new Error('This browser cannot record video. Try Chrome or Edge.');
   const stream = canvas.captureStream(30);
   let dest = null;
-  if (voiced) { await ac.resume(); dest = ac.createMediaStreamDestination(); for (const t of dest.stream.getAudioTracks()) stream.addTrack(t); }
-  const rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000, ...(voiced ? { audioBitsPerSecond: 192_000 } : {}) });
+  if (sound) { await ac.resume(); dest = ac.createMediaStreamDestination(); for (const t of dest.stream.getAudioTracks()) stream.addTrack(t); }
+  const rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000, ...(sound ? { audioBitsPerSecond: 192_000 } : {}) });
   const chunks = [];
   rec.ondataavailable = e => e.data.size && chunks.push(e.data);
   const stopped = new Promise(r => { rec.onstop = r; });
-  drawFrame(ctx, scenes, 0, 0, 0, opts);
+  const paint = (i, t, el) => { drawFrame(ictx, scenes, i, t, el, vertical ? { ...opts, captions: false } : opts); if (vertical) portrait(ctx, inner, scenes, i, t, opts); };
+  paint(0, 0, 0);
   rec.start(500);
+  if (music) { const m = ac.createBufferSource(); m.buffer = music; m.connect(dest); m.start(); var musicSrc = m; }
   const total = scenes.reduce((s, x) => s + x.duration, 0);
   const start = performance.now();
   let started = -1;
@@ -648,7 +730,7 @@ export async function record(scenes, opts = {}, onProgress = () => {}) {
         started = i;
         const src = ac.createBufferSource(); src.buffer = scenes[i].audio; src.connect(dest); src.start(); sources.push(src);
       }
-      drawFrame(ctx, scenes, i, Math.min(1, (el - acc) / scenes[i].duration), el, opts);
+      paint(i, Math.min(1, (el - acc) / scenes[i].duration), el);
       onProgress(Math.min(1, el / total));
       if (el >= total + 400) return done();
       // Timers keep running when the tab is in the background, unlike animation frames.
@@ -657,6 +739,7 @@ export async function record(scenes, opts = {}, onProgress = () => {}) {
     tick();
   });
   for (const s of sources) try { s.stop(); } catch {}
+  try { musicSrc?.stop(); } catch {}
   rec.stop(); await stopped;
   if (opts.signal?.aborted) return null;
   return new Blob(chunks, { type: mimeType.split(';')[0] });
