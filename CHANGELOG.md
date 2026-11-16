@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Pull request review on the website: paste a PR link to see what it can break (dependents through imports, tests on those paths, untested changes, a verdict), with changed files outlined on the diagram. Changed files and their tests are always read.
+- Start here: the reading path into a repository, with reasons and reading time.
+- Ask: answers from Claude Opus 5.5 with the visitor's key, every [file:line] citation checked against the code and flagged when it does not hold. Server-side refusal fallback is enabled.
+- `repotale mcp`: an MCP server over stdio for coding agents, with impact, who_imports, explain_file, import_path, start_here and repo_overview answered from the working tree's import graph.
+- `web/insight.js`: the shared logic behind all four, used by the website and the CLI.
+
 - Website: paste any website link to get a narrated film of its pages, read and photographed through r.jina.ai (paced under the free limit; optional Jina key). Public repositories still open when GitHub rate-limits, through ungh.cc.
 
 - The film reads each live page through r.jina.ai and narrates what it actually says: its headline, the sections it walks through, or its first sentence. The browser's built-in voice is no longer offered, and a saved choice of it falls back to the neural voice.

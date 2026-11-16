@@ -56,7 +56,12 @@
     "LICENSE",
     "!examples/*/docs",
     "!examples/*/reporeel.json",
-    "!examples/*/package-lock.json"
+    "!examples/*/package-lock.json",
+    "web/analyze.js",
+    "web/insight.js",
+    "web/story.js",
+    "web/filmarch.js",
+    "web/arch.js"
   ],
   "repository": {
     "type": "git",

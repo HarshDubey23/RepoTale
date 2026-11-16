@@ -1,5 +1,6 @@
 // The page: ask for a repository, read it, then show the film, the map, the evidence and the exports.
-import { analyze, parseRepo, permalink, blastRadius, RepoError, shot, readPage, crawlSite, setJinaKey } from './analyze.js';
+import { analyze, parseRepo, permalink, blastRadius, RepoError, shot, readPage, crawlSite, setJinaKey , parsePull, fetchPull } from './analyze.js';
+import { startHere, prImpact, retrieve, excerpt, verifyCitations } from './insight.js';
 import { buildArch, layoutArch, renderArch, mermaidArch, loadElk } from './arch.js';
 import { VoicePool, VOICES, ELEVEN, elevenSay } from './voice.js';
 import { buildStory, buildSiteStory, Player, record, storyboardOf, graphOf } from './story.js';
@@ -173,7 +174,8 @@ async function run(value) {
   if (site) return runSite(site);
   for (const t of ['arch', 'map', 'evidence', 'export']) $('#t-' + t).hidden = false;
   label(repoStages);
-  const repo = parseRepo(value);
+  const pr = parsePull(value);
+  const repo = pr ?? parseRepo(value);
   const err = $('#ask-error');
   err.hidden = true;
   if (!repo) { err.textContent = 'That does not look like a repository or a website. Try owner/name, a github.com link, or https://any-website.com.'; err.hidden = false; return; }
@@ -181,10 +183,15 @@ async function run(value) {
   $('.ask-note').hidden = true; $('#stages').hidden = false;
   $('#ask').setAttribute('aria-busy', 'true'); $$('.ask-go, .examples button').forEach(b => b.disabled = true);
   try {
-    model = await analyze(value, {
-      token: $('#token').value.trim() || undefined,
+    const token = $('#token').value.trim() || undefined;
+    // A pull request is read at its head commit, with every file it changes.
+    let pull = null;
+    if (pr) { stage('read', `pull request #${pr.number}`, 0); pull = await fetchPull(pr, token); }
+    model = await analyze(pull ? `${pull.head.repo}/tree/${pull.head.sha}` : value, {
+      token, include: pull?.files.map(f => f.filename) ?? [],
       progress: (s, d, t) => stage(s, s === 'fetch' ? `${d} / ${t}` : '', t ? d / t : 0),
     });
+    model.pull = pull ? { ...pull, impact: prImpact(model, pull.files) } : null;
     const shots = await photograph(model, $('#live').value.trim());
     stage('film', 'laying out the architecture', 0.3);
     // The diagram and the film's architecture beats share one layout.
@@ -194,7 +201,7 @@ async function run(value) {
     scenes = buildStory(model, { shots, arch: arch && archLay ? { arch, lay: archLay } : null });
     stage('film', '', 1);
     $$('#stages li').forEach(li => { li.dataset.state = 'done'; li.style.setProperty('--p', 1); li.querySelector('b').textContent = ''; });
-    history.replaceState(null, '', '#/' + model.meta.full);
+    history.replaceState(null, '', model.pull ? '#pr=' + encodeURIComponent(model.pull.url) : '#/' + model.meta.full);
     show();
   } catch (e) {
     err.textContent = e instanceof RepoError ? e.message : `Something went wrong reading that repository: ${e.message}`;
@@ -306,8 +313,9 @@ function show() {
     h('a', { href: `https://github.com/${meta.full}/tree/${meta.sha}` }, `${meta.ref}@${meta.sha.slice(0, 7)}`),
     ` · read ${fmt(totals.code + totals.tests)} of ${fmt(totals.files)} files`);
   document.title = `${meta.name} — RepoTale`;
-  selectTab('arch');
-  setupFilm(); drawMap(); drawEvidence(); drawExports(); drawHow(); syncBands(); drawArch();
+  $('#t-review').hidden = !model.pull;
+  selectTab(model.pull ? 'review' : 'arch');
+  setupFilm(); drawMap(); drawEvidence(); drawExports(); drawHow(); syncBands(); drawArch(); drawStart(); drawReview(); setupAsk();
   $('#result').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
@@ -479,6 +487,123 @@ $('#find').addEventListener('input', e => {
   first?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
 });
 
+// ------------------------------------------------------------- start here
+function drawStart() {
+  const { meta } = model, s = startHere(model);
+  $('#start').replaceChildren(
+    h('div', { class: 'start-head' },
+      h('h3', {}, `Read these ${s.files.length} files first`),
+      h('p', {}, `About ${s.minutes} minutes, ${fmt(s.lines)} lines. In this order you meet the way in, the path the code takes, and the modules everything else leans on.`)),
+    h('ol', { class: 'start-list' }, s.files.map(f => h('li', {},
+      h('a', { href: permalink(meta, f.file), target: '_blank', rel: 'noopener' }, f.file),
+      h('p', {}, f.why),
+      h('span', { class: 'start-time' }, `${f.minutes} min · ${fmt(f.lines)} lines`)))));
+}
+
+// ------------------------------------------------------------- review: what a pull request can break
+function drawReview() {
+  const box = $('#review'); if (!model.pull) { box.replaceChildren(); return; }
+  const { meta } = model, p = model.pull, r = p.impact;
+  const link = (f, label = f) => h('a', { href: permalink(meta, f), target: '_blank', rel: 'noopener' }, label);
+  const verdict = { high: 'Review carefully', medium: 'Worth a close look', low: 'Low reach' }[r.level];
+  box.replaceChildren(
+    h('div', { class: 'review-head' },
+      h('p', { class: 'review-pr' }, h('a', { href: p.url, target: '_blank', rel: 'noopener' }, `#${p.number}`), ` · ${p.state} · by ${p.author ?? 'unknown'} · into ${p.base}`),
+      h('h3', {}, p.title),
+      h('p', { class: `verdict verdict-${r.level}` }, verdict)),
+    h('p', { class: 'review-sum' }, `It changes ${r.files.length} source file${r.files.length === 1 ? '' : 's'} in ${r.areas.length} part${r.areas.length === 1 ? '' : 's'} of the code. Through imports, the change reaches ${r.dependents.length} more file${r.dependents.length === 1 ? '' : 's'}; ${r.tests.length} test file${r.tests.length === 1 ? '' : 's'} sit on those paths.${r.sampled ? ' The repository was sampled: every changed file and its tests were read, but tests elsewhere may also apply.' : ''}`),
+    r.risks.length ? h('div', { class: 'review-block' }, h('h4', {}, 'Look at these first'), h('ul', { class: 'risk-list' }, r.risks.map(x => h('li', {}, link(x.file), h('span', {}, x.why))))) : h('p', { class: 'review-ok' }, 'Nothing here is widely used or untested: the change stays local.'),
+    h('div', { class: 'review-block' }, h('h4', {}, 'Changed files'), h('table', { class: 'review-table' },
+      h('thead', {}, h('tr', {}, h('th', {}, 'File'), h('th', {}, 'Change'), h('th', {}, 'Reaches'), h('th', {}, 'Tests on path'))),
+      h('tbody', {}, r.files.map(f => h('tr', { class: f.tests === 0 && f.reach ? 'hot' : '' },
+        h('td', {}, link(f.file)), h('td', {}, `${f.status} +${f.additions} −${f.deletions}`), h('td', {}, String(f.reach)), h('td', {}, String(f.tests))))))),
+    r.notRead.length ? h('p', { class: 'review-note' }, `Not code, so not mapped: ${r.notRead.slice(0, 8).join(', ')}${r.notRead.length > 8 ? ` and ${r.notRead.length - 8} more` : ''}.`) : null,
+    h('p', { class: 'review-note' }, 'Changed files are outlined on the Architecture tab.'));
+}
+
+// ------------------------------------------------------------- ask: answers whose every citation is checked
+// The visitor's own Anthropic key, in this tab's memory only; it is sent nowhere but api.anthropic.com.
+let anthropicKey = '';
+const ASK_SYSTEM = `You answer questions about a software repository using only the source excerpts provided. Each excerpt line starts with its real line number and a bar, like "42| code".
+
+Rules:
+- Back every factual statement with a citation in exactly this form: [path/to/file.ext:START-END] or [path/to/file.ext:LINE], using the line numbers shown in the excerpts. Cite the narrowest range that supports the statement.
+- Use only the files and lines you were given. If they do not contain the answer, say what is missing and which file would likely hold it, without guessing.
+- Write for a developer new to this code: short paragraphs, plain words, no headings, under 250 words.`;
+
+function setupAsk() {
+  const box = $('#ask-repo');
+  const examples = ['Where does a request start, and what does it go through?', 'How are errors handled?', `What does ${base(model.core[0]?.file ?? 'the main module')} do?`];
+  box.replaceChildren(
+    h('div', { class: 'askr-head' },
+      h('h3', {}, 'Ask this repository'),
+      h('p', {}, 'RepoTale finds the files that answer your question by their names, declarations and imports, gives Claude their numbered lines, and then checks every line Claude cites against the code. A citation that does not exist is flagged, never hidden.')),
+    h('form', { class: 'askr-form', id: 'askr-form' },
+      h('label', { class: 'sr', for: 'askr-q' }, 'Question'),
+      h('input', { id: 'askr-q', placeholder: examples[0], autocomplete: 'off', required: true }),
+      h('button', { class: 'btn', type: 'submit' }, 'Ask')),
+    h('div', { class: 'askr-examples' }, examples.map(q => h('button', { type: 'button', onclick: () => { $('#askr-q').value = q; $('#askr-form').requestSubmit(); } }, q))),
+    h('div', { class: 'askr-key', id: 'askr-key', hidden: !!anthropicKey },
+      h('label', { for: 'askr-k' }, 'Your Anthropic API key'),
+      h('input', { id: 'askr-k', type: 'password', placeholder: 'sk-ant-…', autocomplete: 'off', spellcheck: 'false' }),
+      h('p', {}, 'Kept in this tab only and sent nowhere but api.anthropic.com. Each question costs a few cents on your account (Claude Opus 5.5, about 10,000 tokens in).')),
+    h('div', { class: 'askr-out', id: 'askr-out', 'aria-live': 'polite' }));
+  $('#askr-form').addEventListener('submit', e => { e.preventDefault(); ask($('#askr-q').value.trim()); });
+}
+
+async function ask(question) {
+  const out = $('#askr-out');
+  anthropicKey = anthropicKey || $('#askr-k').value.trim();
+  if (!question) return;
+  if (!anthropicKey) { out.replaceChildren(h('p', { class: 'askr-warn' }, 'Add your Anthropic API key above to ask.')); $('#askr-k').focus(); return; }
+  const files = retrieve(model, question, 8);
+  const context = files.map(f => `=== ${f.file}\n${excerpt(model, f.file, question, 90)}`).join('\n\n');
+  out.replaceChildren(h('p', { class: 'askr-wait' }, `Reading ${files.length} files: ${files.map(f => base(f.file)).join(', ')}…`));
+  try {
+    const { default: Anthropic } = await import('https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.3.0/+esm');
+    const client = new Anthropic({ apiKey: anthropicKey, dangerouslyAllowBrowser: true });
+    // Server-side fallback: if a safety classifier declines, the API retries on a suitable model in the same call.
+    const res = await client.beta.messages.create({
+      model: 'claude-opus-5-5', max_tokens: 16000,
+      betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default',
+      output_config: { effort: 'medium' },
+      system: ASK_SYSTEM,
+      messages: [{ role: 'user', content: `Repository: ${model.meta.full} at commit ${model.meta.sha.slice(0, 7)}\n\nSource excerpts:\n\n${context}\n\nQuestion: ${question}` }],
+    });
+    $('#askr-key').hidden = true;
+    if (res.stop_reason === 'refusal') { out.replaceChildren(h('p', { class: 'askr-warn' }, 'Claude declined to answer this question.')); return; }
+    const text = res.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+    showAnswer(out, text, files, res.stop_reason === 'max_tokens');
+  } catch (e) {
+    const A = (await import('https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.3.0/+esm')).default;
+    const msg = e instanceof A.AuthenticationError ? 'That API key was refused. Check it and try again.'
+      : e instanceof A.PermissionDeniedError ? 'This key is not allowed to use Claude Opus 5.5.'
+      : e instanceof A.RateLimitError ? 'Rate limited by the API. Wait a moment and ask again.'
+      : e instanceof A.APIError ? `The API answered ${e.status ?? 'with an error'}: ${e.message}`
+      : `Could not reach the API: ${e.message}`;
+    if (e instanceof A.AuthenticationError) { anthropicKey = ''; $('#askr-key').hidden = false; }
+    out.replaceChildren(h('p', { class: 'askr-warn' }, msg));
+  }
+}
+
+/** The answer, with each citation turned into a link to its exact lines, or flagged when it does not hold. */
+function showAnswer(out, text, files, cut) {
+  const checks = verifyCitations(text, model), ok = checks.filter(c => c.ok).length;
+  const byText = new Map(checks.map(c => [c.text, c]));
+  const para = t => h('p', {}, ...t.split(/(\[[\w./@+-]+\.[a-z]+(?::\d+(?:-\d+)?)?\])/gi).map(part => {
+    const c = byText.get(part);
+    if (!c) return part;
+    const label = `${base(c.file)}${c.start ? ':' + c.start + (c.end !== c.start ? '-' + c.end : '') : ''}`;
+    return c.ok ? h('a', { class: 'cite ok', href: permalink(model.meta, c.file, c.start ?? undefined, c.end ?? undefined), target: '_blank', rel: 'noopener', title: c.file }, label)
+      : h('span', { class: 'cite bad', title: c.why }, `${label} (unverified: ${c.why})`);
+  }));
+  out.replaceChildren(
+    h('p', { class: `askr-check ${ok === checks.length && checks.length ? 'all' : 'some'}` }, checks.length ? `${ok} of ${checks.length} citations checked against the code${ok === checks.length ? '' : '; the rest are flagged below'}.` : 'This answer cites no lines, so none of it could be checked.'),
+    ...text.split(/\n{2,}/).map(para),
+    cut ? h('p', { class: 'askr-warn' }, 'The answer was cut off at the length limit.') : null,
+    h('p', { class: 'askr-src' }, 'Files given to Claude: ', ...files.flatMap((f, i) => [i ? ', ' : '', h('a', { href: permalink(model.meta, f.file), target: '_blank', rel: 'noopener' }, f.file)])));
+}
+
 // ------------------------------------------------------------- evidence
 function drawEvidence() {
   const { meta } = model, byFile = new Map(model.modules.map(m => [m.file, m]));
@@ -617,6 +742,8 @@ function paintArch() {
   const [, , W, H] = svg.getAttribute('viewBox').split(' ').map(Number);
   svg.style.width = W + 'px'; svg.style.height = H + 'px';
   dz.classList.toggle('dark', archTheme === 'dark');
+  const changed = new Set(model.pull?.files.map(f => f.filename) ?? []);
+  for (const n of $$('.node[data-file]', svg)) n.classList.toggle('changed', changed.has(n.dataset.file));
   fitArch();
   for (const n of $$('.node', svg)) {
     const id = n.dataset.id;
@@ -715,9 +842,11 @@ $('#dz-mermaid').addEventListener('click', async e => {
 // ------------------------------------------------------------- deep links: #/owner/name
 const fromHash = () => {
   requestAnimationFrame(fitAsk);
+  const prh = location.hash.match(/^#pr=(.+)$/);
+  if (prh) { input.value = decodeURIComponent(prh[1]); return run(input.value); }
   const site = location.hash.match(/^#site=(.+)$/);
   if (site) { input.value = decodeURIComponent(site[1]); return run(input.value); }
   const m = location.hash.match(/^#\/([\w.-]+\/[\w.-]+)/); if (m) { input.value = m[1]; run(m[1]); }
 };
-addEventListener('hashchange', () => { if (!model || (!location.hash.endsWith(model.meta.full) && !model.site)) fromHash(); });
+addEventListener('hashchange', () => { if (!model || (!location.hash.endsWith(model.meta.full) && !model.site && !model.pull)) fromHash(); });
 fromHash();

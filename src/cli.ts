@@ -15,6 +15,7 @@ import { prStoryboard } from './pr.ts';
 import { writeReadme } from './readme.ts';
 import { render, startApp } from './render.ts';
 import { tour, tourStoryboard } from './tour.ts';
+import { serve } from './mcp.ts';
 import { detect, mermaidFor } from './stack.ts';
 import { check, formatReport, stale } from './evidence.ts';
 import { explorerHtml } from './explore.ts';
@@ -173,6 +174,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     }
     say(`wrote ${sbFile} with ${pages.length} pages; render it with: repotale video`);
   } },
+  mcp: { help: 'serve this repository import graph to coding agents over MCP (stdio): overview, start_here, impact, who_imports, explain_file, import_path', async run() { await serve(root); } },
   ci: { help: 'add a GitHub Action: doctor and verify on PRs, fresh media on releases', async run() { say(`wrote ${writeWorkflow(root)}`); } },
   setup: { help: 'check node, ffmpeg, Chromium and API keys (--fix installs Chromium)', async run() {
     const items = await checkSetup({ fix: on('fix'), log });

@@ -61,6 +61,7 @@
         <button type="button" data-repo="pallets/flask">pallets/flask</button>
         <button type="button" data-repo="HarshDubey23/RepoTale">HarshDubey23/RepoTale</button>
         <button type="button" data-repo="https://expressjs.com">expressjs.com (website)</button>
+        <button type="button" data-repo="https://github.com/sindresorhus/ky/pull/874">a ky pull request</button>
       </div>
       <details class="token">
         <summary>Live site, private repository, or rate limit?</summary>
@@ -87,11 +88,26 @@
       <p id="r-meta" class="r-meta"></p>
     </div>
     <div class="tabs" role="tablist" aria-label="Views">
+      <button role="tab" id="t-review" aria-controls="p-review" aria-selected="false" tabindex="-1" hidden>Review</button>
       <button role="tab" id="t-arch" aria-controls="p-arch" aria-selected="true">Architecture</button>
+      <button role="tab" id="t-start" aria-controls="p-start" aria-selected="false" tabindex="-1">Start here</button>
+      <button role="tab" id="t-ask" aria-controls="p-ask" aria-selected="false" tabindex="-1">Ask</button>
       <button role="tab" id="t-film" aria-controls="p-film" aria-selected="false" tabindex="-1">Film</button>
       <button role="tab" id="t-map" aria-controls="p-map" aria-selected="false" tabindex="-1">Files</button>
       <button role="tab" id="t-evidence" aria-controls="p-evidence" aria-selected="false" tabindex="-1">Evidence</button>
       <button role="tab" id="t-export" aria-controls="p-export" aria-selected="false" tabindex="-1">Export</button>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-review" aria-labelledby="t-review" hidden data-ui>
+      <div class="review" id="review"></div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-start" aria-labelledby="t-start" hidden data-ui>
+      <div class="start" id="start"></div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-ask" aria-labelledby="t-ask" hidden data-ui>
+      <div class="ask-repo" id="ask-repo"></div>
     </div>
 
     <div class="panel" role="tabpanel" id="p-arch" aria-labelledby="t-arch" data-ui>

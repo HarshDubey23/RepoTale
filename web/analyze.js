@@ -340,8 +340,31 @@ export function fromUngh(m, branch, files) {
   };
 }
 
+/** A pull request link, or null: github.com/owner/name/pull/123. */
+export function parsePull(input) {
+  const m = String(input).trim().match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)/);
+  return m ? { owner: m[1], name: m[2], number: +m[3] } : null;
+}
+
+/** A pull request and the files it changes (up to 300, GitHub's own limit for this list). */
+export async function fetchPull(pr, token) {
+  const api = `https://api.github.com/repos/${pr.owner}/${pr.name}/pulls/${pr.number}`;
+  const info = await gh(api, token);
+  const files = [];
+  for (let page = 1; page <= 3; page++) {
+    const batch = await gh(`${api}/files?per_page=100&page=${page}`, token);
+    files.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return {
+    number: pr.number, title: info.title, url: info.html_url, author: info.user?.login, state: info.merged_at ? 'merged' : info.state,
+    base: info.base.ref, head: { repo: info.head.repo?.full_name ?? `${pr.owner}/${pr.name}`, sha: info.head.sha },
+    files: files.map(f => ({ filename: f.filename, status: f.status, additions: f.additions, deletions: f.deletions })),
+  };
+}
+
 /** Fetch and analyse. `progress(stage, done, total)` is called as work proceeds. */
-export async function analyze(input, { token, progress = () => {} } = {}) {
+export async function analyze(input, { token, progress = () => {}, include = [] } = {}) {
   const repo = parseRepo(input);
   if (!repo) throw new RepoError('Paste a GitHub repository, like owner/name or a github.com link.');
   const api = `https://api.github.com/repos/${repo.owner}/${repo.name}`;
@@ -377,7 +400,13 @@ export async function analyze(input, { token, progress = () => {} } = {}) {
   const manifests = {};
   await Promise.all([...MANIFESTS.filter(m => paths.includes(m)), readme].filter(Boolean).map(async m => { manifests[m] = await get(m); }));
 
-  const want = pickFiles(tree);
+  // Files the caller must have (a pull request's changes) are always read, with the tests named after
+  // them, so a verdict about them never rests on a sample that skipped them.
+  const stem = f => f.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase();
+  const must = include.filter(f => paths.includes(f) && CODE.test(f));
+  const stems = new Set(must.map(stem));
+  const tests = paths.filter(f => TEST.test(f) && CODE.test(f) && [...stems].some(st => stem(f).replace(/[._-](test|spec)$|^test_/g, '') === st));
+  const want = [...new Set([...must, ...tests, ...pickFiles(tree)])];
   const texts = {};
   let done = 0;
   progress('fetch', 0, want.length);

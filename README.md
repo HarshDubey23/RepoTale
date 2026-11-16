@@ -4,19 +4,34 @@
 
 [![RepoTale films a repository: the architecture builds itself while the narration explains it](web/assets/repotale-demo.gif)](https://harshdubey23.github.io/RepoTale/#demo)
 
-**Every claim about your code, with the line that proves it.** Paste a GitHub link and RepoTale maps the architecture, tells you what a change would reach, and makes a narrated film of the repository, where every sentence links to the file and line behind it.
+**Understand any codebase, and trust what you are told about it.** Paste a GitHub repository, a pull request or a website into [the site](https://harshdubey23.github.io/RepoTale/), or plug RepoTale into your coding agent. Every answer comes from the real import graph and points at the file and line behind it; nothing is guessed, and nothing that cannot be checked is passed off as fact.
 
-Two ways to use it:
+| You want to | Paste or run | You get |
+| --- | --- | --- |
+| **Review a pull request** | `github.com/owner/repo/pull/123` | What the change can break: every file it reaches through imports, the tests on those paths, the changed files no test reaches, and a verdict (review carefully, worth a look, low reach). Changed files are outlined on the architecture diagram. |
+| **Find your way into a new codebase** | `owner/repo` → **Start here** | The five files to read first, in order (the front door, the path to the module everything leans on, then what you meet everywhere), with why each matters and minutes to read. |
+| **Ask how something works** | `owner/repo` → **Ask** | An answer from Claude (with your own API key) where every citation is checked against the code: real ones link to the exact lines, invented ones are flagged in red, never hidden. |
+| **Give your AI agent the real structure** | `npx @theharshdubey/reporeel mcp` | An MCP server: `impact`, `who_imports`, `explain_file`, `import_path`, `start_here`, `repo_overview`, answered from the import graph of your working tree. |
+| **See the architecture** | `owner/repo` | An interactive diagram laid out by ELK, every arrow a real import labelled with what it imports. SVG, PNG, Mermaid. |
+| **Explain a project on film** | `owner/repo` or any website link | A narrated film: the system builds itself, the camera tours it, live pages scroll by. Download as MP4 with the voice. |
 
-- **The website**, for any public repository, with nothing to install: [harshdubey23.github.io/RepoTale](https://harshdubey23.github.io/RepoTale/). Open `#/owner/name` on it to share a repository's page directly.
-- **The CLI** (`reporeel`, also installed as `repotale`), for your own repository: HD video with a real voice, a live demo of your running app, README and social-card generation, and a check that your quickstart works. Everything below the website section is the CLI.
+### Plug it into your coding agent
+
+```bash
+claude mcp add repotale -- npx -y @theharshdubey/reporeel mcp
+```
+
+For Cursor, Windsurf or any MCP client, add a stdio server with the command `npx` and the arguments `-y @theharshdubey/reporeel mcp`, started in your repository. Then ask your agent things like *"what breaks if I change src/db.ts?"* or *"which tests should I run for this diff?"*: it calls `impact` and gets the dependents and the tests from the graph, instead of grepping and guessing.
 
 ## The website
 
-Paste `owner/name` or a github.com link. The page reads the repository in your browser, straight from GitHub: nothing is uploaded and nothing is run. You get five views:
+Paste `owner/name`, a github.com link, a pull request link or any website. The page reads the repository in your browser, straight from GitHub: nothing is uploaded and nothing is run. Its views:
 
 | View | What it shows |
 | --- | --- |
+| **Review** (pull requests) | What the pull request can break, its riskiest files first, each changed file with how far it reaches and how many tests sit on its path. Every changed file and the tests named after it are always read, even in a sampled repository |
+| **Start here** | The files a newcomer should read first, in order, with the reason for each and minutes to read |
+| **Ask** | Questions answered by Claude Opus 5.5 with your own Anthropic key (kept in the tab, sent only to api.anthropic.com). RepoTale picks the files by name, declarations and imports, sends their numbered lines, and checks every citation in the answer against them |
 | **Architecture** | The system as one diagram: its components (real files, given readable names) inside their subsystems, the outside services they call (databases, APIs, a headless browser…) and who uses it, laid out top to bottom by ELK with orthogonal arrows. Every arrow is a real import, labelled with what it imports. A file nearly everything imports wears a "used by N" badge instead of drawing a dozen arrows. Drag, scroll or pinch to move around; hover a component to trace what it talks to; select it to open its code on GitHub. Exports as SVG or PNG, dark or light, and as Mermaid that GitHub draws in any markdown file |
 | **Film** | A narrated film written from the code. If the project runs on the web, it opens with its real pages, each shown in a browser window that scrolls down the page while the narration says which file defines it. Then the numbers and the stack, and then the architecture on one continuous canvas: the whole system builds itself, and the camera flies to each busy subsystem while the narration names its parts and the import that ties them together, with the file and line on screen. Then the module most files depend on, one path to it, what a change would reach, and what to watch. Captions follow the voice word by word. **Download video** records an MP4 with the voice in it |
 | **Files** | Every file read, by area. Select one to see what it defines (with line links), what it imports, what imports it, and how many files and tests a change to it reaches; blast radius lights up every file a change could touch, by distance |
