@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A Brief opens every repository: one line on what it is and what everything leans on, the architecture overview as a picture, the film, the first three files to read with minutes, and a question box that answers straight away. Each card leads to its full view.
+
 - Architecture has levels. The overview shows each subsystem as one card and every import between two subsystems as one arrow, with the exact count (two heads when they import each other). Select a subsystem to open it: its own files inside, the subsystems that use it and that it uses as single boxes around it. "Every component" keeps the full diagram. Exports follow the level on screen.
 - Film: the architecture is told as a drill-down. The overview builds itself, then the two busiest subsystems open one after the other, each narrated from its real imports.
 

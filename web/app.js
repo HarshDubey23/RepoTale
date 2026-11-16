@@ -205,7 +205,7 @@ function showSite(site) {
   $('#r-desc').textContent = site.title ?? '';
   $('#r-meta').replaceChildren(`${site.pages.length} pages read and photographed from `, h('a', { href: site.start, target: '_blank', rel: 'noopener' }, site.start));
   document.title = `${site.host} — RepoTale`;
-  for (const t of ['arch', 'map', 'evidence', 'export']) $('#t-' + t).hidden = true;
+  for (const t of ['brief', 'arch', 'map', 'evidence', 'export']) $('#t-' + t).hidden = true;
   selectTab('film');
   setupFilm();
   $('#result').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
@@ -215,7 +215,7 @@ async function run(value) {
   fitAsk();
   const site = siteOf(value);
   if (site) return runSite(site);
-  for (const t of ['arch', 'map', 'evidence', 'export']) $('#t-' + t).hidden = false;
+  for (const t of ['brief', 'arch', 'map', 'evidence', 'export']) $('#t-' + t).hidden = false;
   label(repoStages);
   const pr = parsePull(value);
   const repo = pr ?? parseRepo(value);
@@ -367,8 +367,8 @@ function show() {
     ` · read ${fmt(totals.code + totals.tests)} of ${fmt(totals.files)} files`);
   document.title = `${meta.name} — RepoTale`;
   $('#t-review').hidden = !model.pull;
-  selectTab(model.pull ? 'review' : 'arch');
-  setupFilm(); drawMap(); drawEvidence(); drawExports(); drawHow(); syncBands(); drawArch(); drawStart(); drawReview(); setupAsk();
+  selectTab(model.pull ? 'review' : 'brief');
+  setupFilm(); drawMap(); drawEvidence(); drawExports(); drawHow(); syncBands(); drawArch(); drawStart(); drawReview(); setupAsk(); drawBrief();
   $('#result').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
@@ -551,6 +551,54 @@ $('#find').addEventListener('input', e => {
   $$('#map .node').forEach(n => { const hit = q && n.dataset.file.toLowerCase().includes(q); n.classList.toggle('hit', hit); if (hit && !first) first = n; });
   first?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
 });
+
+// ------------------------------------------------------------- brief: the whole repository on one screen
+// What it is, its shape, where to start, the film and a question box: each card leads to its tab.
+function drawBrief() {
+  const { meta, totals, core, cycles } = model, byFile = new Map(model.modules.map(m => [m.file, m]));
+  const heart = core[0], users = heart ? heart.importedBy.filter(f => !byFile.get(f)?.test).length : 0;
+  const s = startHere(model), first = s.files.slice(0, 3), firstMin = first.reduce((n, f) => n + f.minutes, 0);
+  const subs = levels?.overview.arch.nodes.length ?? 0;
+  const lang = totals.languages[0]?.[0];
+  const untested = core.filter(m => model.testsReaching(m.file).length === 0).slice(0, 2);
+  const link = f => h('a', { href: permalink(meta, f), target: '_blank', rel: 'noopener' }, f);
+  const card = (name, title, body, action, go) => {
+    const b = action ? h('button', { type: 'button', class: 'btn btn-small' }, action) : null;
+    b?.addEventListener('click', go);
+    return h('article', { class: `brief-card brief-${name}` }, h('h3', {}, title), ...[...body, b].filter(Boolean));
+  };
+
+  // The map as a picture: the overview, small and not interactive; the card opens the real one.
+  let map = null;
+  if (levels && subs >= 3) {
+    map = h('div', { class: 'brief-map', inert: '' });
+    map.innerHTML = renderArch(levels.overview.arch, levels.overview.lay, { title: false });
+    const svg = map.querySelector('svg'); svg.removeAttribute('width'); svg.removeAttribute('height');
+  }
+  const ask = h('form', { class: 'brief-form' },
+    h('label', { class: 'sr', for: 'brief-q' }, 'Question'),
+    h('input', { id: 'brief-q', placeholder: 'How are errors handled?', autocomplete: 'off', required: true }),
+    h('button', { class: 'btn btn-small', type: 'submit' }, 'Ask'));
+  ask.addEventListener('submit', e => { e.preventDefault(); selectTab('ask'); $('#askr-q').value = $('#brief-q').value; $('#askr-form').requestSubmit(); });
+
+  $('#brief').replaceChildren(
+    h('p', { class: 'brief-lede' },
+      `${fmt(totals.code)} source files${lang ? ` of ${lang}` : ''}${subs >= 3 ? ` in ${subs} subsystems` : ''}. `,
+      ...(heart ? ['Everything leans on ', h('b', {}, base(heart.file)), `, which ${users} file${users === 1 ? '' : 's'} import. `] : []),
+      ...(first[0] ? ['Start reading at ', h('b', {}, base(first[0].file)), '.'] : [])),
+    h('div', { class: 'brief-grid' },
+      map ? card('arch', 'The architecture', [map, h('p', {}, archBeats([levels.overview])[0].say)], 'Open the map', () => { selectTab('arch'); if (archView !== 'overview') openLevel('overview'); }) : null,
+      card('film', 'Watch it explained', [h('p', {}, `A ${clock(scenes.reduce((n, x) => n + x.duration, 0))} film with a neural voice: the architecture, the heart of the code, one path through it, what a change would reach. Every sentence links to its line.`)],
+        'Play the film', () => { selectTab('film'); player.play(); }),
+      card('start', 'Read these first', [h('ol', {}, first.map(f => h('li', {}, link(f.file), h('span', {}, ` ${f.minutes} min`)))), h('p', {}, `About ${firstMin} minutes for these ${first.length}; the full reading order takes ${s.minutes}.`)],
+        'See the reading order', () => selectTab('start')),
+      card('ask', 'Ask it anything', [h('p', {}, 'Answered free from the code, with the lines that answer it.'), ask]),
+    ),
+    h('p', { class: 'brief-health' },
+      cycles.length ? `${cycles.length} import cycle${cycles.length === 1 ? '' : 's'}. ` : 'No import cycles. ',
+      untested.length ? [`No test reaches `, ...untested.flatMap((m, i) => [i ? ' or ' : '', link(m.file)]), meta.truncated ? ' among the files read.' : '.'] : core.length ? 'Every core module is reached by a test.' : ''),
+  );
+}
 
 // ------------------------------------------------------------- start here
 function drawStart() {

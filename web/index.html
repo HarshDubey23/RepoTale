@@ -89,7 +89,8 @@
     </div>
     <div class="tabs" role="tablist" aria-label="Views">
       <button role="tab" id="t-review" aria-controls="p-review" aria-selected="false" tabindex="-1" hidden>Review</button>
-      <button role="tab" id="t-arch" aria-controls="p-arch" aria-selected="true">Architecture</button>
+      <button role="tab" id="t-brief" aria-controls="p-brief" aria-selected="true">Brief</button>
+      <button role="tab" id="t-arch" aria-controls="p-arch" aria-selected="false" tabindex="-1">Architecture</button>
       <button role="tab" id="t-start" aria-controls="p-start" aria-selected="false" tabindex="-1">Start here</button>
       <button role="tab" id="t-ask" aria-controls="p-ask" aria-selected="false" tabindex="-1">Ask</button>
       <button role="tab" id="t-film" aria-controls="p-film" aria-selected="false" tabindex="-1">Film</button>
@@ -102,6 +103,10 @@
       <div class="review" id="review"></div>
     </div>
 
+    <div class="panel" role="tabpanel" id="p-brief" aria-labelledby="t-brief" data-ui>
+      <div class="brief" id="brief"></div>
+    </div>
+
     <div class="panel" role="tabpanel" id="p-start" aria-labelledby="t-start" hidden data-ui>
       <div class="start" id="start"></div>
     </div>
@@ -110,7 +115,7 @@
       <div class="ask-repo" id="ask-repo"></div>
     </div>
 
-    <div class="panel" role="tabpanel" id="p-arch" aria-labelledby="t-arch" data-ui>
+    <div class="panel" role="tabpanel" id="p-arch" aria-labelledby="t-arch" hidden data-ui>
       <div class="dz-wrap" id="dz-wrap">
         <nav class="dz-levels" id="dz-levels" aria-label="Diagram level"></nav>
         <p class="dz-say" id="dz-say" aria-live="polite"></p>
