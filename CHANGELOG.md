@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-16)
 
 - Pull request review on the website: paste a PR link to see what it can break (dependents through imports, tests on those paths, untested changes, a verdict), with changed files outlined on the diagram. Changed files and their tests are always read.
 - Start here: the reading path into a repository, with reasons and reading time.

@@ -1,0 +1,26 @@
+# Publishes the package to npm, started by hand. Uses npm trusted publishing (OIDC): no token is
+# stored; npm checks that the package was built here and attaches provenance to it.
+# One-time setup on npmjs.com: package settings → Trusted publisher → GitHub Actions,
+# repository HarshDubey23/RepoTale, workflow release.yml.
+name: release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, registry-url: 'https://registry.npmjs.org' }
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install -g npm@^11.5.1
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node bin/reporeel.js setup
+      # prepublishOnly builds and runs the whole test suite first.
+      - run: npm publish --provenance --access public

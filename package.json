@@ -1,6 +1,6 @@
 {
   "name": "@theharshdubey/reporeel",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Turn any repo into a narrated video that explains it: live demo, architecture, real code and numbers. One storyboard file, free local voice.",
   "type": "module",
   "bin": {
