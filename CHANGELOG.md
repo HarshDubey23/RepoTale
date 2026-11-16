@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The landing demo is re-recorded in all three voices with the overview, a subsystem opened, and the score; the README GIF and the two stills under it show the new architecture.
+- Film: a new diagram builds in its first four seconds instead of across the whole scene, and long import names are no longer read aloud.
+
 - The homepage shows RepoTale's own architecture overview, whole and readable, instead of a crop of the full diagram; each box opens its folder on GitHub. On a phone the frame fits the diagram.
 - An import of the compiled build (`../dist/cli.js`) now resolves to the source it was built from (`src/cli.ts`) when the build is not in the repository.
 - The overview leaves out a one-file folder with no imports either way; it stays in "Every component".
