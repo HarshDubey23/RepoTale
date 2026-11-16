@@ -23,4 +23,5 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node bin/reporeel.js setup
       # prepublishOnly builds and runs the whole test suite first.
-      - run: npm publish --provenance --access public
+      # Verbose so a failed trusted-publishing exchange says why in the log.
+      - run: npm publish --provenance --access public --loglevel verbose
