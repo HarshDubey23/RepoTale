@@ -39,7 +39,7 @@ export function forEar(text) {
 const cpuWorkers = () => Math.max(1, Math.min(2, Math.floor((navigator.hardwareConcurrency || 4) / 4)));
 
 export class VoicePool {
-  constructor({ studio = false } = {}) {
+  constructor({ studio = true } = {}) {
     // A graphics card runs one full-precision model fast; on the CPU several 8-bit models share the work.
     this.gpu = studio && !!globalThis.navigator?.gpu;
     this.size = this.gpu ? 1 : cpuWorkers(); this.workers = []; this.jobs = new Map(); this.queue = []; this.busy = new Set();

@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-- The voice runs on the processor by default. On a laptop's built-in graphics chip the full model starved the page of frames (60 fps down to 1 or 2 while it warmed up); on the processor it works in the background and the film stays smooth. `localStorage['repotale.studio'] = 'true'` opts back into the graphics card.
+- The voice is back on the graphics card: on a laptop processor Kokoro was six to nine times slower than speech, so the film played with music only. Its warm-up starts when Read is pressed, each scene waits for its own voice (with a small "Warming up the voice" label rather than a freeze screen), and the score restarts in step with the narration.
 
-- The film starts the moment you press play. A scene whose voice is still being made plays with captions and music instead of stopping on "Preparing the voice"; the voice takes over from the first scene it is ready for. The voice model warms up while the code is being read, and on a processor at most two copies run, so the laptop stays responsive.
+- The voice model warms up while the code is being read, so the first scene is voiced sooner, and on a processor at most two copies run, so the laptop stays responsive.
 - Lighter pages: the homepage diagram's pulses and the looping clip run only while on screen, scrolling writes once per frame, and the film draws without canvas shadows or blurs.
 - Subsystems are named by their own folder ("Market", "Gateway"), with the parent folder only when two names would clash.
 - The overview keeps every subsystem's strongest link, and lines up any with no imports either way in a row below, so a large repository reads as one compact map.

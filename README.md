@@ -38,7 +38,7 @@ Paste `owner/name`, a github.com link, a pull request link or any website. The p
 | **Evidence** | Core modules, entry points, import cycles in import order, widely used modules with no test reaching them, the largest files, the stack with the manifest that names each part, and the packages used most |
 | **Export** | A share link, a README badge, `graph.json`, and the film as a `reporeel.json` storyboard the CLI renders in HD |
 
-Voices: **Kokoro**, an open neural voice that runs in the browser for free (two American and two British voices, made on your processor so the page stays smooth), or **ElevenLabs** with your own API key, which stays in the tab and goes only to `api.elevenlabs.io`. "Browser voice" is instant but cannot be recorded.
+Voices: **Kokoro**, an open neural voice that runs in the browser for free (two American and two British voices, on your graphics card when there is one), or **ElevenLabs** with your own API key, which stays in the tab and goes only to `api.elevenlabs.io`. "Browser voice" is instant but cannot be recorded.
 
 What it can and cannot claim:
 
@@ -48,7 +48,7 @@ What it can and cannot claim:
 - Imports and declarations are matched by pattern, not parsed, for JavaScript, TypeScript, Python and Go. Call graphs are not built yet.
 - Without a token GitHub allows 60 API requests an hour, and each repository uses three. A fine-grained read-only token lifts that and opens private repositories; it stays in the tab and goes only to `api.github.com`.
 - The live site comes from the repository's homepage field, its GitHub Pages site, or a demo link in its README; you can also type it in. Pages are photographed by thum.io's free service, one at a time, at up to 1200 by 1200 pixels; blank or error pages are left out rather than shown. Dynamic routes (`[id]`, `:id`) and translated copies of a page are skipped.
-- The Kokoro voice downloads its model once (about 90 MB) and the browser keeps it. It runs on the processor, in the background, so the page stays smooth; voicing a two-minute film takes a few minutes. Playback starts at once: a scene whose voice is not ready yet plays with captions and music. On a machine with a strong graphics card, `localStorage['repotale.studio'] = 'true'` switches to the faster full model (about 330 MB), which can make the page stutter on a laptop's built-in graphics chip.
+- The Kokoro voice downloads its model once and the browser keeps it: about 330 MB on a graphics card (WebGPU), where it speaks about as fast as real time after a 15 to 30 second warm-up that starts when you press Read; about 90 MB on the processor (`localStorage['repotale.studio'] = 'false'`), which is several times slower than real time. Each scene starts as soon as its voice is ready. On a laptop's built-in graphics chip the page can stutter while the voice is being made.
 - The diagram's layout engine (ELK) loads from jsDelivr. Component names come from file and folder names, so they are only as good as those names; nothing is written by a language model.
 
 Run the website locally with any static server, for example `npx http-server web`. It has no build step and no dependencies.

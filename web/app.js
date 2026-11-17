@@ -22,10 +22,11 @@ const store = { get(k, d) { try { const v = localStorage.getItem('repotale.' + k
 
 const savedVoice = store.get('voiceName', 'af_heart');
 const opts = { voice: store.get('voice', true), voiceName: savedVoice === 'browser' ? 'af_heart' : savedVoice, captions: store.get('captions', true), tests: store.get('tests', false), back: store.get('back', false) };
-// The voice runs on the processor by default. On a laptop's built-in graphics chip the full model
-// starves the page of frames (measured: 60 fps down to 1 or 2 while it warms up), and a smooth
-// page matters more than a faster voice. repotale.studio = true opts into the graphics card.
-const pool = new VoicePool({ studio: store.get('studio', false) });
+// The voice runs on the graphics card when there is one: on a laptop's processor Kokoro makes speech
+// six to nine times slower than it is spoken, so a film would play without its voice. Its warm-up
+// (15 to 30 s, and the page stutters through it) starts when Read is pressed, before the film exists.
+// repotale.studio = false keeps it on the processor.
+const pool = new VoicePool({ studio: store.get('studio', true) });
 let audioContext = null, voiceJob = 0;
 let model = null, scenes = null, player = null, selected = null, recording = null;
 let arch = null, archLay = null, archTheme = 'light';
@@ -324,7 +325,7 @@ function prepareVoice() {
   pool.onstatus = st => {
     if (job !== voiceJob) return;
     if (st.loading != null && !ready) voiceNote(`Neural voice <b>${label}</b>: loading the model, ${Math.round(st.loading * 100)}%.`);
-    if (st.ready === 1 && !ready) voiceNote(`Neural voice <b>${label}</b>: ${st.mode === 'studio' ? 'on your graphics card' : 'made in the background on your processor, so the page stays smooth'}. Voicing the first scene; until a scene is ready it plays with captions.`);
+    if (st.ready === 1 && !ready) voiceNote(`Neural voice <b>${label}</b>: ${st.mode === 'studio' ? 'on your graphics card' : 'on your processor, which is slow: each scene can take a minute'}. Voicing the first scene.`);
     if (st.error) voiceNote(`The neural voice could not start here (${st.error}). Choose “Browser voice” instead.`);
   };
   scenes.forEach(s => pool.say(s.say, opts.voiceName).then(({ audio, rate }) => {
@@ -334,7 +335,7 @@ function prepareVoice() {
     s.audio = buf; s.duration = Math.max(3200, Math.round(buf.duration * 1000) + 650);
     ready++;
     if (ready === scenes.length) refreshScore();
-    voiceNote(ready === scenes.length ? `Neural voice <b>${label}</b>: ready. Download video now includes the narration.` : `Neural voice <b>${label}</b>: ${ready} of ${scenes.length} scenes ready. Press play any time: a scene whose voice is still being made plays with captions.`);
+    voiceNote(ready === scenes.length ? `Neural voice <b>${label}</b>: ready. Download video now includes the narration.` : `Neural voice <b>${label}</b>: ${ready} of ${scenes.length} scenes ready. Press play any time: each scene starts as soon as its voice is ready.`);
     player?.emit();
   }, () => {}));
 }
