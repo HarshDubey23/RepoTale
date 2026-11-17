@@ -22,8 +22,10 @@ const store = { get(k, d) { try { const v = localStorage.getItem('repotale.' + k
 
 const savedVoice = store.get('voiceName', 'af_heart');
 const opts = { voice: store.get('voice', true), voiceName: savedVoice === 'browser' ? 'af_heart' : savedVoice, captions: store.get('captions', true), tests: store.get('tests', false), back: store.get('back', false) };
-// repotale.studio = false keeps the voice on the 90 MB CPU model, for machines short of disk.
-const pool = new VoicePool({ studio: store.get('studio', true) });
+// The voice runs on the processor by default. On a laptop's built-in graphics chip the full model
+// starves the page of frames (measured: 60 fps down to 1 or 2 while it warms up), and a smooth
+// page matters more than a faster voice. repotale.studio = true opts into the graphics card.
+const pool = new VoicePool({ studio: store.get('studio', false) });
 let audioContext = null, voiceJob = 0;
 let model = null, scenes = null, player = null, selected = null, recording = null;
 let arch = null, archLay = null, archTheme = 'light';
@@ -322,7 +324,7 @@ function prepareVoice() {
   pool.onstatus = st => {
     if (job !== voiceJob) return;
     if (st.loading != null && !ready) voiceNote(`Neural voice <b>${label}</b>: loading the model, ${Math.round(st.loading * 100)}%.`);
-    if (st.ready === 1 && !ready) voiceNote(`Neural voice <b>${label}</b>: ${st.mode === 'studio' ? 'studio quality on your graphics card' : 'standard quality on your processor'}, speaking the first scene.`);
+    if (st.ready === 1 && !ready) voiceNote(`Neural voice <b>${label}</b>: ${st.mode === 'studio' ? 'on your graphics card' : 'made in the background on your processor, so the page stays smooth'}. Voicing the first scene; until a scene is ready it plays with captions.`);
     if (st.error) voiceNote(`The neural voice could not start here (${st.error}). Choose “Browser voice” instead.`);
   };
   scenes.forEach(s => pool.say(s.say, opts.voiceName).then(({ audio, rate }) => {

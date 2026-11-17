@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The voice runs on the processor by default. On a laptop's built-in graphics chip the full model starved the page of frames (60 fps down to 1 or 2 while it warmed up); on the processor it works in the background and the film stays smooth. `localStorage['repotale.studio'] = 'true'` opts back into the graphics card.
+
 - The film starts the moment you press play. A scene whose voice is still being made plays with captions and music instead of stopping on "Preparing the voice"; the voice takes over from the first scene it is ready for. The voice model warms up while the code is being read, and on a processor at most two copies run, so the laptop stays responsive.
 - Lighter pages: the homepage diagram's pulses and the looping clip run only while on screen, scrolling writes once per frame, and the film draws without canvas shadows or blurs.
 - Subsystems are named by their own folder ("Market", "Gateway"), with the parent folder only when two names would clash.
