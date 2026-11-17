@@ -51,6 +51,22 @@ const SERVICES = [
 // Twelve hues that read on the dark ground, each with a deep tint for its subsystem's field.
 const HUES = ['#1f6f4a', '#e5484d', '#12a594', '#f76b15', '#8e4ec6', '#0090ff', '#d6409f', '#46a758', '#ad7f58', '#3e63dd', '#e0a400', '#00a2c7'];
 
+/** Short names for folders: the folder's own name ("apps/api/market" is "Market"), with its parent
+ *  added only where two would read the same, and never a bare "src" or "lib". */
+export function areaNames(areas) {
+  const parts = a => a === '(root)' ? [] : a.split('/').filter(s => !/^(src|lib|source)$/.test(s));
+  const say = ps => cap(words(ps.join(' ')).toLowerCase().replace(/\b(api|ui|cli|sdk|db|ai|mcp)\b/g, m => m.toUpperCase()));
+  const names = new Map();
+  for (const a of areas) {
+    const ps = parts(a);
+    if (!ps.length) { names.set(a, a === '(root)' ? 'Project root' : say([a.split('/').at(-1)])); continue; }
+    let n = 1;
+    while (n < ps.length && areas.some(b => b !== a && parts(b).slice(-n).join('/') === ps.slice(-n).join('/'))) n++;
+    names.set(a, say(ps.slice(-n)));
+  }
+  return names;
+}
+
 /** Pick the components, group them, and connect them. Pure: no layout, no DOM. */
 export function buildArch(model, { max = 24 } = {}) {
   const byFile = new Map(model.modules.map(m => [m.file, m]));
@@ -69,8 +85,9 @@ export function buildArch(model, { max = 24 } = {}) {
   for (const a of areas) hub.set(a, ranked.find(m => m.area === a && pick.has(m.file))?.file);
   const rep = f => pick.has(f) ? f : hub.get(byFile.get(f)?.area);
 
-  const groups = areas.filter(a => [...pick].some(f => byFile.get(f).area === a)).map((a, i) => ({
-    id: 'g' + i, area: a, label: a === '(root)' ? 'Project root' : cap(words(a.split('/').filter(s => !/^(src|lib|app|packages|apps|source)$/.test(s)).join(' ') || a.split('/').at(-1)).toLowerCase()),
+  const kept = areas.filter(a => [...pick].some(f => byFile.get(f).area === a)), names = areaNames(kept);
+  const groups = kept.map((a, i) => ({
+    id: 'g' + i, area: a, label: names.get(a),
     path: a, color: HUES[i % HUES.length], files: code.filter(m => m.area === a).length,
   }));
   const groupOf = new Map(groups.map(g => [g.area, g]));
@@ -198,6 +215,8 @@ export function overviewArch(model, arch) {
   const strong = [...pairs.values()].sort((a, b) => (b.count + b.back) - (a.count + a.back));
   const total = strong.reduce((s, e) => s + e.count + e.back, 0);
   const edges = strong.filter((e, i) => i < 6 || (e.count + e.back) / total >= 0.06).slice(0, 9);
+  // Every subsystem keeps at least its own strongest link, so none floats as if it stood alone.
+  for (const e of strong) if (!edges.includes(e) && ![e.from, e.to].every(id => edges.some(x => x.from === id || x.to === id))) edges.push(e);
   for (const e of edges) {
     e.both = e.back > 0; e.count += e.back;
     e.label = e.both ? `${e.count} imports, both ways` : plural(e.count, 'import');
@@ -220,7 +239,7 @@ export function overviewArch(model, arch) {
 export function focusArch(model, arch, area, { max = 14 } = {}) {
   const code = model.modules.filter(m => !m.test);
   const byFile = new Map(code.map(m => [m.file, m]));
-  const g = arch.groups.find(x => x.area === area) ?? { id: 'g', area, label: cap(words(area.split('/').at(-1))), color: HUES[0] };
+  const g = arch.groups.find(x => x.area === area) ?? { id: 'g', area, label: areaNames([area]).get(area), color: HUES[0] };
   const mine = code.filter(m => m.area === area).sort((a, b) => (b.importedBy.length * 3 + b.imports.length) - (a.importedBy.length * 3 + a.imports.length));
   const pick = new Set(mine.slice(0, max).map(m => m.file)), hub = mine[0]?.file;
   const groupOf = new Map(arch.groups.map(x => [x.area, x]));
@@ -248,7 +267,7 @@ export function focusArch(model, arch, area, { max = 14 } = {}) {
   edges.forEach((e, i) => { e.detail = e.label; if (i >= 10) e.label = ''; });
   for (const id of keepNear) {
     const a = id.slice(2), other = groupOf.get(a), n = code.filter(m => m.area === a).length;
-    nodes.push({ id, title: other?.label ?? cap(words(a.split('/').at(-1)).toLowerCase()), kind: areaKind(code.filter(m => m.area === a).map(m => m.file)),
+    nodes.push({ id, title: other?.label ?? areaNames([a]).get(a), kind: areaKind(code.filter(m => m.area === a).map(m => m.file)),
       group: null, color: other?.color ?? '#86868b', area: a, sub: `${plural(n, 'file')} · open`, users: 0, neighbour: true });
   }
   const svc = servicesFor(model, key, id => pick.has(id));
@@ -385,14 +404,28 @@ export function separate(all, gap) {
  *  in a screen-shaped cluster rather than a long row) and joined by straight arrows from border to
  *  border, each label in the middle of its arrow. */
 async function layoutOverview(arch, elk, leaf) {
+  const parts = [...(arch.actor ? [arch.actor] : []), ...arch.nodes, ...arch.services];
+  const linked = new Set(arch.edges.flatMap(e => [e.from, e.to]));
   const out = await elk.layout({
     id: 'root',
-    layoutOptions: { 'elk.algorithm': 'stress', 'elk.stress.desiredEdgeLength': '330', 'elk.spacing.nodeNode': '80', 'elk.padding': '[top=56,left=56,bottom=56,right=56]' },
-    children: [...(arch.actor ? [leaf(arch.actor)] : []), ...arch.nodes.map(leaf), ...arch.services.map(leaf)],
+    layoutOptions: { 'elk.algorithm': 'stress', 'elk.stress.desiredEdgeLength': '300', 'elk.spacing.nodeNode': '80', 'elk.padding': '[top=56,left=56,bottom=56,right=56]' },
+    children: parts.filter(n => linked.has(n.id)).map(leaf),
     edges: arch.edges.map(e => ({ id: e.id, sources: [e.from], targets: [e.to] })),
   });
   const boxes = new Map((out.children ?? []).map(c => [c.id, { x: c.x, y: c.y, w: c.width, h: c.height }]));
-  separate([...boxes.values()], 120);
+  separate([...boxes.values()], 100);
+  // Parts with no import either way would drift anywhere under stress: they line up below instead.
+  const alone = parts.filter(n => !linked.has(n.id));
+  if (alone.length) {
+    const placed = [...boxes.values()], left = placed.length ? Math.min(...placed.map(b => b.x)) : 0;
+    const right = Math.max(left + 900, ...placed.map(b => b.x + b.w));
+    let x = left, y = placed.length ? Math.max(...placed.map(b => b.y + b.h)) + 110 : 0, row = 0;
+    for (const n of alone) {
+      const s = nodeSize(n);
+      if (x > left && x + s.width > right) { x = left; y += row + 40; row = 0; }
+      boxes.set(n.id, { x, y, w: s.width, h: s.height }); x += s.width + 40; row = Math.max(row, s.height);
+    }
+  }
   // Where the line from a box's centre toward a point leaves the box, plus a small gap.
   const exit = (b, [tx, ty], gap = 8) => {
     const cx = b.x + b.w / 2, cy = b.y + b.h / 2, dx = tx - cx, dy = ty - cy;

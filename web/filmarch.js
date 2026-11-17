@@ -110,7 +110,8 @@ function arrowHead(ctx, x, y, dx, dy, size, color) {
 /** One frame of an architecture beat. `el` is milliseconds into the beat. */
 export function drawArchBeat(ctx, s, t, ms, el) {
   const { arch, lay } = s;
-  const fx = 40, fy = 92, fw = W - 80, fh = H - 92 - 140;
+  // A beat with a name keeps a band under the top bar for it, so the name never sits on a box.
+  const fx = 40, fy = s.beat > 0 ? 180 : 92, fw = W - 80, fh = H - fy - 140;
   // Camera: ease from the previous beat's view to this one over the first 1.1 seconds.
   const c = s.fresh ? 1 : ease(el / 1100);
   const f = { x: s.from.x + (s.focus.x - s.from.x) * c, y: s.from.y + (s.focus.y - s.from.y) * c, w: s.from.w + (s.focus.w - s.from.w) * c, h: s.from.h + (s.focus.h - s.from.h) * c };
@@ -178,7 +179,9 @@ export function drawArchBeat(ctx, s, t, ms, el) {
       return;
     }
     const sh = shapeOf(n.area && !n.neighbour ? 'core' : n.kind, b.x, b.y + lift, b.w, b.h), body = new Path2D(sh.body);
-    ctx.save(); ctx.shadowColor = 'rgba(13,42,28,0.10)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; ctx.fillStyle = svc ? C.node2 : C.node; ctx.fill(body); ctx.restore();
+    // A flat offset shade instead of a canvas shadow: shadows are blurred again on every frame.
+    ctx.save(); ctx.translate(0, 4); ctx.fillStyle = 'rgba(13,42,28,0.07)'; ctx.fill(body); ctx.restore();
+    ctx.fillStyle = svc ? C.node2 : C.node; ctx.fill(body);
     ctx.strokeStyle = svc ? C.ink : col; ctx.lineWidth = n.heart ? 3 : 1.8; ctx.setLineDash((svc && n.kind !== 'cloud') || n.neighbour ? [6, 5] : []); ctx.stroke(body); ctx.setLineDash([]);
     if (sh.lines) { ctx.lineCap = 'round'; ctx.stroke(new Path2D(sh.lines)); ctx.lineCap = 'butt'; }
     if (n.area && !n.neighbour) {

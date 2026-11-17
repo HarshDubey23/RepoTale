@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The film starts the moment you press play. A scene whose voice is still being made plays with captions and music instead of stopping on "Preparing the voice"; the voice takes over from the first scene it is ready for. The voice model warms up while the code is being read, and on a processor at most two copies run, so the laptop stays responsive.
+- Lighter pages: the homepage diagram's pulses and the looping clip run only while on screen, scrolling writes once per frame, and the film draws without canvas shadows or blurs.
+- Subsystems are named by their own folder ("Market", "Gateway"), with the parent folder only when two names would clash.
+- The overview keeps every subsystem's strongest link, and lines up any with no imports either way in a row below, so a large repository reads as one compact map.
+- In the film, an opened subsystem's name has its own band above the diagram instead of sitting on its top row.
+
 - The landing demo is re-recorded in all three voices with the overview, a subsystem opened, and the score; the README GIF and the two stills under it show the new architecture.
 - Film: a new diagram builds in its first four seconds instead of across the whole scene, and long import names are no longer read aloud.
 

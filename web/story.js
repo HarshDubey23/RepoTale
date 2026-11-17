@@ -230,7 +230,7 @@ function enterStyle(prev, kind) {
   if (!prev || (kind === 'arch' && prev === 'arch')) return 'none';
   if (kind === 'site') return prev === 'site' ? 'slide' : 'zoom';
   if (kind === 'arch') return 'iris';
-  if (kind === 'end' || kind === 'title') return 'blur';
+  if (kind === 'end' || kind === 'title') return 'zoom';
   if (kind === 'stats' || kind === 'stack') return 'slide';
   if (kind === 'code' || kind === 'path' || kind === 'blast') return 'wipe';
   return 'rise';
@@ -436,8 +436,9 @@ const DRAW = {
     [C.accent, C.muted, C.muted].forEach((c, k) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 24 + k * 22, y + bar / 2, 6, 0, 7); ctx.fill(); });
     ctx.fillStyle = C.bg; ctx.fillRect(x + 100, y + 9, w - 200, bar - 18);
     font(ctx, TEXT(16, 500)); ctx.fillStyle = C.ink; ctx.fillText(s.url.replace(/^https?:\/\//, '').slice(0, 90), x + 116, y + 28);
-    ctx.save(); ctx.shadowColor = 'rgba(13,42,28,0.22)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 18;
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y + bar, w, h - bar); ctx.restore();
+    // A soft shadow from three stacked tints: a 50px canvas blur, redrawn every frame, stutters on laptops.
+    for (const [d, a] of [[6, 0.05], [12, 0.04], [20, 0.03]]) { ctx.fillStyle = `rgba(13,42,28,${a})`; ctx.fillRect(x - d / 2, y + bar + d, w + d, h - bar); }
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y + bar, w, h - bar);
     ctx.save(); ctx.beginPath(); ctx.rect(x, y + bar, w, h - bar); ctx.clip();
     const cam = camera(s.img, t, w / (h - bar));
     ctx.drawImage(s.img, cam.sx, cam.sy, cam.vw, cam.vh, x, y + bar, w, h - bar);
@@ -563,18 +564,12 @@ export function drawFrame(ctx, scenes, i, t, ms, opts = {}) {
     if (style === 'zoom') { ctx.globalAlpha = p; ctx.translate(W / 2, H / 2); ctx.scale(1.1 - 0.1 * p, 1.1 - 0.1 * p); ctx.translate(-W / 2, -H / 2); }
     else if (style === 'iris') { ctx.beginPath(); ctx.arc(W / 2, H / 2, Math.hypot(W, H) / 2 * p, 0, 7); ctx.clip(); ground(ctx, ms); }
     else if (style === 'slide') { ctx.globalAlpha = p; ctx.translate((1 - p) * (i % 2 ? -110 : 110), 0); }
-    else if (style === 'blur') { ctx.globalAlpha = p; ctx.filter = `blur(${(1 - p) * 16}px)`; }
     else if (style === 'wipe') { ctx.beginPath(); ctx.rect(0, 0, W * p, H); ctx.clip(); }
     else { ctx.globalAlpha = p; ctx.translate(0, (1 - p) * 28); }
   }
   DRAW[scenes[i].kind](ctx, scenes[i], t, ms);
-  ctx.restore(); ctx.globalAlpha = 1; ctx.filter = 'none';
+  ctx.restore(); ctx.globalAlpha = 1;
   chrome(ctx, scenes[i], i, scenes.length, t, opts);
-  if (opts.waiting) {
-    font(ctx, TEXT(20, 600)); const label = 'Preparing the voice…', w = ctx.measureText(label).width + 48;
-    ctx.fillStyle = C.accent; ctx.fillRect(W / 2 - w / 2, H / 2 - 26, w, 52);
-    ctx.fillStyle = C.bg; ctx.textAlign = 'center'; ctx.fillText(label, W / 2, H / 2 + 7); ctx.textAlign = 'left';
-  }
 }
 
 /** Plays scenes on a canvas. Narration is either a neural voice (each scene carries an AudioBuffer
@@ -582,7 +577,7 @@ export function drawFrame(ctx, scenes, i, t, ms, opts = {}) {
  *  its sentence does, so voice and picture stay together. */
 export class Player {
   constructor(canvas, scenes, opts = {}) {
-    Object.assign(this, { canvas, ctx: canvas.getContext('2d'), scenes, opts, i: 0, t0: 0, elapsed: 0, playing: false, spoken: true, waiting: false, src: null, listeners: new Set() });
+    Object.assign(this, { canvas, ctx: canvas.getContext('2d'), scenes, opts, i: 0, t0: 0, elapsed: 0, playing: false, spoken: true, src: null, listeners: new Set() });
     this.frame = this.frame.bind(this);
     this.draw();
   }
@@ -593,16 +588,19 @@ export class Player {
   // A paused scene that has not started shows its finished frame, so it reads as a poster.
   draw(ms = performance.now()) {
     const poster = !this.playing && this.elapsed === 0;
-    drawFrame(this.ctx, this.scenes, this.i, poster ? 0.92 : Math.min(1, this.elapsed / this.scene.duration), ms, { ...this.opts, poster, waiting: this.playing && this.waiting });
+    // Captions stay on while a scene plays without its voice, so nothing is lost.
+    drawFrame(this.ctx, this.scenes, this.i, poster ? 0.92 : Math.min(1, this.elapsed / this.scene.duration), ms, { ...this.opts, poster, captions: this.opts.captions || (this.mode === 'neural' && !this.src) });
   }
   hush() {
     if (this.src) { try { this.src.stop(); } catch {} this.src = null; }
     if ('speechSynthesis' in window) speechSynthesis.cancel();
   }
   speak() {
-    this.hush(); this.spoken = true; this.waiting = false;
+    this.hush(); this.spoken = true;
     if (this.mode === 'neural') {
-      if (!this.scene.audio) { this.waiting = true; return; }
+      // The film never waits for the voice: a scene whose audio is not made yet plays at once,
+      // captioned and scored, and the voice takes over from the first scene it is ready for.
+      if (!this.scene.audio) return;
       const ac = this.opts.audioContext;
       this.src = ac.createBufferSource(); this.src.buffer = this.scene.audio; this.src.connect(ac.destination);
       this.src.start(0, Math.min(this.elapsed / 1000, this.scene.audio.duration));
@@ -632,7 +630,7 @@ export class Player {
     this.speak(); this.music();
     requestAnimationFrame(this.frame); this.emit();
   }
-  pause() { this.playing = false; this.waiting = false; this.hush(); this.quiet(); this.draw(); this.emit(); }
+  pause() { this.playing = false; this.hush(); this.quiet(); this.draw(); this.emit(); }
   seek(i) {
     this.i = Math.max(0, Math.min(this.scenes.length - 1, i)); this.elapsed = 0; this.t0 = performance.now();
     if (this.playing) { this.speak(); this.music(); } else this.hush();
@@ -640,13 +638,8 @@ export class Player {
   }
   frame(now) {
     if (!this.playing) return;
-    if (this.waiting) {
-      // Hold the scene at its start until its audio arrives.
-      if (this.scene.audio) { this.elapsed = 0; this.t0 = now; this.speak(); this.emit(); }
-      else this.t0 = now - this.elapsed;
-    }
     this.elapsed = now - this.t0;
-    if (!this.waiting && this.elapsed >= this.scene.duration && this.spoken) {
+    if (this.elapsed >= this.scene.duration && this.spoken) {
       if (this.i === this.scenes.length - 1) { this.elapsed = this.scene.duration; this.playing = false; this.hush(); this.quiet(); this.draw(now); this.emit(); this.opts.onEnd?.(); return; }
       this.i++; this.elapsed = 0; this.t0 = now; this.speak(); this.emit();
     }

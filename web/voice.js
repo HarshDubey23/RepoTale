@@ -34,11 +34,15 @@ export function forEar(text) {
     .replace(/\s+/g, ' ').trim();
 }
 
+// Each CPU worker holds its own copy of the model and a core at full load; more than two makes a
+// laptop stutter for a little extra speed.
+const cpuWorkers = () => Math.max(1, Math.min(2, Math.floor((navigator.hardwareConcurrency || 4) / 4)));
+
 export class VoicePool {
   constructor({ studio = true } = {}) {
     // A graphics card runs one full-precision model fast; on the CPU several 8-bit models share the work.
     this.gpu = studio && !!globalThis.navigator?.gpu;
-    this.size = this.gpu ? 1 : Math.max(1, Math.min(4, Math.floor((navigator.hardwareConcurrency || 4) / 3))); this.workers = []; this.jobs = new Map(); this.queue = []; this.busy = new Set();
+    this.size = this.gpu ? 1 : cpuWorkers(); this.workers = []; this.jobs = new Map(); this.queue = []; this.busy = new Set();
     this.cache = new Map(); this.onstatus = () => {}; this.loaded = 0; this.id = 0;
   }
   start() {
@@ -56,7 +60,7 @@ export class VoicePool {
     if (data.type === 'ready') {
       this.loaded++; this.mode = data.mode; this.onstatus({ ready: this.loaded, mode: data.mode });
       // The full-precision model did not start on this card: share the work across CPU workers instead.
-      if (data.mode === 'standard' && this.gpu) { this.gpu = false; this.size = Math.max(1, Math.min(4, Math.floor((navigator.hardwareConcurrency || 4) / 3))); }
+      if (data.mode === 'standard' && this.gpu) { this.gpu = false; this.size = cpuWorkers(); }
       // The others start only once the first has the model in the browser cache, so it downloads once.
       if (this.loaded === 1) while (this.workers.length < this.size) this.spawn();
       return this.pump();
@@ -84,6 +88,9 @@ export class VoicePool {
     }
     return this.cache.get(key);
   }
+  /** Load the model and speak one word, so the slow first run (on a graphics card, compiling its
+   *  shaders takes tens of seconds) is over before the film needs its first scene. */
+  warm(voice) { return this.say('Ready.', voice).catch(() => {}); }
   /** Drop work not yet started, e.g. when another repository is opened. */
   clear() { for (const j of this.queue) { j.reject(new Error('cancelled')); } this.queue = []; }
 }

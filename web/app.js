@@ -94,19 +94,38 @@ function perform(svg) {
   const NS = 'http://www.w3.org/2000/svg', inner = edges.filter(e => !e.getAttribute('stroke-dasharray'));
   const dots = Array.from({ length: 4 }, () => { const c = document.createElementNS(NS, 'circle'); c.setAttribute('r', 6); c.setAttribute('fill', '#0d2a1c'); c.style.opacity = 0; svg.querySelector('g')?.append(c); return c; });
   const start = performance.now() + 900 + edges.length * 55 + 1100;
+  const lengths = new Map(inner.map(e => [e, e.getTotalLength()]));
+  // The pulses move only while the diagram is on screen: every frame repaints it, and nobody sees
+  // a pulse below the fold or behind an opened repository.
+  let shown = true, looping = false;
+  const live = () => shown && !document.body.classList.contains('has-result') && document.contains(svg);
   const run = now => {
+    if (!live()) { looping = false; return; }
     if (now > start) dots.forEach((d, k) => {
       const e = inner[(Math.floor((now - start) / 2200) * 3 + k * 5) % inner.length]; if (!e) return;
-      const L = e.getTotalLength(), u = ((now - start + k * 550) % 2200) / 2200, p = e.getPointAtLength(L * u);
+      const u = ((now - start + k * 550) % 2200) / 2200, p = e.getPointAtLength(lengths.get(e) * u);
       d.setAttribute('cx', p.x); d.setAttribute('cy', p.y); d.style.opacity = Math.sin(Math.PI * u).toFixed(2);
     });
-    if (document.contains(svg)) requestAnimationFrame(run);
+    requestAnimationFrame(run);
   };
-  requestAnimationFrame(run);
+  const go = () => { if (!looping && live()) { looping = true; requestAnimationFrame(run); } };
+  new IntersectionObserver(([e]) => { shown = e.isIntersecting; go(); }).observe(svg);
+  go();
+}
+
+// A looping clip decodes every frame while it plays: it plays only while it is on screen.
+if (!calm) {
+  const clips = new IntersectionObserver(es => es.forEach(e => e.isIntersecting ? e.target.play().catch(() => {}) : e.target.pause()), { threshold: 0.2 });
+  for (const v of $$('video[autoplay]')) { v.autoplay = false; v.pause(); clips.observe(v); }
 }
 
 // The yellow stage drifts a little slower than the page.
-if (!calm) addEventListener('scroll', () => { const st = document.querySelector('.stage'); if (st && scrollY < innerHeight * 1.5) st.style.transform = `translateY(${(scrollY * -0.08).toFixed(1)}px)`; }, { passive: true });
+if (!calm) {
+  const st = document.querySelector('.stage');
+  let queued = false;
+  // At most one write per frame, and none once the hero is out of reach.
+  addEventListener('scroll', () => { if (queued || !st || scrollY > innerHeight * 1.5) return; queued = true; requestAnimationFrame(() => { queued = false; st.style.transform = `translateY(${(scrollY * -0.08).toFixed(1)}px)`; }); }, { passive: true });
+}
 
 // ------------------------------------------------------------- the demo film
 {
@@ -213,6 +232,8 @@ function showSite(site) {
 
 async function run(value) {
   fitAsk();
+  // The voice warms up while the code is read, so the film can start speaking as soon as it exists.
+  if (opts.voice && opts.voiceName !== 'browser' && !opts.voiceName.startsWith('eleven:')) pool.warm(opts.voiceName);
   const site = siteOf(value);
   if (site) return runSite(site);
   for (const t of ['brief', 'arch', 'map', 'evidence', 'export']) $('#t-' + t).hidden = false;
@@ -311,7 +332,7 @@ function prepareVoice() {
     s.audio = buf; s.duration = Math.max(3200, Math.round(buf.duration * 1000) + 650);
     ready++;
     if (ready === scenes.length) refreshScore();
-    voiceNote(ready === scenes.length ? `Neural voice <b>${label}</b>: ready. Download video now includes the narration.` : `Neural voice <b>${label}</b>: ${ready} of ${scenes.length} scenes ready. You can press play; it waits for each one.`);
+    voiceNote(ready === scenes.length ? `Neural voice <b>${label}</b>: ready. Download video now includes the narration.` : `Neural voice <b>${label}</b>: ${ready} of ${scenes.length} scenes ready. Press play any time: a scene whose voice is still being made plays with captions.`);
     player?.emit();
   }, () => {}));
 }

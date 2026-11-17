@@ -584,7 +584,7 @@ body.has-result .ask .ask-form { margin-top: 0; }
 .still.reveal.in img, .still.reveal.in video { clip-path: inset(0); transform: none; }
 .btn, .ctl, .voices button, .examples button { transition: transform .15s var(--ease), background-color .18s, color .18s; }
 .btn:active, .ctl:active, .voices button:active { transform: translateY(2px) scale(.98); }
-.stage { transition: transform .2s linear; will-change: transform; }
+.stage { will-change: transform; }
 
 /* ------------------------------------------------------------- demo */
 .demo { padding: var(--gap) var(--m) 0; display: grid; grid-template-columns: 4fr 8fr; gap: 40px; align-items: end; }

@@ -5,7 +5,18 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { parseRepo, importsOf, symbolsOf, resolve, buildModel, cycles, blastRadius, aliasesFrom, pickFiles, detectStack, routesOf, headingOf, liveUrl, pageFacts, siteLinks, fromUngh } from '../web/analyze.js';
 import { forEar } from '../web/voice.js';
-import { buildArch, overviewArch, focusArch, mermaidArch, nameOf, kindOf } from '../web/arch.js';
+import { buildArch, overviewArch, focusArch, mermaidArch, nameOf, kindOf, areaNames } from '../web/arch.js';
+
+test('subsystems are named by their own folder, with the parent only when two would clash', () => {
+  const n = areaNames(['apps/api', 'apps/api/market', 'apps/api/gateway', 'web/components', 'mobile/components', 'src', 'source/utils', '(root)']);
+  assert.deepEqual(Object.fromEntries(n), {
+    'apps/api': 'API', 'apps/api/market': 'Market', 'apps/api/gateway': 'Gateway',
+    'web/components': 'Web components', 'mobile/components': 'Mobile components',
+    src: 'Src', 'source/utils': 'Utils', '(root)': 'Project root',
+  });
+  // Every name is distinct, so no two cards on a diagram read the same.
+  assert.equal(new Set(n.values()).size, n.size);
+});
 import { buildStory, storyboardOf, pathBetween, mermaidOf } from '../web/story.js';
 
 test('parseRepo accepts what people paste and rejects the rest', () => {
