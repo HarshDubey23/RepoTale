@@ -15,7 +15,9 @@ const SECRET = /KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH/i;
  *  REPOREEL_PASS_ENV=NAME,NAME lets named variables through for apps that need them to start. */
 export function childEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const pass = new Set((process.env.REPOREEL_PASS_ENV ?? '').split(',').map(s => s.trim()).filter(Boolean));
-  return { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => pass.has(k) || !SECRET.test(k))), ...extra };
+  // NODE_TEST_CONTEXT belongs to a test runner that may be running reporeel itself; passed on, it makes the
+  // repository's own `node --test` skip every test and still exit 0.
+  return { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_TEST_CONTEXT' && (pass.has(k) || !SECRET.test(k)))), ...extra };
 }
 
 /** Run approved commands in a throwaway container instead of on this machine. */

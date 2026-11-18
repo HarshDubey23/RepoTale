@@ -228,7 +228,7 @@ Type declarations are included.
 ## How it is built
 
 - Frames come from Chrome's screencast (full-resolution JPEGs), not Playwright's VP8 recorder, so code and UI text stay sharp.
-- Each scene is cached by everything that changes how it looks or sounds (its JSON, its narration audio, the code file it shows, the theme), so only edited scenes are recorded again. Web scenes show a live app and are always recorded.
+- Each scene is cached by everything that changes how it looks or sounds (its JSON, its narration audio, the code file it shows, the theme), so only edited scenes are recorded again. Web and terminal scenes show something live (the app, a real command run) and are always recorded again.
 - Chapters are written into the MP4, so players can jump between scenes.
 - Built-in scenes are small HTML pages that animate themselves for exactly the length of their narration, recorded the same way as your app.
 - A failed web action is reported and skipped instead of killing a two-minute render; an app that will not start drops its web scenes with a warning, and the rest of the video is still made.

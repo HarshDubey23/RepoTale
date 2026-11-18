@@ -35,6 +35,16 @@ test('within() follows symlinks: a link inside the repo that points out of it is
   assert.throws(() => runCommand('echo hi', { repoDir: repo, cwd: 'escape', timeoutMs: 5000 }), /outside the repository/);
 });
 
+test("a repository's own node --test really runs even when reporeel itself runs under a test runner", () => {
+  // This file runs under node --test, so NODE_TEST_CONTEXT is set here, as it was in CI's render test.
+  assert.ok(process.env.NODE_TEST_CONTEXT, 'precondition: running under node --test');
+  const repo = tmp();
+  writeFileSync(join(repo, 'a.test.mjs'), "import { test } from 'node:test'; test('real', () => {});\n");
+  const r = runCommand('node --test', { repoDir: repo, timeoutMs: 60_000 });
+  assert.equal(r.code, 0);
+  assert.match(r.out, /# pass 1/, 'the test ran instead of being skipped as a nested run');
+});
+
 test('runCommand keeps the exit code, stdout and stderr, and reports a timeout as one', () => {
   const repo = tmp();
   const ok = runCommand(node("console.log('fine')"), { repoDir: repo, timeoutMs: 20_000 });

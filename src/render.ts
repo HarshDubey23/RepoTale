@@ -130,9 +130,10 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
       if (o.only && !o.only.includes(i + 1)) continue;
       const planned = Math.max(s.type === 'web' ? 3.5 : 3, clips[i].seconds + LEAD + TAIL);
       const seg = join(work, `seg${String(i).padStart(3, '0')}.mp4`);
-      // A scene that looks and sounds the same as last time is reused. Web scenes show a live
-      // app, so they are always recorded again.
-      const key = s.type === 'web' ? undefined : sceneKey(sb, s, clips[i], { size, accent, repoDir });
+      // A scene that looks and sounds the same as last time is reused. Web and terminal scenes show
+      // something live (an app, a real command run whose output and timings differ every time), so
+      // they are always recorded again: a cached run could show a pass that no longer happens.
+      const key = s.type === 'web' || s.type === 'terminal' ? undefined : sceneKey(sb, s, clips[i], { size, accent, repoDir });
       const hit = key && !o.fresh && existsSync(join(cacheDir, key + '.mp4')) && existsSync(join(cacheDir, key + '.json'));
       let seconds: number;
       if (hit) {

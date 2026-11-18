@@ -27,9 +27,11 @@ test('renders the example end to end, then reuses unchanged scenes', { timeout: 
   assert.equal(info.match(/Chapter #/g)?.length, 5, 'one chapter per scene');
   assert.match(readFileSync(r.srt, 'utf8'), /Readable tells you how long/);
 
-  // Second run: the four non-web scenes come from the cache; the live app scene is recorded again.
+  // Second run: title, code and end come from the cache; the live app and the real test run are recorded again.
   const lines: string[] = [];
   await render(sb, file, { out, approve: () => true, log: l => lines.push(l) });
-  assert.equal(lines.filter(l => l.startsWith('reusing')).length, 4);
-  assert.equal(lines.filter(l => l.startsWith('recording')).length, 1);
+  assert.equal(lines.filter(l => l.startsWith('reusing')).length, 3);
+  assert.equal(lines.filter(l => l.startsWith('recording')).length, 2);
+  // The example's tests really ran (they used to be skipped silently under this test runner) and passed.
+  assert.ok(lines.some(l => /ran: node --test → exit 0/.test(l)), lines.join(String.fromCharCode(10)));
 });
