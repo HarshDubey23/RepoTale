@@ -64,7 +64,8 @@ export function startHere(model, max = 5) {
     if (heart) add(heart, `The heart: ${users(heart)} files import it.`);
   }
   for (const c of ranked.slice(1)) add(c.file, `Used by ${users(c.file)} files; you will meet it everywhere.`);
-  return { files: list, minutes: list.reduce((s, x) => s + x.minutes, 0), lines: list.reduce((s, x) => s + x.lines, 0) };
+  // The heart and the route are returned too, so the film tells the same story as the reading order.
+  return { files: list, minutes: list.reduce((s, x) => s + x.minutes, 0), lines: list.reduce((s, x) => s + x.lines, 0), heart, route: route?.path ?? null };
 }
 
 /** What a set of changed files can reach. `changes` are GitHub's pull request files

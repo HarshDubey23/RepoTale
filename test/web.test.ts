@@ -286,3 +286,35 @@ test('package.json imports (#name) resolve to the repository file, never to a pa
   assert.deepEqual(idx.external, [], 'no empty or #-named package');
   assert.equal(subpathTarget({ '#n': { browser: './b.js', node: { import: './n.mjs' } } }, '#n'), 'n.mjs');
 });
+
+// Found by reading the film's script for real repositories: each was a wrong or garbled sentence.
+test("tests that require('..') reach the repository root's index (Express's 68 test files did not)", () => {
+  const all = new Set(['index.js', 'lib/app.js', 'test/app.js', 'lib/router/index.js']);
+  for (const spec of ['..', '../']) assert.equal(resolve('test/app.js', { spec }, 'js', all), 'index.js', spec);
+  for (const spec of ['.', './']) assert.equal(resolve('index.js', { spec }, 'js', all), 'index.js', spec);
+  assert.equal(resolve('lib/app.js', { spec: './router' }, 'js', all), 'lib/router/index.js');
+});
+
+test('the film follows the same front door and heart as Start here, and never claims a door nothing imports', async () => {
+  const { buildStory } = await import('../web/story.js');
+  const { startHere } = await import('../web/insight.js');
+  // __main__.py is a one-line shim nothing imports; app.py is the real door and other files import it back.
+  const texts: Record<string, string> = {
+    'pkg/__main__.py': 'from .cli import main\n', 'pkg/cli.py': 'from .app import App\nfrom .globals import g\n',
+    'pkg/app.py': 'from .globals import g\nfrom .helpers import h\n', 'pkg/helpers.py': 'from .globals import g\n',
+    'pkg/globals.py': 'g = 1\n', 'pkg/views.py': 'from .app import App\nfrom .globals import g\n', 'tests/test_app.py': 'from pkg.app import App\n',
+  };
+  const m = buildModel({ meta: { name: 'pkg', full: 'a/pkg', truncated: false }, paths: Object.keys(texts), texts, manifests: {} });
+  const reading = startHere(m), film = buildStory(m);
+  const path = film.find((s: any) => s.kind === 'path'), code = film.find((s: any) => s.kind === 'code');
+  assert.equal(code.file, reading.heart);
+  assert.deepEqual(path.chain, reading.route);
+  assert.doesNotMatch(path.say, /nothing else imports/);
+});
+
+test('an import cycle is read out as at most three files, with namesakes told apart', async () => {
+  const { loopSaid } = await import('../web/story.js');
+  assert.equal(loopSaid(['a/init.py', 'a/app.py', 'a/cli.py']), 'init, then app, then cli');
+  assert.equal(loopSaid(['src/jsx/components.ts', 'src/jsx/dom/components.ts']), 'jsx components, then dom components');
+  assert.equal(loopSaid(['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts']), 'a, then b, then c and 3 more files');
+});

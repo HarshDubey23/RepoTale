@@ -109,7 +109,8 @@ export function resolve(from, imp, lang, all, ctx = {}) {
     else if (spec.startsWith('#')) base = subpathTarget(ctx.pkgImports, spec) ?? undefined;
     else if (ctx.alias) { for (const [k, v] of ctx.alias) if (spec === k || spec.startsWith(k + '/')) base = norm(v + spec.slice(k.length)); }
     if (base === undefined) return null;
-    const find = b => { const stem = b.replace(/\.(js|mjs|cjs|jsx)$/, ''); return [b, ...JS_EXT.map(e => stem + e), ...JS_EXT.map(e => b + '/index' + e)].find(c => all.has(c)); };
+    // `require('..')` from test/ is the repository root: its index is "index.js", not "/index.js".
+    const find = b => { const stem = b.replace(/\.(js|mjs|cjs|jsx)$/, ''); return [b, ...JS_EXT.map(e => stem + e), ...JS_EXT.map(e => (b ? b + '/' : '') + 'index' + e)].find(c => all.has(c)); };
     // A bin script often imports the compiled build (dist/cli.js), which is not in the repository:
     // the source it was built from is the same path under src/.
     return find(base) ?? (/^(dist|build|out)\//.test(base) ? find(base.replace(/^(dist|build|out)\//, 'src/')) : null) ?? null;

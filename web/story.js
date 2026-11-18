@@ -4,12 +4,20 @@
 import { blastRadius, permalink } from './analyze.js';
 import { archBeats, drawArchBeat } from './filmarch.js';
 import { mermaidArch } from './arch.js';
+import { startHere } from './insight.js';
 
 const C = { bg: '#ffffff', surface: '#ebebeb', plum: '#dedede', ink: '#0d2a1c', muted: '#5f6b64', accent: '#1f6f4a' };
 const plural = (n, w, s = w + 's') => `${n.toLocaleString('en')} ${n === 1 ? w : s}`;
 const list = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a.at(-1);
 const base = f => f.split('/').pop();
 const spoken = f => base(f).replace(/\.[a-z]+$/, '').replace(/[_-]+/g, ' ').trim() || base(f);
+
+/** A cycle as a listener can follow it: at most three files, then how many more. Two files with the
+ *  same name in different folders are told apart by their folder. */
+export function loopSaid(loop) {
+  const names = loop.map(f => (loop.filter(g => spoken(g) === spoken(f)).length > 1 ? `${spoken(f.split('/').slice(-2, -1)[0] ?? '')} ${spoken(f)}`.trim() : spoken(f)));
+  return names.length <= 4 ? names.join(', then ') : `${names.slice(0, 3).join(', then ')} and ${names.length - 3} more files`;
+}
 
 /** Shortest import chain from a to b, or null. */
 export function pathBetween(a, b, edges) {
@@ -71,13 +79,15 @@ export function buildStory(model, opts = {}) {
     const flat = shown[0].files.length === 1 && shown[0].name === shown[0].files[0];
     const first = shown[0].name, last = shown.at(-1).name;
     const users = shown.filter(a => a.out.some(o => o.to === last)).length;
-    const name = n => flat ? spoken(n) : n;
+    const name = n => flat ? spoken(n) : n === '(root)' ? 'the top-level files' : n;
     S.push({ kind: 'map', heading: 'The architecture', areas: shown,
-      say: `${flat ? `It is one package; these are its ${shown.length} busiest files.` : `The code falls into ${plural(shown.length, 'area')}.`} Imports run left to right, from ${name(first)} toward ${name(last)}${users ? `, which ${plural(users, flat ? 'other file' : 'other area')} on screen import` : ''}.`,
+      say: `${flat ? `It is one package; these are its ${shown.length} busiest files.` : `The code falls into ${plural(shown.length, 'area')}.`} Imports run left to right, from ${name(first)} toward ${name(last)}${users ? `, which ${plural(users, flat ? 'other file' : 'other area')} on screen ${users === 1 ? 'imports' : 'import'}` : ''}.`,
       evidence: edges.filter(e => flat ? e.from === first : byFile.get(e.from)?.area === first).slice(0, 2).map(e => ({ file: e.from, line: e.line })) });
   }
 
-  const heart = core[0];
+  // The same heart and front door as Start here: the film and the reading order never disagree.
+  const reading = startHere(model);
+  const heart = byFile.get(reading.heart) ?? core[0];
   if (heart) {
     const users = heart.importedBy.filter(f => !byFile.get(f)?.test);
     const syms = heart.symbols.filter(s => s.exported).slice(0, 3);
@@ -89,9 +99,9 @@ export function buildStory(model, opts = {}) {
   }
 
   const entry = entries.find(e => heart && pathBetween(e.file, heart.file, edges)?.length > 2) ?? entries[0];
-  const chain = entry && heart ? pathBetween(entry.file, heart.file, edges) : null;
+  const chain = reading.route?.at(-1) === heart?.file ? reading.route : entry && heart ? pathBetween(entry.file, heart.file, edges) : null;
   if (chain && chain.length > 1) S.push({ kind: 'path', heading: 'Follow one path', chain,
-    say: `Follow one path. It starts at ${spoken(chain[0])}, which nothing else imports, and reaches the heart in ${plural(chain.length - 1, 'step')}: ${list(chain.map(spoken))}.`,
+    say: `Follow one path. It starts at the front door, ${spoken(chain[0])}, and reaches the heart in ${plural(chain.length - 1, 'step')}: ${list(chain.map(spoken))}.`,
     evidence: chain.slice(0, -1).map((f, i) => ({ file: f, line: edges.find(e => e.from === f && e.to === chain[i + 1])?.line })) });
 
   if (heart) {
@@ -105,7 +115,7 @@ export function buildStory(model, opts = {}) {
 
   const untested = core.filter(m => model.testsReaching(m.file).length === 0).slice(0, 3);
   S.push({ kind: 'health', heading: 'What to watch', cycles: cycles.slice(0, 3), untested: untested.map(m => m.file),
-    say: [cycles.length ? `There ${cycles.length === 1 ? 'is one import cycle' : `are ${cycles.length} import cycles`}, the first running ${cycles[0].loop.map(spoken).join(', then ')}, and back.` : 'There are no import cycles.',
+    say: [cycles.length ? `There ${cycles.length === 1 ? 'is one import cycle' : `are ${cycles.length} import cycles`}, the first running ${loopSaid(cycles[0].loop)}, and back.` : 'There are no import cycles.',
       // On a sample, a missing test may simply not have been read: say what was seen, not a verdict.
       untested.length ? (meta.truncated ? `No test among the files read reaches ${list(untested.map(m => spoken(m.file)))}, though this was a sample.` : `${list(untested.map(m => spoken(m.file)))} ${untested.length === 1 ? 'has' : 'have'} no test reaching ${untested.length === 1 ? 'it' : 'them'}.`) : core.length ? 'Every core module is reached by a test.' : ''].join(' '),
     evidence: [...(cycles[0]?.loop.slice(0, 2) ?? []), ...untested.map(m => m.file)].map(file => ({ file })) });
