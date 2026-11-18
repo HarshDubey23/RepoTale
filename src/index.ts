@@ -7,7 +7,7 @@ export { childEnv, dockerArgs, mustApprove, type Approve, type Sandbox } from '.
 export { validate, SCHEMA_URL, type Storyboard, type Scene, type Action } from './storyboard.ts';
 export { doctor, format as formatDoctor, type Report, type Check } from './doctor.ts';
 export { verify, commandsFrom, type Step } from './verify.ts';
-export { AUDIENCES, draft, planWithClaude, translate, pack } from './plan.ts';
+export { AUDIENCES, draft, planWithClaude, translate, pack, redact, shareSummary, ShareDeclined, SENSITIVE, type Packed, type ConfirmShare } from './plan.ts';
 export { prStoryboard } from './pr.ts';
 export { diagram, shots, socialCard } from './media.ts';
 export { cut, FORMATS, type Format } from './cuts.ts';

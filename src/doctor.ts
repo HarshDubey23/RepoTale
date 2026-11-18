@@ -8,7 +8,7 @@ export interface Check { id: string; area: 'first impression' | 'trust' | 'getti
 export interface Report { score: number; grade: string; checks: Check[]; readme?: string; secrets: { file: string; line: number; kind: string }[] }
 
 const SKIP = new Set(['node_modules', '.git', 'dist', 'build', '.next', 'venv', '.venv', '__pycache__', 'target', '.cache', 'vendor']);
-const SECRETS: [string, RegExp][] = [
+export const SECRETS: [string, RegExp][] = [
   ['AWS access key', /\bAKIA[0-9A-Z]{16}\b/],
   ['GitHub token', /\b(ghp|gho|ghu|ghs|github_pat)_[A-Za-z0-9_]{30,}\b/],
   ['OpenAI key', /\bsk-(proj-)?[A-Za-z0-9_-]{32,}\b/],

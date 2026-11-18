@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
+import { SECRETS } from './doctor.ts';
 import { check } from './evidence.ts';
 import { analyze } from './graph.ts';
 import { detect, mermaidFor } from './stack.ts';
@@ -13,27 +14,45 @@ import { validate, type Scene, type Storyboard } from './storyboard.ts';
 const TEXT = /\.(md|ts|tsx|js|jsx|mjs|py|go|rs|java|kt|rb|php|cs|sol|circom|json|toml|ya?ml|sh|sql|html|css|svelte|vue)$/i;
 const SKIP = /(^|\/)(node_modules|dist|build|\.next|vendor|__pycache__|\.venv|venv|coverage|target)\/|package-lock\.json|pnpm-lock|yarn\.lock|\.min\.|\.map$/;
 
-/** A readable snapshot of the repo for the model: tree, then the files that explain it most. */
-export function pack(root: string, budget = 180_000): { text: string; omitted: number } {
+// Never sent to a model, whatever their extension: environment files, keys, credentials, registry logins.
+export const SENSITIVE = /(^|\/)(\.env(\.[\w.-]+)?|\.npmrc|\.pypirc|\.netrc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|credentials(\.json)?|service-account[\w.-]*\.json|secrets?(\.[\w-]+)?\.(json|ya?ml|toml|env))$|\.(pem|key|p12|pfx|jks|keystore)$/i;
+const PRIVATE_KEY_BLOCK = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g;
+
+/** Text with every recognisable secret replaced by a marker, and how many were replaced. */
+export function redact(text: string): { text: string; count: number } {
+  let count = 0;
+  let out = text.replace(PRIVATE_KEY_BLOCK, () => { count++; return '[REDACTED private key]'; });
+  for (const [kind, re] of SECRETS) out = out.replace(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g'), () => { count++; return `[REDACTED ${kind}]`; });
+  return { text: out, count };
+}
+
+export interface Packed { text: string; omitted: number; sent: string[]; excluded: string[]; redactions: number }
+
+/** A readable snapshot of the repo for the model: tree, then the files that explain it most.
+ *  Sensitive files are left out by name and recognisable secrets are redacted from the rest. */
+export function pack(root: string, budget = 180_000): Packed {
   let files: string[];
   try { files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter(Boolean); }
   catch { files = []; }
-  const tree = files.filter(f => !SKIP.test(f));
+  const excluded = files.filter(f => SENSITIVE.test(f));
+  const tree = files.filter(f => !SKIP.test(f) && !SENSITIVE.test(f));
   const score = (f: string) =>
     (/^readme/i.test(f) ? 100 : 0) + (/(^|\/)(package\.json|pyproject\.toml|requirements\.txt|Cargo\.toml|go\.mod|docker-compose\.ya?ml)$/.test(f) ? 60 : 0) +
     (/(^|\/)(docs?|architecture)\//i.test(f) && f.endsWith('.md') ? 30 : 0) + (/(main|index|app|server|cli|api|routes?|page)\.\w+$/.test(f) ? 25 : 0) +
     (/(test|spec)/.test(f) ? -10 : 0) - f.split('/').length * 2;
   const ranked = tree.filter(f => TEXT.test(f)).sort((a, b) => score(b) - score(a));
   let text = `<tree count="${tree.length}">\n${tree.slice(0, 600).join('\n')}${tree.length > 600 ? `\n… ${tree.length - 600} more` : ''}\n</tree>\n`;
-  let omitted = 0;
+  let omitted = 0, redactions = 0;
+  const sent: string[] = [];
   for (const f of ranked) {
     const p = join(root, f);
     if (!existsSync(p) || statSync(p).size > 60_000) { omitted++; continue; }
-    const body = readFileSync(p, 'utf8');
-    if (text.length + body.length > budget) { omitted++; continue; }
-    text += `<file path="${f}">\n${body}\n</file>\n`;
+    const body = redact(readFileSync(p, 'utf8'));
+    if (text.length + body.text.length > budget) { omitted++; continue; }
+    text += `<file path="${f}">\n${body.text}\n</file>\n`;
+    sent.push(f); redactions += body.count;
   }
-  return { text, omitted };
+  return { text, omitted, sent, excluded, redactions };
 }
 
 const GUIDE = `You write storyboards for reporeel, which renders them into a narrated explainer video of a software project.
@@ -70,15 +89,33 @@ export const AUDIENCES = {
   demo: 'A user, not a programmer. Show the product working in web or terminal scenes. No code and no architecture.',
 } as const;
 
-export async function planWithClaude(root: string, o: { model?: string; audience?: keyof typeof AUDIENCES; log?: (m: string) => void } = {}): Promise<Storyboard> {
+/** Thrown when the person (or a missing --send) said no: nothing left the machine. */
+export class ShareDeclined extends Error { constructor() { super('nothing was sent to Anthropic'); } }
+
+/** What is about to leave this machine, in words a person can approve or refuse. */
+export function shareSummary(p: Packed, model: string): string {
+  const list = (xs: string[]) => xs.slice(0, 40).map(f => `    ${f}`).join('\n') + (xs.length > 40 ? `\n    … and ${xs.length - 40} more` : '');
+  return `This sends source code to Anthropic (api.anthropic.com, model ${model}), under your API key and Anthropic's terms:\n` +
+    `  ${p.sent.length} files, ${Math.round(p.text.length / 1000)}k characters, plus the list of file paths:\n${list(p.sent)}\n` +
+    `  ${p.excluded.length ? `left out as sensitive: ${p.excluded.join(', ')}` : 'no sensitive files (.env, keys, credentials) found'}\n` +
+    `  ${p.redactions ? `${p.redactions} secret(s) found in those files and replaced with [REDACTED]` : 'no recognisable secrets found in those files'} (only known key formats are caught; review before sharing private code)`;
+}
+
+/** Called with the summary above; anything but `true` means nothing is sent. */
+export type ConfirmShare = (summary: string) => boolean | Promise<boolean>;
+
+export async function planWithClaude(root: string, o: { model?: string; audience?: keyof typeof AUDIENCES; log?: (m: string) => void; confirm?: ConfirmShare } = {}): Promise<Storyboard> {
   const log = o.log ?? (() => {});
-  const { text, omitted } = pack(root);
+  const packed = pack(root), { text, omitted } = packed;
+  const model = o.model ?? 'claude-opus-5-5';
+  // Source code leaves the machine only after an explicit yes to exactly what will be sent.
+  if ((await o.confirm?.(shareSummary(packed, model))) !== true) throw new ShareDeclined();
   const st = detect(root), g = analyze(root);
-  log(`packed ${Math.round(text.length / 1000)}k characters${omitted ? `, ${omitted} files left out for size` : ''}`);
+  log(`sending ${Math.round(text.length / 1000)}k characters${omitted ? `, ${omitted} files left out for size` : ''}`);
   const client = new Anthropic();
   const ask = async (messages: Anthropic.MessageParam[]) => {
     const stream = client.beta.messages.stream({
-      model: o.model ?? 'claude-opus-5-5',
+      model,
       max_tokens: 64000,
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',

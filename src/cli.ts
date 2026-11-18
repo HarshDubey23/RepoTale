@@ -9,7 +9,7 @@ import { checkSetup, formatSetup } from './setup.ts';
 import { doctor, format } from './doctor.ts';
 import { mustApprove } from './exec.ts';
 import { diagram, shots, socialCard } from './media.ts';
-import { AUDIENCES, draft, planWithClaude, translate } from './plan.ts';
+import { AUDIENCES, draft, planWithClaude, ShareDeclined, translate } from './plan.ts';
 import { launchPosts } from './posts.ts';
 import { prStoryboard } from './pr.ts';
 import { writeReadme } from './readme.ts';
@@ -94,9 +94,19 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     const audience = flag('audience') as keyof typeof AUDIENCES | undefined;
     if (audience && !(audience in AUDIENCES)) throw new Error(`--audience is one of: ${Object.keys(AUDIENCES).join(', ')}`);
     if (audience && !useClaude) log('note: --audience shapes what Claude writes; the offline draft is the same for every audience');
-    const sb = useClaude ? await planWithClaude(root, { model: flag('model'), audience, log }) : draft(root);
+    // Source leaves the machine only on a yes: --send, or a y at the prompt. No terminal and no --send means no.
+    const confirm = async (summary: string) => {
+      log('\n' + summary);
+      if (on('send')) return true;
+      if (!process.stdin.isTTY) { log('  not sent: pass --send to allow it, or --offline to skip Claude'); return false; }
+      const rl = createInterface({ input: process.stdin, output: process.stderr });
+      try { return /^y(es)?$/i.test((await rl.question('  send it? [y/N] ')).trim()); } finally { rl.close(); }
+    };
+    let sb: Storyboard, sent = useClaude;
+    try { sb = useClaude ? await planWithClaude(root, { model: flag('model'), audience, log, confirm }) : draft(root); }
+    catch (e) { if (!(e instanceof ShareDeclined)) throw e; log('nothing was sent; writing the offline draft instead'); sb = draft(root); sent = false; }
     save(sb);
-    say(`wrote ${sbFile}: ${sb.scenes.length} scenes${useClaude ? '' : ' (offline draft: edit it, or set ANTHROPIC_API_KEY, or ask your coding agent to use the reporeel skill)'}`);
+    say(`wrote ${sbFile}: ${sb.scenes.length} scenes${sent ? '' : ' (offline draft: edit it, or set ANTHROPIC_API_KEY and allow sharing, or ask your coding agent to use the reporeel skill)'}`);
   } },
   video: { help: 'render the storyboard: MP4 with chapters, GIF, captions, poster, contact sheet (--only 2,3 to preview scenes, --fresh, --voice kokoro|elevenlabs|none, --lang hi)', async run() {
     const sb = load();
@@ -182,7 +192,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     if (items.some(i => i.required && !i.ok)) process.exitCode = 1;
   } },
   help: { help: 'this list', async run() {
-    say(`reporeel: make your repository understood\n\n  reporeel            everything, with the score before and after\n${Object.entries(commands).filter(([k]) => k !== 'go').map(([k, v]) => `  reporeel ${k.padEnd(10)} ${v.help}`).join('\n')}\n\n  common: --run (allow the commands a storyboard or README asks for, without the prompt) --sandbox [image] (run them in a Docker container, no network unless --net) --dir <repo> --out <folder, default docs/reporeel> --storyboard <file, default reporeel.json>\n`);
+    say(`reporeel: make your repository understood\n\n  reporeel            everything, with the score before and after\n${Object.entries(commands).filter(([k]) => k !== 'go').map(([k, v]) => `  reporeel ${k.padEnd(10)} ${v.help}`).join('\n')}\n\n  common: --send (allow plan to send source to Anthropic) --run (allow the commands a storyboard or README asks for, without the prompt) --sandbox [image] (run them in a Docker container, no network unless --net) --dir <repo> --out <folder, default docs/reporeel> --storyboard <file, default reporeel.json>\n`);
   } },
 };
 
