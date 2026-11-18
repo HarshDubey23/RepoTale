@@ -580,14 +580,18 @@ export function drawFrame(ctx, scenes, i, t, ms, opts = {}) {
   DRAW[scenes[i].kind](ctx, scenes[i], t, ms);
   ctx.restore(); ctx.globalAlpha = 1;
   chrome(ctx, scenes[i], i, scenes.length, t, opts);
-  if (opts.waiting) {
-    // A small pill with a breathing dot, under the top bar: the scene is ready, its voice is coming.
-    font(ctx, TEXT(15, 600)); const label = i === 0 ? 'Warming up the voice' : 'Voicing this scene', w = ctx.measureText(label).width + 52, x = W / 2 - w / 2, y = 96;
+  if (opts.waiting || opts.captionsOnly) {
+    // A small pill with a breathing dot, under the top bar: the scene is ready, its voice is coming,
+    // or the film is playing on its captions until the voice catches up.
+    font(ctx, TEXT(15, 600)); const label = opts.captionsOnly ? 'Voice still loading: captions for now' : i === 0 ? 'Warming up the voice' : 'Voicing this scene', w = ctx.measureText(label).width + 52, x = W / 2 - w / 2, y = 96;
     ctx.fillStyle = C.ink; ctx.beginPath(); ctx.roundRect(x, y, w, 36, 18); ctx.fill();
     ctx.globalAlpha = 0.45 + 0.55 * Math.abs(Math.sin(ms / 420)); ctx.fillStyle = C.accent; ctx.beginPath(); ctx.arc(x + 20, y + 18, 5, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
     ctx.fillStyle = '#ffffff'; ctx.fillText(label, x + 34, y + 23);
   }
 }
+
+// How far into a scene its entrance has settled (the window has risen, the title is set).
+const HELD = 0.16;
 
 /** Plays scenes on a canvas. Narration is either a neural voice (each scene carries an AudioBuffer
  *  and lasts as long as its audio), the browser's own voice, or nothing. A scene never ends before
@@ -605,7 +609,12 @@ export class Player {
   // A paused scene that has not started shows its finished frame, so it reads as a poster.
   draw(ms = performance.now()) {
     const poster = !this.playing && this.elapsed === 0;
-    drawFrame(this.ctx, this.scenes, this.i, poster ? 0.92 : Math.min(1, this.elapsed / this.scene.duration), ms, { ...this.opts, poster, waiting: this.playing && this.waiting });
+    // A scene held for its voice shows its settled frame, not its empty first one, and keeps it until
+    // the clock passes that point: nothing blinks out and rises again when the voice arrives.
+    let t = Math.min(1, this.elapsed / this.scene.duration);
+    if (this.held === this.i) t = Math.max(t, HELD);
+    drawFrame(this.ctx, this.scenes, this.i, poster ? 0.92 : t, ms, { ...this.opts, poster, waiting: this.playing && this.waiting,
+      captionsOnly: this.playing && !this.waiting && this.silent && this.mode === 'neural' && !this.scene.audio });
   }
   hush() {
     if (this.src) { try { this.src.stop(); } catch {} this.src = null; }
@@ -614,8 +623,10 @@ export class Player {
   speak() {
     this.hush(); this.spoken = true; this.waiting = false;
     if (this.mode === 'neural') {
-      // A scene waits at its start for its voice: a film without its narration is not the film.
-      if (!this.scene.audio) { this.waiting = true; return; }
+      // A scene waits at its start for its voice, but only briefly: a first visit downloads the voice
+      // model, which can take a minute, and a film that shows nothing that long is not watched. After
+      // the wait the film plays on its captions; any later scene whose voice is ready speaks.
+      if (!this.scene.audio) { if (!this.silent) { this.waiting = true; this.waitFrom = performance.now(); this.held = this.i; } return; }
       const ac = this.opts.audioContext;
       this.src = ac.createBufferSource(); this.src.buffer = this.scene.audio; this.src.connect(ac.destination);
       this.src.start(0, Math.min(this.elapsed / 1000, this.scene.audio.duration));
@@ -647,7 +658,7 @@ export class Player {
   }
   pause() { this.playing = false; this.waiting = false; this.hush(); this.quiet(); this.draw(); this.emit(); }
   seek(i) {
-    this.i = Math.max(0, Math.min(this.scenes.length - 1, i)); this.elapsed = 0; this.t0 = performance.now();
+    this.i = Math.max(0, Math.min(this.scenes.length - 1, i)); this.elapsed = 0; this.t0 = performance.now(); this.held = -1;
     if (this.playing) { this.speak(); this.music(); } else this.hush();
     this.draw(); this.emit();
   }
@@ -656,6 +667,7 @@ export class Player {
     if (this.waiting) {
       // Held at the scene's start until its voice arrives; then the voice and the score start together.
       if (this.scene.audio) { this.elapsed = 0; this.t0 = now; this.speak(); this.music(); this.emit(); }
+      else if (now - this.waitFrom > (this.opts.voicePatience ?? 4000)) { this.silent = true; this.waiting = false; this.elapsed = 0; this.t0 = now; this.music(); this.emit(); }
       else this.t0 = now - this.elapsed;
     }
     this.elapsed = now - this.t0;

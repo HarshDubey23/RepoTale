@@ -318,3 +318,29 @@ test('an import cycle is read out as at most three files, with namesakes told ap
   assert.equal(loopSaid(['src/jsx/components.ts', 'src/jsx/dom/components.ts']), 'jsx components, then dom components');
   assert.equal(loopSaid(['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts']), 'a, then b, then c and 3 more files');
 });
+
+test('the film waits a few seconds for its voice, then plays on captions instead of sitting at 0:00', async () => {
+  const { Player } = await import('../web/story.js');
+  // A canvas whose drawing calls do nothing: only the player's timing is under test here.
+  const noop: any = new Proxy(function () {}, { get: (_t, k) => (k === 'width' ? 0 : noop), apply: () => noop, set: () => true });
+  const canvas: any = { getContext: () => noop, width: 1280, height: 720 };
+  const frames: Function[] = [];
+  const g: any = globalThis, saved = g.requestAnimationFrame, hadWindow = 'window' in g;
+  if (!hadWindow) g.window = {};
+  g.requestAnimationFrame = (f: Function) => { frames.push(f); return frames.length; };
+  try {
+    const scenes = [{ kind: 'title', heading: 'x', say: 'Hello there.', duration: 3000, evidence: [] }, { kind: 'end', heading: 'x', say: 'Bye.', duration: 3000, evidence: [] }];
+    class Timed extends Player { draw() {} }
+    const p: any = new Timed(canvas, scenes, { voice: true, voiceName: 'af_heart', voicePatience: 4000, audioContext: { resume() {}, createBufferSource: () => noop, destination: null } });
+    p.play();
+    const start = performance.now();
+    assert.equal(p.waiting, true, 'no audio yet: the first scene holds');
+    assert.equal(p.held, 0, 'and shows its settled frame, not an empty one');
+    p.frame(start + 2000);
+    assert.equal(p.waiting, true, 'still within the patience');
+    p.frame(start + 4500);
+    assert.deepEqual([p.waiting, p.silent], [false, true], 'after 4 s it plays on its captions');
+    p.frame(start + 4500 + 3100);
+    assert.equal(p.i, 1, 'and moves on to the next scene without waiting again');
+  } finally { g.requestAnimationFrame = saved; if (!hadWindow) delete g.window; }
+});
