@@ -97,7 +97,7 @@ export function prImpact(model, changes) {
   const wide = files.filter(f => !f.core && f.sourceReach >= 5 && f.sourceReach >= sourceFiles / 3);
   // Risk is what a reviewer should look at first, in the order of what can hurt most.
   const risks = [
-    ...files.filter(f => f.core).map(f => ({ file: f.file, why: `a core module: ${f.reach} files depend on it` })),
+    ...files.filter(f => f.core).map(f => ({ file: f.file, why: `a core module: ${f.sourceReach} source file${f.sourceReach === 1 ? '' : 's'} and ${f.tests} test${f.tests === 1 ? '' : 's'} reach it through imports` })),
     ...wide.map(f => ({ file: f.file, why: `reaches ${f.sourceReach} of the ${sourceFiles} source files read, through imports` })),
     ...untested.filter(f => f.reach > 0).map(f => ({ file: f.file, why: `no test among the files read reaches it, and ${f.reach} files depend on it` })),
     ...files.filter(f => f.status === 'removed' && f.reach > 0).map(f => ({ file: f.file, why: `removed, but ${f.reach} files imported it at the base of this change` })),

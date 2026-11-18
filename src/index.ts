@@ -9,6 +9,7 @@ export { doctor, format as formatDoctor, type Report, type Check } from './docto
 export { verify, commandsFrom, type Step } from './verify.ts';
 export { AUDIENCES, draft, planWithClaude, translate, pack, redact, shareSummary, ShareDeclined, SENSITIVE, type Packed, type ConfirmShare } from './plan.ts';
 export { prStoryboard } from './pr.ts';
+export { reviewMarkdown, changesSince, type Change } from './review.ts';
 export { diagram, shots, socialCard } from './media.ts';
 export { cut, FORMATS, type Format } from './cuts.ts';
 export { launchPosts } from './posts.ts';

@@ -145,5 +145,10 @@ test('the generated workflow gives pull requests a read-only token', () => {
   // ...and inside the sandbox, with the network on for installs, never bare on the runner.
   assert.ok(runs[0].trimEnd().endsWith('verify --run --sandbox node:22-slim --net'), runs[0]);
   assert.match(runs[0], /^if: github\.event\.pull_request\.head\.repo\.full_name == github\.repository\n/);
-  assert.match(check, /actions\/checkout@v4\n {8}#[^\n]*\n {8}with: \{ persist-credentials: false \}/);
+  const checkout = steps.find(s => s.startsWith('uses: actions/checkout@v4'))!;
+  assert.ok(checkout.includes('persist-credentials: false'), checkout);
+  // The review reads the base branch name from env; a branch name is never pasted into the shell script.
+  const review = steps.find(s => s.includes('reporeel review'))!;
+  assert.ok(review.includes('review --base "origin/$BASE"') && review.includes('BASE: ${{ github.base_ref }}'), review);
+  assert.ok(!review.split('\n')[0].includes('${{'), 'no expression inside run');
 });

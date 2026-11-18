@@ -12,6 +12,7 @@ import { diagram, shots, socialCard } from './media.ts';
 import { AUDIENCES, draft, planWithClaude, ShareDeclined, translate } from './plan.ts';
 import { launchPosts } from './posts.ts';
 import { prStoryboard } from './pr.ts';
+import { reviewMarkdown } from './review.ts';
 import { writeReadme } from './readme.ts';
 import { render, startApp } from './render.ts';
 import { tour, tourStoryboard } from './tour.ts';
@@ -159,6 +160,9 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
   } },
   readme: { help: 'put the video, chapters and diagram into README.md (between markers; safe to re-run)', async run() {
     say(`updated ${writeReadme(root, out)}`);
+  } },
+  review: { help: 'what the current branch can break, as Markdown: changed files, what reaches them, the tests on those paths (--base ref; static, runs nothing)', async run() {
+    say(reviewMarkdown(root, flag('base')));
   } },
   pr: { help: 'a short video of what the current branch changes (--base ref)', async run() {
     const sb = prStoryboard(root, flag('base'));

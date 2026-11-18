@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `reporeel review`: what the current branch can break, as Markdown (changed files, how far each reaches through imports, the tests on those paths, what to look at first). The workflow `reporeel ci` writes puts it on every pull request's run summary; it reads only, so it also runs for forks.
+- Review reasons count source files and tests apart ("a core module: 21 source files and 10 tests reach it"), so they match the table; it used to say 31 files for the same 21.
 - **Breaking, privacy:** `plan` no longer sends the repository to Anthropic as soon as `ANTHROPIC_API_KEY` is set. It shows what would be sent and sends only on a `y` or `--send`; otherwise it writes the offline draft. Sensitive files (`.env*`, keys, certificates, credentials, registry logins) are never sent, and recognised secrets are replaced with `[REDACTED]`. Library callers pass `confirm` to `planWithClaude`.
 - **Security:** the workflow `reporeel ci` writes runs README commands inside the Docker sandbox (clean clone, no runner environment or credentials, resource limits, network on for installs) instead of on the runner.
 - **Security:** `--sandbox` checks for a running Docker first and stops if there is none, instead of failing per command.

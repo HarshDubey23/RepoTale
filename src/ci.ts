@@ -26,9 +26,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         # Keep the token out of .git/config, where commands run below could read it.
-        with: { persist-credentials: false }
+        # Full history, so the review can find where this branch left the base branch.
+        with: { persist-credentials: false, fetch-depth: 0 }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
+      # What this change can break, from the import graph, on the run's summary page. Reads only, so it
+      # is safe for a fork's pull request too. The base branch name goes through env, not into the script.
+      - run: npx -y @theharshdubey/reporeel review --base "origin/$BASE" >> "$GITHUB_STEP_SUMMARY"
+        env: { BASE: \${{ github.base_ref }} }
       - run: npx -y @theharshdubey/reporeel doctor --min 60
       # Reads only: fails when the storyboard cites a file, line range, symbol or test this change removed.
       - run: npx -y @theharshdubey/reporeel check

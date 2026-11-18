@@ -137,6 +137,7 @@ A visitor decides about a repository from its README in a few seconds. Most READ
 | `reporeel doctor` | A first-impression score out of 100 with the fix for each gap: README, one-line description, demo media above the fold, quickstart, license, tests, CI, broken links, **committed secrets and `.env` files**, huge files |
 | `reporeel graph` | Maps the code without running it: modules, top-level symbols and the imports between them (TypeScript, JavaScript, Python) as `graph.json`, plus `explore.html`, a page to click through who imports what and which tests reach a file |
 | `reporeel check` | Says whether every scene is backed by the repository (a file, line range, symbol or test that exists) and whether the last render is out of date with the code it cites |
+| `reporeel review` | What the current branch can break, as Markdown you can paste into a pull request: each changed file, how many source files reach it through imports, the tests on those paths, and the files to look at first. Same analysis as the website's Review and the MCP server's `impact`; static, runs nothing. `--base main` picks what to compare with |
 | `reporeel verify` | Shows you the commands in your README's setup section, and once you approve them runs them on a clean clone and tells you the first one that breaks |
 | `reporeel plan` | Writes `reporeel.json`, the storyboard. With `ANTHROPIC_API_KEY` it can ask Claude to write it, but first shows exactly what would leave your machine and sends only on a yes (or `--send`); without that you get an offline draft from your manifests and README |
 | `reporeel video` | Renders the storyboard: MP4 with voice and chapters, a silent GIF for the README, `.srt` captions, a poster frame and a contact sheet. Unchanged scenes come from a cache; `--only 3` previews one scene in seconds |
@@ -146,7 +147,7 @@ A visitor decides about a repository from its README in a few seconds. Most READ
 | `reporeel readme` | Puts the GIF, the video link, the chapters and the diagram into your README between markers. Re-running replaces its own block and touches nothing else |
 | `reporeel pr` | A short video of what the current branch changes: the commit, the size, the changed lines lit up in the code, and the tests run on it |
 | `reporeel dub --lang hi` | Translates the narration (Claude) and re-voices the video (ElevenLabs) in Hindi or any other language |
-| `reporeel ci` | A GitHub Action that runs `doctor` and `verify` on pull requests with a read-only token, and refreshes the media on every release |
+| `reporeel ci` | A GitHub Action for pull requests (read-only token): `review` written to each run's summary page, `doctor`, `check`, and `verify` in the Docker sandbox for branches of the repository. Fresh media on every release |
 | `reporeel setup` | Checks Node, ffmpeg, Chromium and your keys, and tells you how to fix each one; `--fix` installs Chromium |
 
 ## The storyboard
