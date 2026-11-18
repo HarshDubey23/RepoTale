@@ -80,6 +80,13 @@ if (matchMedia('(prefers-reduced-motion: reduce)').matches) for (const v of docu
 
 // ------------------------------------------------------------- motion
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Where frames stall (a background tab, a preview or screenshot renderer) an entrance can stop at its
+// first frame and leave the headline invisible. After 2s, anything in the first screen still entering is
+// jumped to its end; by then a normal browser has finished them all, so this changes nothing there.
+setTimeout(() => {
+  for (const a of document.querySelector('#tell')?.getAnimations({ subtree: true }) ?? [])
+    if (a.playState !== 'finished' && a.effect?.getTiming().iterations !== Infinity) try { a.finish(); } catch {}
+}, 2000);
 // The headline arrives word by word.
 for (const h of $$('.hero-title, .demo-title, .stills-title')) {
   if (calm) break;
