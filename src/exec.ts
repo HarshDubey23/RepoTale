@@ -1,3 +1,6 @@
+import { spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 // Every command that comes from a repository (README blocks, storyboard terminal scenes, app.start)
 // passes through here: nothing runs without an explicit yes, and what runs never sees credentials.
 // This is consent and least privilege, not a sandbox: an approved command still has your user's
@@ -36,4 +39,35 @@ export function dockerArgs(cmd: string, mount: string, o: Sandbox & { workdir?: 
 export async function mustApprove(cmds: string[], approve?: Approve): Promise<void> {
   if (!cmds.length || (await approve?.(cmds)) === true) return;
   throw new Error(`not run, because these commands were not approved:\n${cmds.map(c => `    $ ${c}`).join('\n')}\n  read them, then pass --run to allow them (library: the \`approve\` option)`);
+}
+
+/** Is `p` inside `root` once symlinks are followed? A path that does not exist yet is judged as written. */
+export function within(root: string, p: string): boolean {
+  const real = (x: string) => { try { return realpathSync(x); } catch { return resolve(x); } };
+  const rel = relative(real(root), real(p));
+  return rel !== '..' && !rel.startsWith('..' + sep) && !isAbsolute(rel);
+}
+
+/** What a command really did. `code` is null when it was killed (a timeout, or a signal). */
+export interface Ran { cmd: string; code: number | null; timedOut: boolean; out: string }
+
+/** Runs one approved command and keeps everything a viewer needs to judge it: exit code, timeout,
+ *  stdout, then stderr. On the host it gets the scrubbed environment; in a sandbox, the container's. */
+export function runCommand(cmd: string, o: { repoDir: string; cwd?: string; timeoutMs: number; env?: Record<string, string>; sandbox?: Sandbox }): Ran {
+  const dir = resolve(o.repoDir, o.cwd ?? '.');
+  if (!within(o.repoDir, dir)) throw new Error(`cwd ${o.cwd} is outside the repository`);
+  const r = o.sandbox
+    ? spawnSync('docker', dockerArgs(cmd, o.repoDir, { ...o.sandbox, workdir: o.cwd, env: o.env, timeoutMs: o.timeoutMs }), { encoding: 'utf8', timeout: o.timeoutMs + 30_000, maxBuffer: 64 << 20 })
+    : spawnSync(cmd, { shell: true, cwd: dir, encoding: 'utf8', timeout: o.timeoutMs, maxBuffer: 64 << 20, env: childEnv(o.env) });
+  if (o.sandbox && r.error) throw new Error(`could not run docker: ${r.error.message}`);
+  // `timeout` inside the container exits 124; on the host, spawnSync reports ETIMEDOUT.
+  const timedOut = (r.error as any)?.code === 'ETIMEDOUT' || (!!o.sandbox && r.status === 124);
+  const out = [r.stdout, r.stderr].filter(Boolean).join(r.stdout && !r.stdout.endsWith('\n') ? '\n' : '');
+  return { cmd, code: timedOut ? null : r.status, timedOut, out: out || (r.error && !timedOut ? String(r.error.message) : '') };
+}
+
+/** Fails before anything runs when a sandbox was asked for and Docker cannot provide one. Never falls back to the host. */
+export function requireDocker(): void {
+  const r = spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', timeout: 20_000 });
+  if (r.status !== 0) throw new Error(`--sandbox needs a running Docker, and none answered${r.error ? ` (${r.error.message})` : `: ${(r.stderr || '').trim().split('\n')[0]}`}. Nothing was run. Start Docker, or drop --sandbox to run on this machine after approval.`);
 }

@@ -33,9 +33,13 @@ jobs:
       # Reads only: fails when the storyboard cites a file, line range, symbol or test this change removed.
       - run: npx -y @theharshdubey/reporeel check
       # verify runs the README's setup commands, and a pull request can change the README. So they run
-      # only for branches of this repository, never for a fork's pull request.
+      # only for branches of this repository, never for a fork's pull request, and even then inside a
+      # Docker container: it sees a clean clone and nothing else of the runner (no environment, no
+      # checkout credentials, no home folder), with memory, CPU, process and time limits. The network
+      # is on (--net) because installing dependencies needs it. Without Docker the step fails; it never
+      # falls back to running on the runner itself.
       - if: github.event.pull_request.head.repo.full_name == github.repository
-        run: npx -y @theharshdubey/reporeel verify --run
+        run: npx -y @theharshdubey/reporeel verify --run --sandbox node:22-slim --net
       - if: github.event.pull_request.head.repo.full_name != github.repository
         run: echo "::notice::README commands were not run, because this pull request comes from a fork."
   refresh:

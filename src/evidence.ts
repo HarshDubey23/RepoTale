@@ -8,8 +8,9 @@
 //
 // What this proves: the cited thing exists at this commit. It does not prove the narration
 // describes it correctly; that still takes a reader.
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { within } from './exec.ts';
 import { analyze, sha, type Graph } from './graph.ts';
 import type { Scene, Storyboard } from './storyboard.ts';
 
@@ -28,7 +29,7 @@ export interface Report {
 function read(root: string, file: string): string[] | string {
   const p = join(root, file);
   if (/^([\\/]|[a-z]:)/i.test(file) || !existsSync(p)) return `${file}: no such file in the repository`;
-  if (/^\.\.|^([\\/]|[a-z]:)/i.test(relative(realpathSync(root), realpathSync(p)))) return `${file}: is outside the repository`;
+  if (!within(root, p)) return `${file}: is outside the repository`;
   try { return readFileSync(p, 'utf8').split(/\r?\n/); } catch { return `${file}: cannot be read`; }
 }
 

@@ -1,13 +1,13 @@
 // storyboard.json -> narrated MP4, silent GIF preview, captions (.srt), poster, contact sheet and a
 // README section. Frames come from Chrome's screencast (crisp JPEGs at full resolution), not from
 // Playwright's VP8 recorder, so text in code and UIs stays sharp.
-import { execFileSync, execSync, spawn, type ChildProcess } from 'node:child_process';
+import { execSync, spawn, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { check } from './evidence.ts';
-import { childEnv, dockerArgs, mustApprove, type Approve, type Sandbox } from './exec.ts';
+import { childEnv, mustApprove, requireDocker, runCommand, within, type Approve, type Sandbox } from './exec.ts';
 import { duration, ffmpeg } from './ffmpeg.ts';
 import { OVERLAY } from './overlay.ts';
 import { validate, type Action, type Scene, type Storyboard } from './storyboard.ts';
@@ -70,6 +70,8 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
   // A storyboard can come from a model that read an untrusted repository: its commands are shown
   // and approved before any of them runs.
   await mustApprove([...sb.scenes.flatMap(s => (s.type === 'terminal' ? s.commands : [])), ...(sb.app?.start && sb.scenes.some(s => s.type === 'web') ? [sb.app.start] : [])], o.approve);
+  // A sandbox that was asked for and is not there stops everything; it never quietly becomes the host.
+  if (o.sandbox && sb.scenes.some(s => s.type === 'terminal')) requireDocker();
   // `repo` is a folder relative to the storyboard, or an owner/name label; a label means "this folder".
   const candidate = resolve(file, '..', sb.repo ?? '.');
   const repoDir = existsSync(candidate) ? candidate : resolve(file, '..');
@@ -96,16 +98,11 @@ export async function render(sb: Storyboard, file: string, o: RenderOpts): Promi
   // Terminal scenes run their commands for real, before recording, so the output shown is true.
   for (const s of sb.scenes) if (s.type === 'terminal') {
     (s as any).__runs = s.commands.map(cmd => {
-      let outp: string;
-      const env = { FORCE_COLOR: '0', CI: '1' }, timeout = s.timeoutMs ?? 120_000, io: { encoding: 'utf8'; stdio: ['ignore', 'pipe', 'pipe'] } = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] };
-      try {
-        outp = o.sandbox ? execFileSync('docker', dockerArgs(cmd, repoDir, { ...o.sandbox, workdir: s.cwd, env, timeoutMs: timeout }), { ...io, timeout: timeout + 30_000 })
-          : execSync(cmd, { ...io, cwd: resolve(repoDir, s.cwd ?? '.'), timeout, env: childEnv(env) });
-      }
-      catch (e: any) { outp = (e.stdout ?? '') + (e.stderr ?? ''); }
-      const lines = stripAnsi(outp).trimEnd().split('\n');
-      log(`  ran: ${cmd} (${lines.length} lines)`);
-      return { cmd, out: (lines.length > 16 ? ['…', ...lines.slice(-15)] : lines).join('\n') };
+      const r = runCommand(cmd, { repoDir, cwd: s.cwd, timeoutMs: s.timeoutMs ?? 120_000, env: { FORCE_COLOR: '0', CI: '1' }, sandbox: o.sandbox });
+      const lines = stripAnsi(r.out).trimEnd().split('\n');
+      // A failure is reported, never hidden: the scene shows the exit code and the log says it too.
+      log(`  ran: ${cmd} → ${r.timedOut ? `timed out after ${(s.timeoutMs ?? 120_000) / 1000}s` : `exit ${r.code}`} (${lines.length} lines)`);
+      return { cmd, code: r.code, timedOut: r.timedOut, out: (lines.length > 16 ? ['…', ...lines.slice(-15)] : lines).join('\n') };
     });
   }
 
@@ -224,6 +221,7 @@ ${tl.map(c => `${mmss(c.start)} ${c.title}`).join('\n')}
 export async function startApp(app: NonNullable<Storyboard['app']>, cwd: string, log: (m: string) => void) {
   // A fresh clone has no dependencies yet: install them where the start command will run.
   const dir = resolve(cwd, app.start!.match(/^cd\s+([^\s&;]+)\s*&&/)?.[1] ?? '.');
+  if (!within(cwd, dir)) throw new Error(`app.start changes into ${dir}, which is outside the repository`);
   if (existsSync(join(dir, 'package.json')) && !existsSync(join(dir, 'node_modules'))) {
     log(`installing dependencies in ${dir}`);
     execSync(existsSync(join(dir, 'package-lock.json')) ? 'npm ci' : 'npm install', { cwd: dir, stdio: 'ignore', timeout: 600_000, env: childEnv() });

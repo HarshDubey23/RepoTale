@@ -1,8 +1,9 @@
 // Built-in scenes are small HTML pages that animate themselves for exactly the length of their
 // narration. They are recorded the same way as the user's own app.
-import { readFileSync, realpathSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join } from 'node:path';
+import { within } from './exec.ts';
 import { pathToFileURL } from 'node:url';
 import type { Scene } from './storyboard.ts';
 
@@ -11,6 +12,8 @@ const pkg = (name: string) => dirname(req.resolve(`${name}/package.json`));
 const font = (p: string, f: string) => pathToFileURL(join(pkg(p), 'files', f)).href;
 const MERMAID = pathToFileURL(join(pkg('mermaid'), 'dist', 'mermaid.min.js')).href;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+/** A value for inside a <script>: command output or a storyboard that says "</script>" cannot end it. */
+export const js = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 
 export interface Ctx { accent: string; seconds: number; repo: string; repoDir?: string; title: string }
 
@@ -66,7 +69,7 @@ export async function sceneHtml(s: Scene, c: Ctx): Promise<string> {
       const { codeToHtml } = await import('shiki');
       const path = join(c.repoDir ?? '.', s.file);
       // A symlink in the repo must not put a file from outside it on screen.
-      if (/^\.\.|^([\\/]|[a-z]:)/i.test(relative(realpathSync(c.repoDir ?? '.'), realpathSync(path)))) throw new Error(`${s.file} is outside the repository`);
+      if (!within(c.repoDir ?? '.', path)) throw new Error(`${s.file} is outside the repository`);
       const all = readFileSync(path, 'utf8').split('\n');
       const [from, to] = s.lines ?? [1, Math.min(all.length, 40)];
       const lang = ({ ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx', py: 'python', sol: 'solidity', rs: 'rust', go: 'go', java: 'java', circom: 'rust', css: 'css', html: 'html', json: 'json', md: 'markdown', sh: 'bash', yml: 'yaml', yaml: 'yaml', sql: 'sql' } as Record<string, string>)[s.file.split('.').pop()!] ?? 'text';
@@ -83,7 +86,7 @@ export async function sceneHtml(s: Scene, c: Ctx): Promise<string> {
          .code .line::before{counter-increment:ln;content:counter(ln);display:inline-block;width:64px;padding-right:20px;text-align:right;color:#4b4f5e}
          ${hl.length ? `.dim .line{opacity:.32}.dim .line.hl{opacity:1;background:color-mix(in srgb,var(--a) 16%,transparent);box-shadow:inset 4px 0 0 var(--a)}` : ''}`)
         + `<script>
-          const L = [...document.querySelectorAll('.code .line')], H = ${JSON.stringify(hl)};
+          const L = [...document.querySelectorAll('.code .line')], H = ${js(hl)};
           H.forEach(([a,b]) => { for (let i=a;i<=b;i++) L[i-1]?.classList.add('hl'); });
           // Step through the highlighted ranges across the narration, scrolling each into view.
           const box = document.querySelector('.code'), pre = box.querySelector('pre');
@@ -103,7 +106,7 @@ export async function sceneHtml(s: Scene, c: Ctx): Promise<string> {
         <script>
           document.fonts.load('20px "Inter Variable"').then(() => {
           mermaid.initialize({ startOnLoad: false, theme: 'base', flowchart: { htmlLabels: false, padding: 18, nodeSpacing: 46, rankSpacing: 60 }, sequence: { useMaxWidth: true }, themeVariables: { darkMode: true, background: '#0c0d12', primaryColor: '#15171f', primaryBorderColor: '${c.accent}', primaryTextColor: '#f3f3f6', lineColor: '#9a9cab', secondaryColor: '#1d2030', tertiaryColor: '#15171f', fontFamily: 'Inter Variable', fontSize: '20px', edgeLabelBackground: '#0c0d12' } });
-          mermaid.render('g', ${JSON.stringify(s.mermaid)}).then(({ svg }) => {
+          mermaid.render('g', ${js(s.mermaid)}).then(({ svg }) => {
             const d = document.getElementById('d'); d.innerHTML = svg;
             // Fill the stage: the SVG scales up to the box and keeps its aspect ratio.
             const el = d.querySelector('svg'); el.removeAttribute('height'); el.style.maxWidth = 'none';
@@ -117,13 +120,13 @@ export async function sceneHtml(s: Scene, c: Ctx): Promise<string> {
         </script>`);
 
     case 'terminal': {
-      const runs = (s as any).__runs as { cmd: string; out: string }[];
+      const runs = (s as any).__runs as { cmd: string; code: number | null; timedOut: boolean; out: string }[];
       return base(c, `<div class="wrap" style="display:grid">
           <div class="up" style="background:#090a0e;border:1px solid var(--l);border-radius:16px;overflow:hidden;display:grid;grid-template-rows:auto 1fr;box-shadow:0 30px 80px -30px #000">
             <div style="display:flex;gap:8px;padding:14px 18px;border-bottom:1px solid var(--l)"><i style="width:13px;height:13px;border-radius:50%;background:#ff5f57"></i><i style="width:13px;height:13px;border-radius:50%;background:#febc2e"></i><i style="width:13px;height:13px;border-radius:50%;background:#28c840"></i></div>
             <pre id="t" style="padding:20px 26px;font:18px/1.55 'JetBrains Mono Variable',monospace;color:#d6d7de;white-space:pre-wrap;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end"></pre></div></div>
         <script>
-          const runs = ${JSON.stringify(runs)}, t = document.getElementById('t'), budget = ${c.seconds} * 1000 - 600;
+          const runs = ${js(runs)}, t = document.getElementById('t'), budget = ${c.seconds} * 1000 - 600;
           const lines = runs.reduce((n, r) => n + r.out.split('\\n').length + 1, 0), per = Math.max(12, Math.min(220, budget * .55 / Math.max(1, lines)));
           const add = (html) => { const s = document.createElement('span'); s.innerHTML = html + '\\n'; t.appendChild(s); };
           const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]);
@@ -133,6 +136,8 @@ export async function sceneHtml(s: Scene, c: Ctx): Promise<string> {
               for (const ch of r.cmd) { p.innerHTML += esc(ch); await new Promise(z => setTimeout(z, Math.min(55, budget * .2 / r.cmd.length / runs.length))); }
               p.innerHTML += '\\n';
               for (const l of r.out.split('\\n')) { add('<span style="color:' + (/(fail|error|✗|×)/i.test(l) ? '#ff7b72' : /(pass|ok|✓|success)/i.test(l) ? '#7ee787' : '#b4b6c2') + '">' + esc(l) + '</span>'); await new Promise(z => setTimeout(z, per)); }
+              // The verdict comes from the exit code, not from words in the output, so a failure always reads as one.
+              add(r.timedOut ? '<b style="color:#ff7b72">✗ timed out</b>' : r.code === 0 ? '<b style="color:#7ee787">✓ exit 0</b>' : '<b style="color:#ff7b72">✗ exit ' + r.code + '</b>');
             }
           })();
         </script>`);

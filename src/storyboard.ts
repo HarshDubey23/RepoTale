@@ -60,6 +60,7 @@ export function validate(sb: any): string[] {
     else if (s.type === 'code' && (/^([\\/]|[a-z]:)/i.test(s.file) || /(^|[\\/])\.\.([\\/]|$)/.test(s.file))) errs.push(`${at}.file: must be a path inside the repo`);
     if (s.type === 'diagram' && typeof s.mermaid !== 'string') errs.push(`${at}.mermaid: required`);
     if (s.type === 'terminal' && !(Array.isArray(s.commands) && s.commands.length)) errs.push(`${at}.commands: required`);
+    if (s.type === 'terminal' && s.cwd !== undefined && (typeof s.cwd !== 'string' || (/^([\\/]|[a-z]:)/i.test(s.cwd) || /(^|[\\/])\.\.([\\/]|$)/.test(s.cwd)))) errs.push(`${at}.cwd: must be a folder inside the repo`);
     if (s.type === 'stats' && !(Array.isArray(s.items) && s.items.length)) errs.push(`${at}.items: required`);
     if ((s.type === 'title' || s.type === 'end') && typeof s.heading !== 'string') errs.push(`${at}.heading: required`);
     if (s.evidence !== undefined && !Array.isArray(s.evidence)) errs.push(`${at}.evidence: must be a list`);

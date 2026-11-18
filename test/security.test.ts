@@ -142,6 +142,8 @@ test('the generated workflow gives pull requests a read-only token', () => {
   const steps = check.split('\n      - ');
   const runs = steps.filter(s => /verify --run/.test(s));
   assert.equal(runs.length, 1);
+  // ...and inside the sandbox, with the network on for installs, never bare on the runner.
+  assert.ok(runs[0].trimEnd().endsWith('verify --run --sandbox node:22-slim --net'), runs[0]);
   assert.match(runs[0], /^if: github\.event\.pull_request\.head\.repo\.full_name == github\.repository\n/);
   assert.match(check, /actions\/checkout@v4\n {8}#[^\n]*\n {8}with: \{ persist-credentials: false \}/);
 });
