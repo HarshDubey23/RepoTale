@@ -8,7 +8,7 @@
 // the CLI's `graph`. Upgrade to tree-sitter (web-tree-sitter) when call graphs are needed.
 
 export const CODE = /\.(ts|tsx|js|jsx|mjs|cjs|py|go|vue|svelte)$/;
-export const SKIP = /(^|\/)(node_modules|dist|build|out|\.next|\.nuxt|vendor|third_party|__pycache__|\.venv|venv|coverage|target|examples?|fixtures?|testdata|docs?)\/|\.min\.|\.d\.ts$|\.bundle\./;
+export const SKIP = /(^|\/)(node_modules|dist|build|out|\.next|\.nuxt|vendor|third_party|__pycache__|\.venv|venv|coverage|target|examples?|fixtures?|testdata|docs?|docs_src|samples?|demos?|playground)\/|\.min\.|\.d\.ts$|\.bundle\./;
 export const TEST = /(^|\/)(tests?|__tests__|specs?|e2e|test-d|testing)\/|[._-](test|spec)\.[a-z]+$|(^|\/)test_[^/]+\.py$|_test\.(py|go)$/;
 const JS_EXT = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue', '.svelte'];
 const MAX_FILES = 220;
@@ -201,7 +201,8 @@ export function buildModel({ meta, paths, texts, manifests }) {
         const e = edges.find(e => e.from === file && e.to === to);
         if (e) e.names = [...new Set([...(e.names ?? []), ...(imp.names ?? [])])];
         else edges.push({ from: file, to, line: imp.line, ...(imp.names?.length ? { names: imp.names } : {}) });
-        m.imports.push(to);
+        // One entry per file: "from .helpers import a" and "from .helpers import b" are one import of helpers.py.
+        if (!m.imports.includes(to)) m.imports.push(to);
       }
       else if (!to && !imp.spec.startsWith('.')) m.external.push(imp.spec.split('/').slice(0, imp.spec.startsWith('@') ? 2 : 1).join('/'));
     }

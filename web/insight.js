@@ -10,31 +10,60 @@ const LINES_PER_MINUTE = 40; // careful reading of unfamiliar code, not skimming
 
 /** The files a newcomer should read first, in order: where it starts, the path it takes, the
  *  module everything leans on, then the next most used one. Each says why it is on the list. */
+// Code that uses the product rather than being it: docs examples, demos, benchmarks, fixtures.
+// It counts nowhere in a reading order (FastAPI's docs_src has hundreds of tiny apps).
+export const ASIDE = /(^|\/)(docs?|docs_src|examples?|samples?|demos?|bench(marks?)?|fixtures?|playground|e2e|integration|scripts?|__tests__|tests?)\//i;
+// Files everything imports but nobody learns from: type aliases, compatibility shims, constants.
+const PLUMBING = /^_?(types?|typing|typings|compat|_compat|constants?|consts)\.[a-z]+$|\.d\.ts$/i;
+const FRONT_NAME = /^(index|main|mod|app|cli|server|__main__|__init__)\.[a-z]+$/;
+
 export function startHere(model, max = 5) {
   const byFile = new Map(model.modules.map(m => [m.file, m]));
-  const users = f => byFile.get(f).importedBy.filter(x => !byFile.get(x)?.test).length;
-  const heart = model.core[0]?.file;
+  const inProduct = f => !byFile.get(f)?.test && !ASIDE.test(f);
+  const users = f => byFile.get(f).importedBy.filter(inProduct).length;
+  // The heart is the most used file worth reading: not a type alias file everything happens to import.
+  const ranked = model.modules.filter(m => inProduct(m.file) && !PLUMBING.test(base(m.file)) && !/(^|\/)_?compat\//.test(m.file) && users(m.file) > 0)
+    .sort((a, b) => users(b.file) - users(a.file) || b.lines - a.lines);
+  const heart = ranked[0]?.file;
   const list = [];
   const add = (file, why) => { if (file && !list.some(x => x.file === file) && list.length < max) list.push({ file, why, lines: byFile.get(file).lines, minutes: Math.max(1, Math.round(byFile.get(file).lines / LINES_PER_MINUTE)) }); };
-  // Start from the entry that reaches the most of the system by following its imports: that is the
-  // program's real front door, not a helper script nothing happens to import.
-  const reachOf = f => { const seen = new Set([f]), q = [f]; while (q.length) for (const g of byFile.get(q.shift())?.imports ?? []) if (!seen.has(g)) { seen.add(g); q.push(g); } return seen.size - 1; };
-  // A library's front door may be imported back by its own types (ky's hooks import index), so
-  // when nothing qualifies as an entry, the shallowest index or main file that imports most is it.
-  const front = model.entries.length ? model.entries : model.modules.filter(m => !m.test && /^(index|main|mod|app|cli|server|__main__|__init__).[a-z]+$/.test(base(m.file)) && m.imports.length)
-    .sort((a, b) => a.file.split('/').length - b.file.split('/').length || b.imports.length - a.imports.length).slice(0, 1);
+  // The front door is a file named like one (index, main, __init__, app, cli…) that pulls in much of
+  // the system. A library's index or __init__ counts even though its own modules import it back
+  // (Flask, ky). Among doors reaching at least half as much as the best, the shallowest wins (hono's
+  // src/index.ts, not an adapter's index three folders down), then the one importing most directly
+  // (Flask's __init__.py, not __main__.py). Only when no file is named like a door does an unnamed
+  // file that nothing in the product imports get the role (fastify.js); build scripts and benchmarks
+  // at the root are entries too, which is why they are not the first choice.
+  const reachSet = f => { const seen = new Set([f]), q = [f]; while (q.length) for (const g of byFile.get(q.shift())?.imports ?? []) if (!seen.has(g)) { seen.add(g); q.push(g); } seen.delete(f); return seen; };
+  const reachOf = f => reachSet(f).size;
+  // A door that leads to another (cli.ts imports server.ts) is in front of it.
+  const doorsOf = ms => {
+    const ds = ms.map(m => ({ m, set: reachSet(m.file), depth: m.file.split('/').length }));
+    const best = Math.max(0, ...ds.map(d => d.set.size));
+    // ...unless it is Python's __main__.py, a shim that calls cli.main: a newcomer learns nothing there.
+  const leads = (x, y) => x.set.has(y.m.file) && !y.set.has(x.m.file) && !/^__main__\.py$/.test(base(x.m.file));
+  const ahead = (a, b) => (leads(a, b) ? -1 : leads(b, a) ? 1 : 0);
+    return ds.filter(d => d.set.size > 0 && d.set.size >= best / 2)
+      .sort((a, b) => a.depth - b.depth || ahead(a, b) || b.m.imports.length - a.m.imports.length || b.set.size - a.set.size).map(d => d.m);
+  };
+  const candidates = model.modules.filter(m => inProduct(m.file) && m.imports.length);
+  // fastify.js and express.js are named after their package.
+  const own = String(model.meta?.name ?? '').toLowerCase();
+  const named = doorsOf(candidates.filter(m => FRONT_NAME.test(base(m.file)) || (own && base(m.file).replace(/\.[a-z]+$/, '').toLowerCase() === own)));
+  const front = (named.length ? named : doorsOf(candidates.filter(m => !m.importedBy.some(inProduct)))).slice(0, 1);
   const routes = front.map(e => ({ e: e.file, reach: reachOf(e.file), path: heart ? pathBetween(e.file, heart, model.edges) : null })).filter(r => r.path);
-  routes.sort((a, b) => b.reach - a.reach || a.path.length - b.path.length);
   const route = routes[0];
+  // Two files called index.js are told apart by their folders.
+  const name = f => (route && base(route.path[0]) === base(heart) ? f : base(f));
   if (route) {
     route.path.forEach((f, i) => add(f, i === 0 ? `Where it starts: the front door, pulling in ${byFile.get(f).imports.length} of its files.`
       : f === heart ? `The heart: ${users(f)} files import it. Most of what you read next leans on this.`
-      : `Step ${i} on the way from ${base(route.path[0])} to ${base(heart)}: it is imported by ${users(f)} and imports ${byFile.get(f).imports.length}.`));
+      : `Step ${i} on the way from ${name(route.path[0])} to ${name(heart)}: it is imported by ${users(f)} and imports ${byFile.get(f).imports.length}.`));
   } else {
     if (front[0]) add(front[0].file, `Where it starts: it pulls in ${front[0].imports.length} of its files.`);
     if (heart) add(heart, `The heart: ${users(heart)} files import it.`);
   }
-  for (const c of model.core.slice(1)) add(c.file, `Used by ${users(c.file)} files; you will meet it everywhere.`);
+  for (const c of ranked.slice(1)) add(c.file, `Used by ${users(c.file)} files; you will meet it everywhere.`);
   return { files: list, minutes: list.reduce((s, x) => s + x.minutes, 0), lines: list.reduce((s, x) => s + x.lines, 0) };
 }
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Start here picks the real front door. It used to start FastAPI at a docs example (`docs_src/.../main.py`), hono at its Bun adapter and Flask at `views.py`; it now starts at `fastapi/__init__.py`, `src/index.ts` and `app.py`. A library's `__init__`/`index` counts even when its own modules import it back, files named after the package count (`fastify.js`), docs, examples, scripts and benchmarks never do, a door that leads to another comes first, and Python's `__main__.py` shim does not. Type, typing and compat files are no longer offered as "the heart". Checked on 20 public repositories (Express, Flask, FastAPI, Django, Vite, hono, pytest and others).
+- Docs example folders (`docs_src`, `samples`, `demos`, `playground`) are no longer read. On FastAPI they filled the 220-file budget and became nine of the ten subsystems on the map; the map now shows Fastapi, Security, Openapi, Middleware and the rest.
+- "Pulling in N of its files" counted a file once per imported name (Click's `__init__.py` claimed 69). Each file now counts once, here and in the Files view.
+- `check` no longer calls a render out of date because a file was checked out with Windows line endings.
+- Workflows set `ONNXRUNTIME_NODE_INSTALL_CUDA=skip`: on Linux the voice engine's installer fetched a CUDA build that now answers 404, which failed `npm ci` in CI, in releases and in the workflow `reporeel ci` writes.
 - The voice is back on the graphics card: on a laptop processor Kokoro was six to nine times slower than speech, so the film played with music only. Its warm-up starts when Read is pressed, each scene waits for its own voice (with a small "Warming up the voice" label rather than a freeze screen), and the score restarts in step with the narration.
 
 - The voice model warms up while the code is being read, so the first scene is voiced sooner, and on a processor at most two copies run, so the laptop stays responsive.

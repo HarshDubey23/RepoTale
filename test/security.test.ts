@@ -136,6 +136,7 @@ test('the generated workflow gives pull requests a read-only token', () => {
   assert.doesNotMatch(check, /write|secrets\./, 'the pull-request job has no write permission and no secrets');
   assert.match(refresh, /if: github\.event_name != 'pull_request'[\s\S]*permissions:\n      contents: write/);
   assert.doesNotMatch(yml, /pull_request_target/);
+  assert.match(top, /\nenv:\n  ONNXRUNTIME_NODE_INSTALL_CUDA: skip\n/, 'npx installs the voice engine, which must not fetch CUDA on a runner');
   // README commands come from the pull request, so a fork's pull request must never run them, and
   // the checkout must not leave the token on disk for them to read.
   const steps = check.split('\n      - ');

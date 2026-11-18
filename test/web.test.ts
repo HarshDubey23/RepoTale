@@ -82,6 +82,17 @@ test('pickFiles prefers source over tests and skips vendored code', () => {
   assert.deepEqual(pickFiles(tree), ['index.js', 'src/deep/er/x.ts', 'test/a.test.js']);
 });
 
+test('pickFiles leaves out docs examples and demos, so they cannot crowd out the product (FastAPI)', () => {
+  // FastAPI's docs_src holds thousands of tiny tutorial apps, all shallower than the package itself:
+  // they used to fill the 220-file budget and become nine of ten subsystems on the map.
+  const tree = [
+    ...Array.from({ length: 300 }, (_, i) => ({ path: `docs_src/t${i}.py`, type: 'blob', size: 10 })),
+    ...['samples/a.py', 'demos/b.js', 'playground/c.ts'].map(path => ({ path, type: 'blob', size: 10 })),
+    { path: 'fastapi/applications.py', type: 'blob', size: 9000 }, { path: 'fastapi/routing/core.py', type: 'blob', size: 9000 },
+  ];
+  assert.deepEqual(pickFiles(tree), ['fastapi/applications.py', 'fastapi/routing/core.py']);
+});
+
 test('pages: routes come from the files that define them, dynamic ones are skipped', () => {
   const paths = ['app/page.tsx', 'app/about/page.tsx', 'app/(marketing)/pricing/page.tsx', 'app/blog/[slug]/page.tsx', 'app/api/x/route.ts',
     'pages/_app.tsx', 'pages/docs/index.mdx', 'pages/api/hello.ts', 'src/routes/contact/+page.svelte', 'index.html', '404.html', 'node_modules/x/app/page.tsx',
