@@ -83,19 +83,27 @@ export function prImpact(model, changes) {
   const files = read.filter(c => !byFile.get(c.filename).test).map(c => {
     const r = blastRadius(c.filename, model.edges);
     const t = [...r.keys()].filter(f => byFile.get(f)?.test);
-    return { file: c.filename, status: c.status, additions: c.additions ?? 0, deletions: c.deletions ?? 0, reach: r.size, tests: t.length, core: core.has(c.filename), area: byFile.get(c.filename).area };
+    return { file: c.filename, status: c.status, additions: c.additions ?? 0, deletions: c.deletions ?? 0, reach: r.size, tests: t.length, core: core.has(c.filename), area: byFile.get(c.filename).area,
+      sourceReach: r.size - t.length };
   }).sort((a, b) => b.reach - a.reach);
   const dependents = [...reach.keys()].filter(f => !byFile.get(f).test);
   const untested = files.filter(f => f.tests === 0 && f.status !== 'removed');
-  const areas = [...new Set([...files.map(f => f.area), ...dependents.map(f => byFile.get(f).area)])];
+  // Where the change is, and where it travels: kept apart so "1 file in 3 parts" is never said.
+  const changedAreas = [...new Set(files.map(f => f.area))];
+  const areas = [...new Set([...changedAreas, ...dependents.map(f => byFile.get(f).area)])];
+  // A file that is not among the five most imported can still sit under most of the code (Flask's
+  // sansio/scaffold.py is the base of Flask and Blueprint): reaching a third of the source is wide.
+  const sourceFiles = model.modules.filter(m => !m.test).length;
+  const wide = files.filter(f => !f.core && f.sourceReach >= 5 && f.sourceReach >= sourceFiles / 3);
   // Risk is what a reviewer should look at first, in the order of what can hurt most.
   const risks = [
     ...files.filter(f => f.core).map(f => ({ file: f.file, why: `a core module: ${f.reach} files depend on it` })),
+    ...wide.map(f => ({ file: f.file, why: `reaches ${f.sourceReach} of the ${sourceFiles} source files read, through imports` })),
     ...untested.filter(f => f.reach > 0).map(f => ({ file: f.file, why: `no test among the files read reaches it, and ${f.reach} files depend on it` })),
     ...files.filter(f => f.status === 'removed' && f.reach > 0).map(f => ({ file: f.file, why: `removed, but ${f.reach} files imported it at the base of this change` })),
   ].filter((r, i, a) => a.findIndex(x => x.file === r.file) === i);
   const level = risks.some(r => /core module|removed/.test(r.why)) ? 'high' : risks.length ? 'medium' : 'low';
-  return { files, dependents, tests: [...tests], untested, areas, risks, level, notRead, sampled: !!model.meta?.truncated };
+  return { files, dependents, tests: [...tests], untested, areas, changedAreas, risks, level, notRead, sampled: !!model.meta?.truncated };
 }
 
 const STOP = new Set('the a an and or of to in on for is are was be how does do what where which who why when this that it its with from by as at into can i we you'.split(' '));

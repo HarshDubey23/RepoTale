@@ -79,6 +79,26 @@ test('a file imported several times by name counts once, so "pulling in N files"
   assert.match(startHere(m).files[0].why, /pulling in 2 of its files/);
 });
 
+test('PR impact: a change under most of the code is not "low reach", even when the file is not core (Flask #6133)', () => {
+  // scaffold is the base of app and blueprint; everything else hangs off app. Seven files are imported more.
+  const t: Record<string, string> = {
+    'pkg/scaffold.py': 'x = 1\n',
+    'pkg/app.py': 'from .scaffold import x\n', 'pkg/blueprint.py': 'from .scaffold import x\n',
+    'pkg/util.py': 'u = 1\n', 'pkg/globals.py': 'g = 1\n',
+    ...Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`pkg/m${i}.py`, 'from .app import x\nfrom .util import u\nfrom .globals import g\n'])),
+    'tests/test_app.py': 'from pkg.app import x\n',
+  };
+  const m = modelOf(t);
+  const r = prImpact(m, [{ filename: 'pkg/scaffold.py', status: 'modified', additions: 8, deletions: 0 }]);
+  assert.ok(!r.files[0].core, 'not among the most imported');
+  assert.equal(r.files[0].sourceReach, 8);
+  assert.equal(r.level, 'medium');
+  assert.match(r.risks[0].why, /reaches 8 of the 11 source files/);
+  assert.deepEqual([r.changedAreas.length, r.areas.length >= r.changedAreas.length], [1, true]);
+  // A leaf change reaches nothing and stays low.
+  assert.equal(prImpact(m, [{ filename: 'pkg/m0.py', status: 'modified', additions: 1, deletions: 0 }]).level, 'low');
+});
+
 test('PR impact: what a change reaches, which tests cover it, and the risky files first', () => {
   const r = prImpact(model, [
     { filename: 'src/db.ts', status: 'modified', additions: 3, deletions: 1 },

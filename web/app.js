@@ -387,7 +387,8 @@ function show() {
   $('#r-desc').textContent = meta.description || `${totals.languages[0]?.[0] ?? 'A'} project by ${meta.owner}.`;
   $('#r-meta').replaceChildren(
     `${fmt(meta.stars)} stars · ${meta.license ?? 'no license'} · `,
-    h('a', { href: `https://github.com/${meta.full}/tree/${meta.sha}` }, `${meta.ref}@${meta.sha.slice(0, 7)}`),
+    // A pull request is read at its head commit, so its ref is the commit itself, not a branch name.
+    h('a', { href: `https://github.com/${meta.full}/tree/${meta.sha}` }, `${meta.ref === meta.sha ? 'PR head' : meta.ref}@${meta.sha.slice(0, 7)}`),
     ` · read ${fmt(totals.code + totals.tests)} of ${fmt(totals.files)} files`);
   document.title = `${meta.name} — RepoTale`;
   $('#t-review').hidden = !model.pull;
@@ -648,7 +649,7 @@ function drawReview() {
       h('p', { class: 'review-pr' }, h('a', { href: p.url, target: '_blank', rel: 'noopener' }, `#${p.number}`), ` · ${p.state} · by ${p.author ?? 'unknown'} · into ${p.base}`),
       h('h3', {}, p.title),
       h('p', { class: `verdict verdict-${r.level}` }, verdict)),
-    h('p', { class: 'review-sum' }, `It changes ${r.files.length} source file${r.files.length === 1 ? '' : 's'} in ${r.areas.length} part${r.areas.length === 1 ? '' : 's'} of the code. Through imports, the change reaches ${r.dependents.length} more file${r.dependents.length === 1 ? '' : 's'}; ${r.tests.length} test file${r.tests.length === 1 ? '' : 's'} sit on those paths.${r.sampled ? ' The repository was sampled: every changed file and its tests were read, but tests elsewhere may also apply.' : ''}`),
+    h('p', { class: 'review-sum' }, `It changes ${r.files.length} source file${r.files.length === 1 ? '' : 's'} in ${r.changedAreas.length} part${r.changedAreas.length === 1 ? '' : 's'} of the code. Through imports, the change reaches ${r.dependents.length} more file${r.dependents.length === 1 ? '' : 's'}; ${r.tests.length} test file${r.tests.length === 1 ? '' : 's'} sit on those paths.${r.sampled ? ' The repository was sampled: every changed file and its tests were read, but tests elsewhere may also apply.' : ''}`),
     r.risks.length ? h('div', { class: 'review-block' }, h('h4', {}, 'Look at these first'), h('ul', { class: 'risk-list' }, r.risks.map(x => h('li', {}, link(x.file), h('span', {}, x.why))))) : h('p', { class: 'review-ok' }, 'Nothing here is widely used or untested: the change stays local.'),
     h('div', { class: 'review-block' }, h('h4', {}, 'Changed files'), h('table', { class: 'review-table' },
       h('thead', {}, h('tr', {}, h('th', {}, 'File'), h('th', {}, 'Change'), h('th', {}, 'Reaches'), h('th', {}, 'Tests on path'))),
