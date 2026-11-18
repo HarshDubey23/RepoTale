@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { subpathTarget } from '../web/analyze.js';
 import { parseRepo, importsOf, symbolsOf, resolve, buildModel, cycles, blastRadius, aliasesFrom, pickFiles, detectStack, routesOf, headingOf, liveUrl, pageFacts, siteLinks, fromUngh } from '../web/analyze.js';
 import { forEar } from '../web/voice.js';
 import { buildArch, overviewArch, focusArch, mermaidArch, nameOf, kindOf, areaNames } from '../web/arch.js';
@@ -33,7 +34,7 @@ test('imports keep their true line numbers and skip comments', () => {
   // Named imports keep the exported name, not the local alias; types are dropped from the clause.
   assert.deepEqual(importsOf("import Def, { run as go, type T, Job } from './q';", 'js')[0].names, ['run', 'T', 'Job', 'Def']);
   const py = `"""\nimport fake\n"""\nfrom .models import User, Post\nimport os, sys as s\n`;
-  assert.deepEqual(importsOf(py, 'py'), [{ spec: '.models', line: 4, names: ['User', 'Post'] }, { spec: 'os', line: 5 }, { spec: 'sys', line: 5 }]);
+  assert.deepEqual(importsOf(py, 'py'), [{ spec: '.models', line: 4, names: ['User'] }, { spec: '.models', line: 4, names: ['Post'] }, { spec: 'os', line: 5 }, { spec: 'sys', line: 5 }]);
   const go = `package main\n\nimport (\n\t"fmt"\n\t"example.com/m/pkg/util"\n)\n`;
   assert.deepEqual(importsOf(go, 'go'), [{ spec: 'fmt', line: 4 }, { spec: 'example.com/m/pkg/util', line: 5 }]);
 });
@@ -267,4 +268,21 @@ test('this repository, end to end: every edge resolves, every film claim cites a
     if (nbr.has(e.to)) assert.equal(e.from, src.id);
     if (nbr.has(e.from)) assert.equal(e.count, real(e.from.slice(2), 'src'));
   }
+});
+
+// Each case below was a wrong answer against bench/truth.json before it was fixed.
+test('from a package import several submodules: each is an import (requests __init__ -> utils was missed)', () => {
+  const texts = { 'pkg/__init__.py': 'from . import a, b\nfrom .c import thing\n', 'pkg/a.py': '', 'pkg/b.py': '', 'pkg/c.py': 'thing = 1\n' };
+  const m = buildModel({ meta: { name: 'x', full: 'a/x', truncated: false }, paths: Object.keys(texts), texts, manifests: {} });
+  assert.deepEqual(m.modules.find((x: any) => x.file === 'pkg/__init__.py').imports.sort(), ['pkg/a.py', 'pkg/b.py', 'pkg/c.py']);
+});
+
+test('package.json imports (#name) resolve to the repository file, never to a package called ""', () => {
+  const texts = { 'source/index.js': "import a from '#ansi';\nimport s from '#supports';\nimport x from '#missing';\nimport css from './a.css?inline';\n", 'source/vendored/ansi.js': '', 'source/vendored/sc.js': '', 'source/vendored/sc-browser.js': '' };
+  const pkg = JSON.stringify({ imports: { '#ansi': './source/vendored/ansi.js', '#supports': { node: './source/vendored/sc.js', default: './source/vendored/sc-browser.js' } } });
+  const m = buildModel({ meta: { name: 'x', full: 'a/x', truncated: false }, paths: [...Object.keys(texts), 'source/a.css'], texts, manifests: { 'package.json': pkg } });
+  const idx = m.modules.find((x: any) => x.file === 'source/index.js');
+  assert.deepEqual(idx.imports.sort(), ['source/vendored/ansi.js', 'source/vendored/sc.js']);
+  assert.deepEqual(idx.external, [], 'no empty or #-named package');
+  assert.equal(subpathTarget({ '#n': { browser: './b.js', node: { import: './n.mjs' } } }, '#n'), 'n.mjs');
 });

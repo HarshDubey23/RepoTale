@@ -42,7 +42,7 @@ export function importsOf(text, lang) {
       const clause = m[1] ?? '';
       const names = [...(clause.match(/\{([^}]*)\}/)?.[1] ?? '').split(',').map(n => n.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0]).filter(n => /^[\w$]+$/.test(n)),
         ...(clause.replace(/\{[^}]*\}/, '').match(/^\s*([A-Za-z_$][\w$]*)/) ? [clause.replace(/\{[^}]*\}/, '').trim().split(/[\s,]/)[0]] : [])].filter(n => n && n !== 'type');
-      out.push({ spec: (m[2] ?? m[3]).replace(/[?#].*$/, ''), line: lineAt(m.index), ...(names.length ? { names } : {}) });
+      out.push({ spec: (m[2] ?? m[3]).replace(/(.)[?#].*$/, '$1'), line: lineAt(m.index), ...(names.length ? { names } : {}) });
     }
   } else if (lang === 'py') {
     for (const m of code.matchAll(/^[ \t]*from\s+(\.*[\w.]*)\s+import[ \t]+(\([^)]*\)|[^\n]+)|^[ \t]*import[ \t]+([\w., \t]+)/gm)) {
@@ -50,7 +50,9 @@ export function importsOf(text, lang) {
       if (m[3]) for (const p of m[3].split(',')) out.push({ spec: p.trim().split(/\s+as\s+/)[0], line });
       else {
         const names = m[2].replace(/[()\\\n]/g, ' ').split(',').map(n => n.trim().split(/\s+as\s+/)[0]).filter(n => n && n !== '*');
-        out.push({ spec: m[1], line, names });
+        // One entry per name: `from . import packages, utils` imports two submodules, and resolve() returns one file each.
+        if (names.length) for (const n of names) out.push({ spec: m[1], line, names: [n] });
+        else out.push({ spec: m[1], line, names });
       }
     }
   } else if (lang === 'go') {
@@ -90,12 +92,21 @@ const norm = p => {
 };
 const dir = f => f.includes('/') ? f.slice(0, f.lastIndexOf('/')) : '';
 
+/** A package.json "imports" entry ("#ansi-styles") as a path, taking the node condition first.
+ *  shortcut: wildcard entries ("#x/*") are not expanded; add them when a repository needs it. */
+export function subpathTarget(map, spec) {
+  let t = map?.[spec];
+  while (t && typeof t === 'object' && !Array.isArray(t)) t = t.node ?? t.import ?? t.default ?? t.require;
+  return typeof t === 'string' ? norm(t) : null;
+}
+
 /** Resolve one import to a file in `all` (a Set of every path in the tree), or null. */
 export function resolve(from, imp, lang, all, ctx = {}) {
   const { spec } = imp;
   if (lang === 'js') {
     let base;
     if (spec.startsWith('.')) base = norm(dir(from) + '/' + spec);
+    else if (spec.startsWith('#')) base = subpathTarget(ctx.pkgImports, spec) ?? undefined;
     else if (ctx.alias) { for (const [k, v] of ctx.alias) if (spec === k || spec.startsWith(k + '/')) base = norm(v + spec.slice(k.length)); }
     if (base === undefined) return null;
     const find = b => { const stem = b.replace(/\.(js|mjs|cjs|jsx)$/, ''); return [b, ...JS_EXT.map(e => stem + e), ...JS_EXT.map(e => b + '/index' + e)].find(c => all.has(c)); };
@@ -188,6 +199,7 @@ export function buildModel({ meta, paths, texts, manifests }) {
   const ctx = {
     alias: [...aliasesFrom(manifests['tsconfig.json'] ?? ''), ...aliasesFrom(manifests['jsconfig.json'] ?? '')],
     goModule: manifests['go.mod']?.match(/^module\s+(\S+)/m)?.[1],
+    pkgImports: (() => { try { return JSON.parse(manifests['package.json'] ?? '').imports; } catch { return undefined; } })(),
     pyRoots: [...new Set(paths.filter(p => /^(src|lib)\/[^/]+\/__init__\.py$/.test(p)).map(p => p.split('/')[0]))],
   };
   const modules = [], edges = [];
@@ -204,7 +216,7 @@ export function buildModel({ meta, paths, texts, manifests }) {
         // One entry per file: "from .helpers import a" and "from .helpers import b" are one import of helpers.py.
         if (!m.imports.includes(to)) m.imports.push(to);
       }
-      else if (!to && !imp.spec.startsWith('.')) m.external.push(imp.spec.split('/').slice(0, imp.spec.startsWith('@') ? 2 : 1).join('/'));
+      else if (!to && !imp.spec.startsWith('.') && !imp.spec.startsWith('#')) m.external.push(imp.spec.split('/').slice(0, imp.spec.startsWith('@') ? 2 : 1).join('/'));
     }
     modules.push(m);
   }

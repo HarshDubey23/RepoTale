@@ -14,6 +14,8 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { files } from './doctor.ts';
+// @ts-ignore: plain ES module shared with the website, so both resolve package imports the same way
+import { subpathTarget } from '../web/analyze.js';
 
 export interface Sym { id: string; name: string; kind: 'function' | 'class' | 'const' | 'type'; file: string; line: number; exported: boolean }
 export interface Mod {
@@ -73,7 +75,7 @@ function jsSpecs(text: string): string[] {
     // A require(...) written inside a string on the same line is text, not an import.
     .filter(m => m[1] !== undefined || !inString(code.slice(code.lastIndexOf('\n', m.index) + 1, m.index)))
     // "./a.css?inline" names the file ./a.css.
-    .map(m => (m[1] ?? m[2]).replace(/[?#].*$/, ''));
+    .map(m => (m[1] ?? m[2]).replace(/(.)[?#].*$/, '$1'));
 }
 
 /** Each entry is one import statement as a list of candidates: `from pkg import a` may mean the
@@ -93,6 +95,7 @@ export function analyze(root: string): Graph {
   const everything = new Set(files(root));
   const all = [...everything].filter(f => CODE.test(f) && !SKIP.test(f)).sort();
   const have = new Set(all);
+  const pkgImports = (() => { try { return JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).imports; } catch { return undefined; } })();
   const pick = (cands: string[]) => cands.map(c => posix.normalize(c)).find(c => have.has(c));
   const modules: Mod[] = [], symbols: Sym[] = [];
   for (const file of all) {
@@ -109,14 +112,23 @@ export function analyze(root: string): Graph {
         const hit = pick([base, ...JS_EXT.map(e => bare + e), ...JS_EXT.map(e => base + e), ...main, ...JS_EXT.map(e => posix.join(base, 'index' + e))]);
         // A stylesheet, image or JSON file that exists is a real import, just not of a module: no edge, and not a miss.
         if (hit) imports.add(hit); else if (!everything.has(posix.normalize(base))) unresolved.add(spec);
+      } else if (spec.startsWith('#')) {
+        // package.json "imports" (chalk's #ansi-styles): the repository's own file, never a package.
+        const t = subpathTarget(pkgImports, spec), hit = t && pick([t, ...JS_EXT.map(e => t.replace(/\.(js|jsx|mjs|cjs)$/, '') + e)]);
+        hit ? imports.add(hit) : unresolved.add(spec);
       } else if (!spec.startsWith('node:')) external.add(spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : spec.split('/')[0]);
     } else for (const alts of pySpecs(text)) {
-      const hits = alts.flatMap(spec => {
+      const resolvePy = (spec: string) => {
         const dots = spec.match(/^\.*/)![0].length, path = spec.slice(dots).split('.').filter(Boolean).join('/');
         // Relative imports start at the file's package; absolute ones are tried from the repo root, src/ and the file's folder.
         const bases = dots ? [posix.join(dir, ...Array(dots - 1).fill('..'))] : ['.', 'src', dir];
-        return pick(bases.flatMap(b => path ? [posix.join(b, path + '.py'), posix.join(b, path, '__init__.py')] : [posix.join(b, '__init__.py')])) ?? [];
-      });
+        return pick(bases.flatMap(b => path ? [posix.join(b, path + '.py'), posix.join(b, path, '__init__.py')] : [posix.join(b, '__init__.py')]));
+      };
+      // `from pkg import a, b`: each name that is a submodule is an import of that file. The package itself
+      // is imported only for names that are not submodules (attributes of pkg), as Python does it.
+      const [head, ...names] = alts, subs = names.map(resolvePy);
+      const hits = subs.filter((s): s is string => !!s);
+      if (!names.length || subs.some(s => !s)) { const h = resolvePy(head); if (h) hits.push(h); }
       for (const h of hits) if (h !== file) imports.add(h);
       if (!hits.length) alts[0].startsWith('.') ? unresolved.add(alts[0]) : external.add(alts[0].split('.')[0]);
     }

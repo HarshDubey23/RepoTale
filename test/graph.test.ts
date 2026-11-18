@@ -40,8 +40,8 @@ test('imports become edges only when they resolve to a file; the rest stay unres
   // node: builtins are not packages; a subpath belongs to its package.
   assert.deepEqual(mod(g, 'src/orphan.js').external, ['lodash']);
   const api = mod(g, 'app/api.py');
-  assert.deepEqual([api.imports, api.external, api.unresolved], [['app/__init__.py', 'app/models.py'], ['json', 'os', 'requests'], ['.nothing']]);
-  assert.deepEqual(mod(g, 'tests/test_api.py').imports, ['app/__init__.py', 'app/api.py']);
+  assert.deepEqual([api.imports, api.external, api.unresolved], [['app/models.py'], ['json', 'os', 'requests'], ['.nothing']]);
+  assert.deepEqual(mod(g, 'tests/test_api.py').imports, ['app/api.py']);
   assert.deepEqual(g.modules.filter(m => m.test).map(m => m.file), ['test/auth.test.ts', 'tests/test_api.py']);
   assert.equal(g.commit, null, 'not a git checkout, so no commit is claimed');
 });
@@ -190,4 +190,17 @@ test('the architecture diagram draws an arrow solid only when imports back it, a
   assert.ok(m.includes('-.->|inferred| cli') || m.includes('cli -.->|inferred|'), 'the unconnected cli is placed by a dashed, labelled guess');
   assert.match(m, /-\.->\|dependency\| PostgreSQL/, m);
   assert.doesNotMatch(mermaidFor(st), /-->\|/, 'without a graph nothing is drawn as confirmed');
+});
+
+test('the CLI analyzer: submodule imports do not add the package, and #imports resolve (requests, chalk)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'rr-imp-'));
+  const put = (f: string, body: string) => { mkdirSync(dirname(join(dir, f)), { recursive: true }); writeFileSync(join(dir, f), body); };
+  put('pkg/__init__.py', 'from . import a, b\nfrom .c import thing\n'); put('pkg/a.py', ''); put('pkg/b.py', ''); put('pkg/c.py', 'thing = 1\n');
+  put('pkg/d.py', 'from . import a\nfrom . import version\n');
+  put('package.json', JSON.stringify({ imports: { '#ansi': './lib/ansi.js' } })); put('lib/index.js', "import a from '#ansi';\nimport x from '#nope';\n"); put('lib/ansi.js', '');
+  const g = analyze(dir), of = (f: string) => g.modules.find(m => m.file === f)!;
+  assert.deepEqual(of('pkg/__init__.py').imports, ['pkg/a.py', 'pkg/b.py', 'pkg/c.py']);
+  // `version` is not a submodule, so it is an attribute of the package: that one does import __init__.
+  assert.deepEqual(of('pkg/d.py').imports, ['pkg/__init__.py', 'pkg/a.py']);
+  assert.deepEqual([of('lib/index.js').imports, of('lib/index.js').external, of('lib/index.js').unresolved], [['lib/ansi.js'], [], ['#nope']]);
 });

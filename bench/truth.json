@@ -1,0 +1,80 @@
+{
+  "about": "Hand-labelled imports for four small repositories at fixed commits. Labelled by reading every import statement in the listed files (including multi-line ones), not by running either analyzer. Rules: an edge is a static import or require of another listed file; `from . import x` means module x.py; `from .m import y` means m.py; type-only imports count; package.json \"imports\" aliases resolve with the node condition; comments, strings and dynamic require(variable) are not imports. External packages are bare specifiers, reduced to the package name; node: builtins and the Python standard library are not listed. Requests is labelled for internal edges only.",
+  "repos": [
+    {
+      "name": "expressjs/express", "commit": "43fca52",
+      "files": ["index.js", "lib/application.js", "lib/express.js", "lib/request.js", "lib/response.js", "lib/utils.js", "lib/view.js"],
+      "edges": [
+        ["index.js", "lib/express.js"],
+        ["lib/application.js", "lib/view.js"], ["lib/application.js", "lib/utils.js"],
+        ["lib/express.js", "lib/application.js"], ["lib/express.js", "lib/request.js"], ["lib/express.js", "lib/response.js"],
+        ["lib/response.js", "lib/utils.js"]
+      ],
+      "external": {
+        "index.js": [],
+        "lib/application.js": ["debug", "finalhandler", "once", "router"],
+        "lib/express.js": ["body-parser", "merge-descriptors", "router", "serve-static"],
+        "lib/request.js": ["accepts", "fresh", "parseurl", "proxy-addr", "range-parser", "type-is"],
+        "lib/response.js": ["content-disposition", "cookie", "cookie-signature", "depd", "encodeurl", "escape-html", "http-errors", "mime-types", "on-finished", "send", "statuses", "vary"],
+        "lib/utils.js": ["content-type", "etag", "mime-types", "proxy-addr", "qs"],
+        "lib/view.js": ["debug"]
+      }
+    },
+    {
+      "name": "chalk/chalk", "commit": "7211001",
+      "files": ["source/index.js", "source/utilities.js", "source/vendor/ansi-styles/index.js", "source/vendor/supports-color/index.js", "source/vendor/supports-color/browser.js"],
+      "edges": [
+        ["source/index.js", "source/utilities.js"],
+        ["source/index.js", "source/vendor/ansi-styles/index.js"],
+        ["source/index.js", "source/vendor/supports-color/index.js"]
+      ],
+      "external": {
+        "source/index.js": [], "source/utilities.js": [], "source/vendor/ansi-styles/index.js": [],
+        "source/vendor/supports-color/index.js": [], "source/vendor/supports-color/browser.js": []
+      }
+    },
+    {
+      "name": "pmndrs/zustand", "commit": "9fed2eb",
+      "files": ["src/index.ts", "src/middleware.ts", "src/middleware/combine.ts", "src/middleware/devtools.ts", "src/middleware/immer.ts", "src/middleware/persist.ts", "src/middleware/redux.ts", "src/middleware/ssrSafe.ts", "src/middleware/subscribeWithSelector.ts", "src/react.ts", "src/react/shallow.ts", "src/shallow.ts", "src/traditional.ts", "src/vanilla.ts", "src/vanilla/shallow.ts"],
+      "edges": [
+        ["src/index.ts", "src/vanilla.ts"], ["src/index.ts", "src/react.ts"],
+        ["src/middleware.ts", "src/middleware/redux.ts"], ["src/middleware.ts", "src/middleware/devtools.ts"], ["src/middleware.ts", "src/middleware/subscribeWithSelector.ts"],
+        ["src/middleware.ts", "src/middleware/combine.ts"], ["src/middleware.ts", "src/middleware/persist.ts"], ["src/middleware.ts", "src/middleware/ssrSafe.ts"],
+        ["src/middleware/combine.ts", "src/vanilla.ts"], ["src/middleware/devtools.ts", "src/vanilla.ts"], ["src/middleware/immer.ts", "src/vanilla.ts"],
+        ["src/middleware/persist.ts", "src/vanilla.ts"], ["src/middleware/redux.ts", "src/vanilla.ts"], ["src/middleware/redux.ts", "src/middleware/devtools.ts"],
+        ["src/middleware/ssrSafe.ts", "src/vanilla.ts"], ["src/middleware/subscribeWithSelector.ts", "src/vanilla.ts"],
+        ["src/react.ts", "src/vanilla.ts"], ["src/react/shallow.ts", "src/vanilla/shallow.ts"],
+        ["src/shallow.ts", "src/vanilla/shallow.ts"], ["src/shallow.ts", "src/react/shallow.ts"],
+        ["src/traditional.ts", "src/vanilla.ts"]
+      ],
+      "external": {
+        "src/index.ts": [], "src/middleware.ts": [], "src/middleware/combine.ts": [], "src/middleware/devtools.ts": ["@redux-devtools/extension"],
+        "src/middleware/immer.ts": ["immer"], "src/middleware/persist.ts": [], "src/middleware/redux.ts": [], "src/middleware/ssrSafe.ts": [],
+        "src/middleware/subscribeWithSelector.ts": [], "src/react.ts": ["react"], "src/react/shallow.ts": ["react"], "src/shallow.ts": [],
+        "src/traditional.ts": ["react", "use-sync-external-store"], "src/vanilla.ts": [], "src/vanilla/shallow.ts": []
+      }
+    },
+    {
+      "name": "psf/requests", "commit": "3c7baaa",
+      "files": ["src/requests/__init__.py", "src/requests/__version__.py", "src/requests/_internal_utils.py", "src/requests/_types.py", "src/requests/adapters.py", "src/requests/api.py", "src/requests/auth.py", "src/requests/certs.py", "src/requests/compat.py", "src/requests/cookies.py", "src/requests/exceptions.py", "src/requests/help.py", "src/requests/hooks.py", "src/requests/models.py", "src/requests/packages.py", "src/requests/sessions.py", "src/requests/status_codes.py", "src/requests/structures.py", "src/requests/utils.py"],
+      "edgesBySource": {
+        "__init__": ["exceptions", "packages", "utils", "__version__", "api", "models", "sessions", "status_codes"],
+        "_internal_utils": ["compat"],
+        "_types": ["auth", "cookies", "models", "structures"],
+        "adapters": ["auth", "compat", "cookies", "exceptions", "models", "structures", "utils", "_types"],
+        "api": ["sessions", "models", "_types"],
+        "auth": ["_internal_utils", "compat", "cookies", "utils", "models"],
+        "cookies": ["_internal_utils", "_types", "compat", "models"],
+        "exceptions": ["compat", "models"],
+        "help": ["__version__"],
+        "hooks": ["_types", "models"],
+        "models": ["_types", "_internal_utils", "adapters", "auth", "compat", "cookies", "exceptions", "hooks", "status_codes", "structures", "utils"],
+        "packages": ["compat"],
+        "sessions": ["_internal_utils", "_types", "adapters", "auth", "compat", "cookies", "exceptions", "hooks", "models", "status_codes", "structures", "utils"],
+        "status_codes": ["structures"],
+        "structures": ["compat"],
+        "utils": ["certs", "__version__", "_internal_utils", "_types", "compat", "cookies", "exceptions", "models", "structures"]
+      }
+    }
+  ]
+}
