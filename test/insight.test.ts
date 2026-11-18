@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildModel } from '../web/analyze.js';
-import { startHere, prImpact, retrieve, excerpt, verifyCitations } from '../web/insight.js';
+import { startHere, prImpact, retrieve, excerpt, verifyCitations, codeNames } from '../web/insight.js';
 
 // cli -> server -> db <- billing ; db is the heart; billing has no test; db.test covers db.
 const texts = {
@@ -142,4 +142,39 @@ test('the free answer shows the declarations that match, with their real lines a
   const b = answerFromGraph(model, 'how does billing charge?');
   assert.ok(b.links.some(e => e.from === 'src/billing.ts' && e.to === 'src/db.ts') || b.files.length >= 1);
   assert.match(answerFromGraph(model, 'zzzz qqqq').summary, /^Nothing in the files read/);
+});
+
+// A citation can point at real lines and still not be about what its sentence says. These show what
+// the check catches and, as important, what it does not claim.
+test('citations: real lines that mention the cited code match; real lines about something else are marked', () => {
+  const t = {
+    'src/db.ts': 'export function query() {\n  return connectPool();\n}\nexport function connectPool() { return 1; }\n',
+    'src/auth.ts': 'export function checkToken(t: string) {\n  return t.length > 0;\n}\n',
+  };
+  const m = buildModel({ meta: { name: 'x', full: 'a/x', truncated: false }, paths: Object.keys(t), texts: t, manifests: {} });
+  const c = verifyCitations([
+    'Queries go through `connectPool` [src/db.ts:1-3].',
+    'Tokens are checked by checkToken before any query [src/db.ts:1-3].',
+    'The project is small and readable [src/db.ts:2].',
+    'It retries forever [src/db.ts:90].',
+    'See [src/nope.ts:1].',
+  ].join(' '), m);
+  assert.deepEqual(c.map(x => [x.ok, x.support]), [[true, 'matches'], [true, 'partial'], [true, 'none'], [false, null], [false, null]]);
+  assert.deepEqual(c[0].found, ['connectPool']);
+  assert.match(c[1].why, /these lines do not mention checkToken/);
+  // Plain English words are not code names, so the third sentence is neither supported nor refuted.
+  assert.deepEqual(c[2].names, []);
+});
+
+test('codeNames picks backticked, camelCase, snake_case, dotted and declared names, not prose', () => {
+  assert.deepEqual(codeNames('The `retry()` helper calls fetch_json and Client.send, then Session handles it', new Set(['Session'])).sort(),
+    ['Client.send', 'Session', 'fetch_json', 'retry']);
+  assert.deepEqual(codeNames('This module handles errors and logging for the server'), []);
+});
+
+test('citations: a sentence about code that the cited lines never mention is "missing"', () => {
+  const t = { 'src/a.ts': 'export const one = 1;\n', 'src/b.ts': 'export function sendMail() {}\n' };
+  const m = buildModel({ meta: { name: 'x', full: 'a/x', truncated: false }, paths: Object.keys(t), texts: t, manifests: {} });
+  const [c] = verifyCitations('Mail is sent by `sendMail` [src/a.ts:1].', m);
+  assert.deepEqual([c.ok, c.support, c.why], [true, 'missing', 'these lines do not mention sendMail']);
 });

@@ -3,6 +3,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
+import { within } from './exec.ts';
 
 export interface Check { id: string; area: 'first impression' | 'trust' | 'getting started' | 'safety'; ok: boolean; weight: number; detail: string; fix?: string }
 export interface Report { score: number; grade: string; checks: Check[]; readme?: string; secrets: { file: string; line: number; kind: string }[] }
@@ -20,14 +21,18 @@ export const SECRETS: [string, RegExp][] = [
   ['private key', /-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/],
 ];
 
-/** Tracked files when it is a git checkout (that is what visitors see), otherwise a walk. */
+/** Tracked files when it is a git checkout (that is what visitors see), otherwise a walk. Only files
+ *  that are inside the repository once symlinks and junctions are followed: every reader (plan, the
+ *  MCP server, graph, doctor) lists through here, so a link to ~/.ssh or a sibling project is never read. */
 export function files(dir: string): string[] {
-  try { return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter(Boolean); }
+  let all: string[];
+  try { all = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'ignore'] }).split('\n').filter(Boolean); }
   catch {
-    const out: string[] = [];
-    const walk = (d: string) => { for (const e of readdirSync(d, { withFileTypes: true })) { if (SKIP.has(e.name)) continue; const p = join(d, e.name); e.isDirectory() ? walk(p) : out.push(relative(dir, p).replaceAll('\\', '/')); } };
-    walk(dir); return out;
+    all = [];
+    const walk = (d: string) => { for (const e of readdirSync(d, { withFileTypes: true })) { if (SKIP.has(e.name)) continue; const p = join(d, e.name); e.isDirectory() ? walk(p) : all.push(relative(dir, p).replaceAll('\\', '/')); } };
+    walk(dir);
   }
+  return all.filter(f => within(dir, join(dir, f)));
 }
 
 /** A plain sentence in the first lines, skipping the title, badges, images and HTML. */

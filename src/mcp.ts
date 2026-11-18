@@ -27,7 +27,7 @@ export function localModel(root: string) {
   }
   for (const m of MANIFESTS) if (existsSync(join(root, m))) manifests[m] = readFileSync(join(root, m), 'utf8');
   let sha = 'working-tree';
-  try { sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(); } catch {}
+  try { sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch {}
   return buildModel({ meta: { name: basename(root), full: basename(root), sha, truncated: false }, paths, texts, manifests });
 }
 

@@ -670,6 +670,7 @@ body.has-result .ask .ask-form { margin-top: 0; }
 .cite.ok { background: var(--surface-2); color: var(--ink); }
 .cite.ok:hover { background: var(--accent); }
 .cite.bad { background: #f9d6d6; color: #6b1010; }
+.cite.warn { background: #fbe8c4; color: #5c3b00; text-decoration: underline dotted; }
 .askr-src { color: var(--muted); font-size: var(--step-small); }
 .askr-src a { color: var(--ink); }
 .askr-wait { color: var(--muted); }

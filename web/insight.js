@@ -148,14 +148,37 @@ export function excerpt(model, file, question, budget = 80) {
 
 /** Every [path:12] or [path:12-30] in an answer, checked against the code that was read: the file
  *  must exist and the lines must be inside it. An answer is only as good as its worst citation. */
+/** The code names a sentence talks about: anything in backticks, camelCase, snake_case and dotted
+ *  names, and words that are symbols declared in the repository. Plain English words are not names. */
+export function codeNames(sentence, symbols = new Set()) {
+  const out = new Set();
+  for (const m of sentence.matchAll(/`([^`\n]+)`/g)) { const n = m[1].replace(/\(.*$/, '').trim(); if (n) out.add(n); }
+  for (const w of sentence.replace(/`[^`\n]*`/g, ' ').replace(/\[[^\]]*\]/g, ' ').match(/[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*/g) ?? [])
+    if (/[a-z][A-Z]|_|\./.test(w) || (w.length >= 4 && symbols.has(w))) out.add(w);
+  return [...out];
+}
+
+/** Each [file:lines] citation in an answer, checked two ways. `ok`: the file was read and the lines
+ *  exist. `support`: whether those lines contain every code name its sentence uses ('matches'), only some
+ *  ('partial'), none of them ('missing'), or the sentence names no code at all ('none'). A match shows the citation
+ *  points at the code being discussed; it does not prove the sentence is right. */
 export function verifyCitations(answer, model) {
   const byFile = new Map(model.modules.map(m => [m.file, m]));
+  const symbols = new Set(model.modules.flatMap(m => (m.symbols ?? []).map(s => s.name)));
   const out = [];
   for (const m of answer.matchAll(/\[([\w./@+-]+\.[a-z]+)(?::(\d+)(?:-(\d+))?)?\]/gi)) {
     const [whole, file, a, b] = m, mod = byFile.get(file);
     const start = a ? +a : null, end = b ? +b : start;
     const ok = !!mod && (start === null || (start >= 1 && end >= start && end <= mod.lines));
-    out.push({ text: whole, file, start, end, ok, why: !mod ? 'no such file was read' : ok ? '' : `lines outside the file (it has ${mod.lines})` });
+    // The sentence the citation belongs to: from the previous sentence end up to the citation.
+    const before = answer.slice(0, m.index), from = Math.max(before.lastIndexOf('. '), before.lastIndexOf('\n')) + 1;
+    const names = codeNames(answer.slice(from, m.index), symbols);
+    const cited = ok && mod.text ? (start === null ? mod.text : mod.text.split('\n').slice(start - 1, end).join('\n')) : '';
+    const found = names.filter(n => cited.includes(n.split('.').pop()));
+    const support = !ok ? null : !names.length ? 'none' : found.length === names.length ? 'matches' : found.length ? 'partial' : 'missing';
+    const absent = names.filter(n => !found.includes(n));
+    out.push({ text: whole, file, start, end, ok, support, names, found,
+      why: !mod ? 'no such file was read' : !ok ? `lines outside the file (it has ${mod.lines})` : support === 'missing' || support === 'partial' ? `these lines do not mention ${absent.slice(0, 3).join(', ')}` : '' });
   }
   return out;
 }

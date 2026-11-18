@@ -1,11 +1,10 @@
 // `reporeel plan`: write the storyboard. With ANTHROPIC_API_KEY, Claude reads a packed copy of the
 // repo and writes it; without one, a deterministic draft is built from the manifests. Inside Claude
 // Code or Codex, the reporeel skill has the agent write it instead (no key needed).
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
-import { SECRETS } from './doctor.ts';
+import { files as listFiles, SECRETS } from './doctor.ts';
 import { check } from './evidence.ts';
 import { analyze } from './graph.ts';
 import { detect, mermaidFor } from './stack.ts';
@@ -31,9 +30,8 @@ export interface Packed { text: string; omitted: number; sent: string[]; exclude
 /** A readable snapshot of the repo for the model: tree, then the files that explain it most.
  *  Sensitive files are left out by name and recognisable secrets are redacted from the rest. */
 export function pack(root: string, budget = 180_000): Packed {
-  let files: string[];
-  try { files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter(Boolean); }
-  catch { files = []; }
+  // The shared lister: nothing a symlink or junction reaches outside the repository is ever sent.
+  const files = listFiles(root);
   const excluded = files.filter(f => SENSITIVE.test(f));
   const tree = files.filter(f => !SKIP.test(f) && !SENSITIVE.test(f));
   const score = (f: string) =>

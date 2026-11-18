@@ -2,7 +2,11 @@
 // something nobody approved.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { files } from '../src/doctor.ts';
+import { analyze } from '../src/graph.ts';
+import { localModel } from '../src/mcp.ts';
+import { pack } from '../src/plan.ts';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -131,10 +135,21 @@ test('the generated workflow gives pull requests a read-only token', () => {
   const [top, jobs] = yml.split('\njobs:\n');
   assert.match(top, /\npermissions:\n  contents: read$/);
   assert.doesNotMatch(top, /contents: write/);
-  const [check, refresh] = jobs.split('\n  refresh:\n');
-  assert.match(check, /if: github\.event_name == 'pull_request'/);
-  assert.doesNotMatch(check, /write|secrets\./, 'the pull-request job has no write permission and no secrets');
+  // Each job by name: the text between "  name:" and the next job.
+  const job = (name: string) => jobs.slice(jobs.indexOf(`  ${name}:\n`)).split(/\n  (?=[\w-]+:\n)/)[0];
+  const [review, check, refresh] = [job('review'), job('check'), job('refresh')];
+  for (const j of [review, check]) assert.match(j, /if: github\.event_name == 'pull_request'/);
+  assert.doesNotMatch(check, /write|secrets\./, 'the job that runs repository commands has no write permission and no secrets');
   assert.match(refresh, /if: github\.event_name != 'pull_request'[\s\S]*permissions:\n      contents: write/);
+  // The one job that may comment runs nothing from the repository and holds no secrets.
+  assert.match(review, /permissions:\n      contents: read\n      pull-requests: write\n/);
+  assert.doesNotMatch(review, /verify|video|--run|secrets\./);
+  const comment = review.split('\n      - ').find(s => s.includes('gh pr comment'))!;
+  assert.match(comment, /^if: github\.event\.pull_request\.head\.repo\.full_name == github\.repository\n/, 'forks get no comment, only the summary');
+  assert.ok(comment.includes('<!-- repotale-review -->'), 'it updates its own comment instead of adding one per push');
+  // npx never runs inside the checkout, where a pull request's .npmrc could swap the package.
+  const npx = yml.split('\n').filter(l => l.includes('npx -y @theharshdubey/reporeel') && !/video --run/.test(l));
+  assert.ok(npx.length >= 4 && npx.every(l => l.includes('cd "$RUNNER_TEMP" && npx') && l.includes('--dir "$GITHUB_WORKSPACE"')), npx.join('\n'));
   assert.doesNotMatch(yml, /pull_request_target/);
   assert.match(top, /\nenv:\n  ONNXRUNTIME_NODE_INSTALL_CUDA: skip\n/, 'npx installs the voice engine, which must not fetch CUDA on a runner');
   // README commands come from the pull request, so a fork's pull request must never run them, and
@@ -143,12 +158,28 @@ test('the generated workflow gives pull requests a read-only token', () => {
   const runs = steps.filter(s => /verify --run/.test(s));
   assert.equal(runs.length, 1);
   // ...and inside the sandbox, with the network on for installs, never bare on the runner.
-  assert.ok(runs[0].trimEnd().endsWith('verify --run --sandbox node:22-slim --net'), runs[0]);
+  assert.ok(runs[0].includes('verify --run --sandbox node:22-slim --net --dir'), runs[0]);
   assert.match(runs[0], /^if: github\.event\.pull_request\.head\.repo\.full_name == github\.repository\n/);
-  const checkout = steps.find(s => s.startsWith('uses: actions/checkout@v4'))!;
-  assert.ok(checkout.includes('persist-credentials: false'), checkout);
-  // The review reads the base branch name from env; a branch name is never pasted into the shell script.
-  const review = steps.find(s => s.includes('reporeel review'))!;
-  assert.ok(review.includes('review --base "origin/$BASE"') && review.includes('BASE: ${{ github.base_ref }}'), review);
-  assert.ok(!review.split('\n')[0].includes('${{'), 'no expression inside run');
+  for (const j of [review, check]) {
+    const checkout = j.split('\n      - ').find(s => s.startsWith('uses: actions/checkout@v4'))!;
+    assert.ok(checkout.includes('persist-credentials: false'), checkout);
+  }
+  // Names from the pull request reach the shell through env; no expression is pasted into a script.
+  const run = review.split('\n      - ').find(s => s.includes('reporeel review'))!;
+  assert.ok(run.includes('review --base "origin/$BASE" --link "$PR_URL"') && run.includes('BASE: ${{ github.base_ref }}'), run);
+  for (const s of [...review.split('\n      - '), ...steps]) for (const l of s.split('\n').filter(l => /^\s*(run: |  [^ ])/.test(l) && !/^\s*(env|with|if):/.test(l)))
+    assert.ok(!l.includes('${{'), `no expression inside run: ${l}`);
+});
+
+test('a symlink or junction out of the repository is never listed, read, analysed or sent', t => {
+  const outside = tmp(), repo = tmp();
+  writeFileSync(join(outside, 'secret.ts'), "export const MARKER = 'outside-the-repo';\n");
+  mkdirSync(join(repo, 'src'));
+  writeFileSync(join(repo, 'src', 'app.ts'), "import { MARKER } from '../linked/secret';\n");
+  try { symlinkSync(outside, join(repo, 'linked'), 'junction'); } catch (e) { return t.skip(`cannot create a link here: ${(e as Error).message}`); }
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  assert.deepEqual(files(repo), ['src/app.ts']);
+  assert.ok(!pack(repo).text.includes('outside-the-repo'), 'plan does not send it to Anthropic');
+  assert.ok(!localModel(repo).modules.some((m: any) => m.file.startsWith('linked/')), 'the MCP server does not read it');
+  assert.ok(!analyze(repo).modules.some(m => m.file.startsWith('linked/')), 'graph does not read it');
 });

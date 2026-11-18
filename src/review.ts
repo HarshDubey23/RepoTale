@@ -33,19 +33,24 @@ export function changesSince(root: string, base: string): Change[] {
   });
 }
 
+/** Lets the workflow find and update its own comment instead of adding one per push. */
+export const MARK = '<!-- repotale-review -->';
 const VERDICT: Record<string, string> = { high: 'Review carefully', medium: 'Worth a close look', low: 'Low reach' };
 const code = (s: string) => '`' + s.replace(/`/g, "'") + '`';
 
 /** The review as Markdown. `base` is any git ref; the comparison starts at its merge base with HEAD. */
-export function reviewMarkdown(root: string, base = defaultBase(root)): string {
+export function reviewMarkdown(root: string, base = defaultBase(root), link?: string): string {
+  // Only a real pull request address becomes a link: anything else could smuggle Markdown into the comment.
+  const pr = link?.match(/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/)?.[0];
+  const explore = pr ? `\n**[Explore what this change reaches on the interactive map](https://harshdubey23.github.io/RepoTale/#pr=${encodeURIComponent(pr)})** (public repositories)\n` : '';
   const changes = changesSince(root, base);
   const head = git(root, 'rev-parse', '--short', 'HEAD');
-  const foot = `\n<sub>Static analysis of imports at ${head}, compared with ${code(base)}; nothing was run. Reach follows imports only, not calls or configuration. Made by [RepoTale](https://github.com/HarshDubey23/RepoTale).</sub>\n`;
-  if (!changes.length) return `## RepoTale review\n\nNo files changed between ${code(base)} and HEAD.\n${foot}`;
+  const foot = `${explore}\n<sub>Static analysis of imports at ${head}, compared with ${code(base)}; nothing was run. Reach follows imports only, not calls or configuration. Made by [RepoTale](https://github.com/HarshDubey23/RepoTale).</sub>\n`;
+  if (!changes.length) return `${MARK}\n## RepoTale review\n\nNo files changed between ${code(base)} and HEAD.\n${foot}`;
   const r = prImpact(localModel(root), changes);
   const n = (k: number, one: string, many = one + 's') => `${k} ${k === 1 ? one : many}`;
   const lines = [
-    `## RepoTale review: ${VERDICT[r.level]}`, '',
+    MARK, `## RepoTale review: ${VERDICT[r.level]}`, '',
     r.files.length
       ? `It changes ${n(r.files.length, 'source file')} in ${n(r.changedAreas.length, 'part')} of the code. Through imports, the change reaches ${n(r.dependents.length, 'more source file')}; ${n(r.tests.length, 'test file')} ${r.tests.length === 1 ? 'sits' : 'sit'} on those paths.`
       : 'None of the changed files is source code the import graph covers.',

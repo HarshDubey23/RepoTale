@@ -3,6 +3,10 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+// npx runs from outside the checkout and is given the repository with --dir: run inside it, npm would
+// read the pull request's .npmrc, which can point the package at another registry and run its code.
+const rr = (args: string) => `cd "$RUNNER_TEMP" && npx -y @theharshdubey/reporeel ${args} --dir "$GITHUB_WORKSPACE"`;
+
 export function writeWorkflow(root: string) {
   const file = join(root, '.github', 'workflows', 'reporeel.yml');
   mkdirSync(join(root, '.github', 'workflows'), { recursive: true });
@@ -20,23 +24,42 @@ env:
 permissions:
   contents: read
 jobs:
+  # What a pull request can break: one comment, updated on every push, and the run's summary page.
+  # Nothing from the repository runs in this job, which is why it alone may write a comment.
+  review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        # Full history, so the review finds where this branch left the base branch; no token on disk.
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      # Names from the pull request reach the script through env, never pasted into it.
+      - run: ${rr('review --base "origin/$BASE" --link "$PR_URL"')} > "$RUNNER_TEMP/review.md" && cat "$RUNNER_TEMP/review.md" >> "$GITHUB_STEP_SUMMARY"
+        env: { BASE: \${{ github.base_ref }}, PR_URL: \${{ github.event.pull_request.html_url }} }
+      # A fork's pull request gets a read-only token, so its review stays on the summary page.
+      - if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[] | select(.body | contains("<!-- repotale-review -->")) | .id' | head -n 1)
+          if [ -n "$id" ]; then gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@"$RUNNER_TEMP/review.md" > /dev/null
+          else gh pr comment "$PR" --repo "$REPO" --body-file "$RUNNER_TEMP/review.md"; fi
+        env: { GH_TOKEN: \${{ github.token }}, PR: \${{ github.event.pull_request.number }}, REPO: \${{ github.repository }} }
   check:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         # Keep the token out of .git/config, where commands run below could read it.
-        # Full history, so the review can find where this branch left the base branch.
-        with: { persist-credentials: false, fetch-depth: 0 }
+        with: { persist-credentials: false }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      # What this change can break, from the import graph, on the run's summary page. Reads only, so it
-      # is safe for a fork's pull request too. The base branch name goes through env, not into the script.
-      - run: npx -y @theharshdubey/reporeel review --base "origin/$BASE" >> "$GITHUB_STEP_SUMMARY"
-        env: { BASE: \${{ github.base_ref }} }
-      - run: npx -y @theharshdubey/reporeel doctor --min 60
+      - run: ${rr('doctor --min 60')}
       # Reads only: fails when the storyboard cites a file, line range, symbol or test this change removed.
-      - run: npx -y @theharshdubey/reporeel check
+      - run: ${rr('check')}
       # verify runs the README's setup commands, and a pull request can change the README. So they run
       # only for branches of this repository, never for a fork's pull request, and even then inside a
       # Docker container: it sees a clean clone and nothing else of the runner (no environment, no
@@ -44,7 +67,7 @@ jobs:
       # is on (--net) because installing dependencies needs it. Without Docker the step fails; it never
       # falls back to running on the runner itself.
       - if: github.event.pull_request.head.repo.full_name == github.repository
-        run: npx -y @theharshdubey/reporeel verify --run --sandbox node:22-slim --net
+        run: ${rr('verify --run --sandbox node:22-slim --net')}
       - if: github.event.pull_request.head.repo.full_name != github.repository
         run: echo "::notice::README commands were not run, because this pull request comes from a fork."
   refresh:

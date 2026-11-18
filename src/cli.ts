@@ -162,7 +162,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
     say(`updated ${writeReadme(root, out)}`);
   } },
   review: { help: 'what the current branch can break, as Markdown: changed files, what reaches them, the tests on those paths (--base ref; static, runs nothing)', async run() {
-    say(reviewMarkdown(root, flag('base')));
+    say(reviewMarkdown(root, flag('base'), flag('link')));
   } },
   pr: { help: 'a short video of what the current branch changes (--base ref)', async run() {
     const sb = prStoryboard(root, flag('base'));

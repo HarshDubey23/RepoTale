@@ -41,7 +41,7 @@ test('changesSince lists what changed since the merge base, with renames under t
 
 test('the review says what the change reaches and which tests sit on the way, and nothing it cannot back', () => {
   const md = reviewMarkdown(repo(), 'main');
-  assert.match(md, /^## RepoTale review: /);
+  assert.match(md, /^<!-- repotale-review -->\n## RepoTale review: /);
   // db.ts reaches api, cli and worker (3 source files); the api test reaches it.
   assert.match(md, /\| `src\/db\.ts` \| modified \+2 −1 \| 3 \| 1 \|/);
   assert.match(md, /test\/api\.test\.ts/);
@@ -57,3 +57,12 @@ test('no change, no claims', () => {
   assert.match(reviewMarkdown(dir, 'HEAD'), /No files changed between `HEAD` and HEAD/);
 });
 
+
+test('the review carries its comment marker, and only a real pull request address becomes a link', () => {
+  const dir = repo();
+  const ok = reviewMarkdown(dir, 'main', 'https://github.com/owner/name/pull/12');
+  assert.ok(ok.startsWith('<!-- repotale-review -->'));
+  assert.ok(ok.includes('https://harshdubey23.github.io/RepoTale/#pr=https%3A%2F%2Fgithub.com%2Fowner%2Fname%2Fpull%2F12'));
+  for (const bad of ['https://evil.example/pull/1', 'https://github.com/a/b/pull/1)](javascript:alert(1)', 'https://github.com/a/b/pull/1\n# injected'])
+    assert.ok(!reviewMarkdown(dir, 'main', bad).includes('Explore what this change'), bad);
+});

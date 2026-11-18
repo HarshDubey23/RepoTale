@@ -774,11 +774,18 @@ function showAnswer(out, text, files, cut) {
     const c = byText.get(part);
     if (!c) return part;
     const label = `${base(c.file)}${c.start ? ':' + c.start + (c.end !== c.start ? '-' + c.end : '') : ''}`;
-    return c.ok ? h('a', { class: 'cite ok', href: permalink(model.meta, c.file, c.start ?? undefined, c.end ?? undefined), target: '_blank', rel: 'noopener', title: c.file }, label)
-      : h('span', { class: 'cite bad', title: c.why }, `${label} (unverified: ${c.why})`);
+    if (!c.ok) return h('span', { class: 'cite bad', title: c.why }, `${label} (not in the code: ${c.why})`);
+    const href = permalink(model.meta, c.file, c.start ?? undefined, c.end ?? undefined);
+    // Real lines that do not mention what the sentence is about: shown as a link, but marked.
+    return c.support === 'missing' || c.support === 'partial'
+      ? h('a', { class: 'cite warn', href, target: '_blank', rel: 'noopener', title: c.why }, `${label} (${c.why})`)
+      : h('a', { class: 'cite ok', href, target: '_blank', rel: 'noopener', title: c.support === 'matches' ? `${c.file}: these lines contain ${c.found.join(', ')}` : c.file }, label);
   }));
+  const matched = checks.filter(c => c.support === 'matches').length, missing = checks.filter(c => c.support === 'missing' || c.support === 'partial').length;
   out.replaceChildren(...[
-    h('p', { class: `askr-check ${ok === checks.length && checks.length ? 'all' : 'some'}` }, checks.length ? `${ok} of ${checks.length} citations checked against the code${ok === checks.length ? '' : '; the rest are flagged below'}.` : 'This answer cites no lines, so none of it could be checked.'),
+    h('p', { class: `askr-check ${ok === checks.length && !missing && checks.length ? 'all' : 'some'}` }, checks.length
+      ? `${ok} of ${checks.length} citations point at lines that exist${matched ? `; ${matched} of them contain the code their sentence names` : ''}${missing ? `; ${missing} point at lines missing some of the code their sentence names` : ''}${ok < checks.length ? `; ${checks.length - ok} point at nothing` : ''}. A citation shows where to look; read the lines to judge the sentence.`
+      : 'This answer cites no lines, so none of it could be checked.'),
     ...text.split(/\n{2,}/).map(para),
     cut ? h('p', { class: 'askr-warn' }, 'The answer was cut off at the length limit.') : null,
     h('p', { class: 'askr-src' }, 'Files given to Claude: ', ...files.flatMap((f, i) => [i ? ', ' : '', h('a', { href: permalink(model.meta, f.file), target: '_blank', rel: 'noopener' }, f.file)]))].filter(Boolean));
