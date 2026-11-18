@@ -138,7 +138,7 @@ A visitor decides about a repository from its README in a few seconds. Most READ
 | `reporeel graph` | Maps the code without running it: modules, top-level symbols and the imports between them (TypeScript, JavaScript, Python) as `graph.json`, plus `explore.html`, a page to click through who imports what and which tests reach a file |
 | `reporeel check` | Says whether every scene is backed by the repository (a file, line range, symbol or test that exists) and whether the last render is out of date with the code it cites |
 | `reporeel verify` | Shows you the commands in your README's setup section, and once you approve them runs them on a clean clone and tells you the first one that breaks |
-| `reporeel plan` | Writes `reporeel.json`, the storyboard. With `ANTHROPIC_API_KEY` Claude reads the repo and writes it; without one you get an offline draft from your manifests and README |
+| `reporeel plan` | Writes `reporeel.json`, the storyboard. With `ANTHROPIC_API_KEY` it can ask Claude to write it, but first shows exactly what would leave your machine and sends only on a yes (or `--send`); without that you get an offline draft from your manifests and README |
 | `reporeel video` | Renders the storyboard: MP4 with voice and chapters, a silent GIF for the README, `.srt` captions, a poster frame and a contact sheet. Unchanged scenes come from a cache; `--only 3` previews one scene in seconds |
 | `reporeel diagram` | Architecture diagram as SVG and PNG, from the storyboard or straight from your manifests |
 | `reporeel shots` | Screenshots of the running app: desktop and phone, dark and light |
@@ -256,6 +256,10 @@ Every render writes `evidence.json` next to the video: the commit, and a hash of
 
 What this does and does not prove: a `grounded` scene cites something that exists at that commit. It does not prove the narration describes it correctly. The graph is built by matching declarations and imports, not by parsing: it lists top-level symbols and imports that resolve to a file, and it does not trace calls.
 
+How accurate the imports are, measured: [bench/ACCURACY.md](bench/ACCURACY.md) scores both analyzers against [hand-labelled imports](bench/truth.json) of four repositories (Express, chalk, zustand, requests) at fixed commits: 104 imports between files and 38 outside packages. Both find every labelled import except chalk's two into `source/vendor/`, which is deliberately not read (precision 100%, recall 98.1%), and every outside package. Four small repositories are a small sample; `node bench/accuracy.ts` reproduces it, and a pull request adding a labelled repository is the most useful contribution there is.
+
+Architecture diagrams drawn from your manifests (`reporeel diagram`, the offline draft) show an arrow solid only when the code graph finds imports between the two parts, labelled with how many; an arrow that only follows the usual order of parts (frontend, CLI, backend…) is dashed and labelled `inferred`.
+
 With `ANTHROPIC_API_KEY` set, `reporeel plan --audience executive|developer|architecture|walkthrough|demo` asks Claude for a different cut of the same repository: a 30-second pitch, a first-day introduction, a deep dive, one feature end to end, or the product with no code. The evidence rules are the same for all of them.
 
 The static parts were run on 20 real repositories (Express, Vite, Django, FastAPI and others): [bench/RESULTS.md](bench/RESULTS.md) has the numbers, the commits, and what they do not measure. `node bench/run.ts` reproduces it.
@@ -268,8 +272,21 @@ A README and a storyboard are input, and a storyboard may have been written by a
 - `video`, `pr`, `shots` and `verify` list the exact commands they need (terminal scenes, `app.start`, README setup blocks) and ask before running any of them. `--run` approves up front, for CI. With no terminal and no `--run`, they refuse.
 - Those commands do not see environment variables that look like credentials (`*KEY*`, `*TOKEN*`, `*SECRET*`, `*PASSWORD*`, `*AUTH*`). `REPOREEL_PASS_ENV=NAME,NAME` lets named ones through.
 - Code scenes can only show files inside the repository, and web scenes only `http`/`https` pages.
-- Approval alone is consent, not a sandbox: an approved command has your user's file and network access. For a repository you do not trust, add `--sandbox` (needs Docker). Terminal scenes and `verify` steps then run in a throwaway container that sees the repository and nothing else of your machine, has no network unless you add `--net`, gets none of your environment, and is limited in memory, CPU, processes and time. `--sandbox python:3.12-slim` picks another image; the default is `node:22-slim`.
+- A terminal scene's `cwd` must be a folder inside the repository: absolute paths and `..` are refused when the storyboard is checked, and a symlink or junction leading out of it is refused when it runs. `app.start` may not `cd` out of the repository either.
+- Every command's exit code, timeout, stdout and stderr are kept. The video ends each command with its verdict (`✓ exit 0`, `✗ exit 1`, `✗ timed out`), taken from the exit code, so a failing test whose output says "passed" never looks like a pass.
+- Approval alone is consent, not a sandbox: an approved command has your user's file and network access. For a repository you do not trust, add `--sandbox` (needs Docker). Terminal scenes and `verify` steps then run in a throwaway container that sees the repository and nothing else of your machine, has no network unless you add `--net`, gets none of your environment, and is limited in memory, CPU, processes and time. `--sandbox python:3.12-slim` picks another image; the default is `node:22-slim`. If Docker is not running, `--sandbox` stops before anything runs; it never falls back to your machine.
+- The workflow `reporeel ci` writes runs README commands only for pull requests from branches of the repository (never forks), and inside `--sandbox` with `--net`, because installing dependencies needs the network. The container gets a clean clone and none of the runner's environment or checkout credentials.
 - What `--sandbox` does not cover: `app.start` still runs on your machine, because the browser has to reach it, and the container can write to the mounted repository. A container is not a VM.
+
+## What leaves your machine
+
+Nothing, unless you ask for it:
+
+- `plan` with `ANTHROPIC_API_KEY` prints where the code would go (api.anthropic.com, which model), every file that would be sent, the files left out as sensitive, and how many secrets were redacted, then asks. Only a `y` or `--send` sends it; with no terminal and no `--send` it writes the offline draft instead.
+- Files that are never sent, by name: `.env*`, `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, SSH keys, `*.pem`/`*.key`/`*.p12`/`*.pfx`/keystores, `credentials*`, `service-account*.json`, `secrets.*`.
+- Secrets in the files that are sent are replaced with `[REDACTED …]` when they match a known format (AWS, GitHub, OpenAI, Anthropic, ElevenLabs, Google, Slack, Stripe keys, and private key blocks). A secret in another format is not caught: read the summary before sharing private code.
+- `dub` sends the narration text (not your code) to Claude to translate it. ElevenLabs receives narration text when you choose that voice.
+- The website reads public repositories from GitHub in your browser; Ask sends the selected excerpts to Anthropic only with your own key.
 
 ## Limits
 
