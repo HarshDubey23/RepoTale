@@ -1,7 +1,7 @@
 {
   "name": "@theharshdubey/reporeel",
   "version": "0.3.0",
-  "description": "Turn any repo into a narrated video that explains it: live demo, architecture, real code and numbers. One storyboard file, free local voice.",
+  "description": "Understand an unfamiliar codebase and trust what you are told: what a pull request can break, where to start reading, an MCP server for coding agents, and narrated films. Every claim points at a line.",
   "type": "module",
   "bin": {
     "reporeel": "bin/reporeel.js",
@@ -34,16 +34,18 @@
     "typescript": "^7.0.2"
   },
   "keywords": [
-    "readme",
-    "demo video",
-    "documentation",
-    "developer tools",
-    "playwright",
-    "text-to-speech",
-    "github",
+    "code review",
+    "pull request",
+    "impact analysis",
+    "codebase onboarding",
+    "architecture",
+    "import graph",
+    "mcp",
+    "mcp server",
     "claude code",
-    "agent skill",
-    "open source"
+    "developer tools",
+    "static analysis",
+    "github actions"
   ],
   "files": [
     "bin",
