@@ -2,6 +2,7 @@
 // diagram and the first draft of a storyboard. Deterministic: no model involved.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import type { Graph } from './graph.ts';
 
 export interface Part { dir: string; name: string; kind: 'frontend' | 'backend' | 'cli' | 'library' | 'ml' | 'contracts' | 'infra' | 'tests' | 'docs'; tech: string[] }
 export interface Stack { name: string; parts: Part[]; stores: string[]; services: string[]; dev?: { cmd: string; port: number; dir: string } }
@@ -73,7 +74,19 @@ export function detect(root: string): Stack {
 }
 
 /** A first architecture diagram from what the manifests say. Agents (or people) refine it. */
-export function mermaidFor(st: Stack): string {
+/** Imports from files under part `a` to files under part `b`, or null when the parts cannot be told
+ *  apart by folder (one of them is the repository root). */
+function importsBetween(g: Graph, a: Part, b: Part): number | null {
+  if (a.dir === '.' || b.dir === '.') return null;
+  const under = (f: string, p: Part) => f.startsWith(p.dir.replace(/\/?$/, '/'));
+  return g.modules.filter(m => under(m.file, a)).reduce((n, m) => n + m.imports.filter(f => under(f, b)).length, 0);
+}
+
+/** A first architecture diagram. Part order comes from the manifests, so an arrow is an inference
+ *  unless the code graph confirms it: confirmed arrows are solid and say how many imports back them,
+ *  inferred ones are dashed and say so. Stores and services come from dependency names, so they are
+ *  always dashed. */
+export function mermaidFor(st: Stack, g?: Graph): string {
   const id = (s: string) => s.replace(/[^A-Za-z0-9]/g, '_');
   const label = (p: Part) => `${p.name}${p.tech.length ? '<br/>' + p.tech.slice(0, 3).join(', ') : ''}`;
   const lines = ['flowchart LR'];
@@ -83,9 +96,16 @@ export function mermaidFor(st: Stack): string {
   const chain = ranked.length ? ranked : st.parts;
   chain.forEach(p => lines.push(`  ${id(p.name)}["${label(p).replace(/"/g, "'")}"]`));
   if (users && chain[0]) lines.push(`  ${users}${id(chain[0].name)}`);
-  for (let i = 1; i < chain.length; i++) lines.push(`  ${id(chain[i - 1].name)} --> ${id(chain[i].name)}`);
+  // Every pair of parts whose files import each other gets a solid arrow, from importer to imported.
+  const linked = new Set<Part>();
+  if (g) for (const a of chain) for (const b of chain) {
+    const n = a === b ? 0 : importsBetween(g, a, b) ?? 0;
+    if (n) { lines.push(`  ${id(a.name)} -->|${n} import${n === 1 ? '' : 's'}| ${id(b.name)}`); linked.add(a); linked.add(b); }
+  }
+  // A part no import connects is placed next to its neighbour by kind, and the arrow says it is a guess.
+  for (let i = 1; i < chain.length; i++) if (!linked.has(chain[i - 1]) || !linked.has(chain[i])) lines.push(`  ${id(chain[i - 1].name)} -.->|inferred| ${id(chain[i].name)}`);
   const last = chain.find(p => p.kind === 'backend') ?? chain.at(-1);
-  st.stores.forEach(s => lines.push(`  ${id(last?.name ?? 'app')} --> ${id(s)}[(${s})]`));
-  st.services.forEach(s => lines.push(`  ${id(last?.name ?? 'app')} -.-> ${id(s)}{{${s}}}`));
+  st.stores.forEach(s => lines.push(`  ${id(last?.name ?? 'app')} -.->|dependency| ${id(s)}[(${s})]`));
+  st.services.forEach(s => lines.push(`  ${id(last?.name ?? 'app')} -.->|dependency| ${id(s)}{{${s}}}`));
   return lines.join('\n');
 }

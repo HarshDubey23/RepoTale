@@ -8,6 +8,7 @@ import { check, stale } from '../src/evidence.ts';
 import { explorerHtml } from '../src/explore.ts';
 import { analyze, impact } from '../src/graph.ts';
 import { draft } from '../src/plan.ts';
+import { detect, mermaidFor } from '../src/stack.ts';
 import { validate, type Storyboard } from '../src/storyboard.ts';
 
 const FILES: Record<string, string> = {
@@ -171,4 +172,22 @@ test("this repository's own storyboards cite nothing that is missing", () => {
     const r = check(JSON.parse(readFileSync(file, 'utf8')), dir);
     assert.deepEqual(r.scenes.flatMap(s => s.problems), [], file);
   }
+});
+
+test('the architecture diagram draws an arrow solid only when imports back it, and dashed otherwise', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'rr-arch-'));
+  const put = (f: string, body: string) => { mkdirSync(dirname(join(dir, f)), { recursive: true }); writeFileSync(join(dir, f), body); };
+  put('web/package.json', JSON.stringify({ dependencies: { react: '1' } })); put('web/index.html', '<div></div>');
+  put('web/src/app.js', "import { call } from '../../api/src/client.js';\nimport { x } from '../../api/src/other.js';\n");
+  put('api/package.json', JSON.stringify({ dependencies: { express: '1', pg: '1' } }));
+  put('api/src/client.js', 'export const call = 1;\n'); put('api/src/other.js', 'export const x = 1;\n');
+  put('cli/package.json', JSON.stringify({ bin: { t: 'x' }, dependencies: { commander: '1' } })); put('cli/main.js', 'console.log(1);\n');
+  const st = detect(dir), m = mermaidFor(st, analyze(dir));
+  // The real dependency is drawn, from importer to imported, with its count...
+  assert.ok(m.includes('web -->|2 imports| api'), m);
+  // ...and the made-up neighbour arrows the kind order used to draw solid are gone or marked as guesses.
+  assert.ok(!m.includes('web --> cli') && !m.includes('cli --> api'), m);
+  assert.ok(m.includes('-.->|inferred| cli') || m.includes('cli -.->|inferred|'), 'the unconnected cli is placed by a dashed, labelled guess');
+  assert.match(m, /-\.->\|dependency\| PostgreSQL/, m);
+  assert.doesNotMatch(mermaidFor(st), /-->\|/, 'without a graph nothing is drawn as confirmed');
 });

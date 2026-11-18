@@ -137,7 +137,7 @@ const commands: Record<string, { help: string; run: () => Promise<unknown> }> = 
   diagram: { help: 'architecture diagram (SVG and PNG) from the storyboard, or from the code', async run() {
     const sb = existsSync(sbFile) ? load() : undefined;
     const m = sb?.scenes.find(s => s.type === 'diagram') as { mermaid: string } | undefined;
-    const r = await diagram(m?.mermaid ?? mermaidFor(detect(root)), out, sb?.theme?.accent);
+    const r = await diagram(m?.mermaid ?? mermaidFor(detect(root), analyze(root)), out, sb?.theme?.accent);
     say(`diagram ${r.svg}`);
   } },
   social: { help: 'GitHub social preview (1280x640), vertical and square cuts of the video, and launch-post drafts (--cuts vertical,square|none)', async run() {
