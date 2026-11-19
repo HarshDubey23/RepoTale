@@ -73,3 +73,34 @@ for (const o of ['h', 'v'] as const) {
 }
 assert.ok(lanes > 10, 'lane routing was exercised');
 console.log(`check: ok (${lanes} lane routes checked)`);
+
+// The trust layer: the engine's verifyCitations on a small model, each result put on its level, and the text
+// cut so every citation lands on its own check. The sample built from the ky fixture has one claim per level it shows.
+import { judge, sample, segments } from '../lib/trust.ts';
+// @ts-expect-error: plain ES module shared with the website, the CLI and the MCP server
+import { verifyCitations } from '../../web/insight.js';
+{
+  const text = 'export function retry(n) {\n  return backoff(n);\n}\n';
+  const modules = [{ file: 'src/retry.ts', text, lines: text.split('\n').length, symbols: [{ name: 'retry' }, { name: 'backoff' }] }];
+  const answer = 'It calls `backoff` [src/retry.ts:2]. Then `retry` and `jitter` [src/retry.ts:1-2]. And `jitter` [src/retry.ts:3]. '
+    + 'It is short [src/retry.ts:1]. Logs go here [src/retry.ts:99]. Config lives in [src/config.ts:1].';
+  const checks = verifyCitations(answer, { modules });
+  const how = (file: string) => ({ missing: file !== 'src/retry.ts', unreachable: false, lines: 4, sha: 'abcdef1234' });
+  const levels = checks.map((c: { file: string }) => judge(c as never, how(c.file)).level);
+  assert.deepEqual(levels, ['verified', 'inferred', 'unverified', 'unverified', 'invented', 'invented']);
+  assert.match(judge(checks[1], how('src/retry.ts')).why, /`retry`.*not `jitter`/);
+  assert.match(judge(checks[5], how('src/config.ts')).why, /No file at this path at commit abcdef1/);
+  // GitHub not answering is never a verdict on the claim
+  assert.equal(judge(checks[5], { missing: false, unreachable: true, lines: 0, sha: 'x' }).level, 'unverified');
+
+  const segs = segments(answer);
+  const cites = segs.flatMap(s => 'cite' in s ? [s.cite] : []);
+  assert.deepEqual(cites, [0, 1, 2, 3, 4, 5]);
+  assert.equal(segs.map(s => 'text' in s ? s.text : checks[s.cite].text).join(''), answer);
+
+  // ky: the sample's first claim is a real import, the second names one thing the line lacks, the third is past the end
+  const s = sample(ky as never), parts = segments(s).flatMap(x => 'cite' in x ? [x.cite] : []);
+  assert.equal(parts.length, 3);
+  assert.match(s, /\[source\/core\/Ky\.ts:\d+\]/);
+}
+console.log('trust layer: ok');

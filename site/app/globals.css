@@ -17,6 +17,8 @@
   --rt-unverified-text: #ffb224; --rt-invented-text: #ff5c5c;
   --rt-on-accent: #0a0a0d;
   --rt-verified-subtle: rgba(61, 220, 151, .10);
+  /* Inferred: the fourth trust level (some of a claim found in its lines). Blue, apart from the three pinned. */
+  --rt-inferred: #7c9cff;      --rt-inferred-text: #7c9cff;
   --rt-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .28);
   color-scheme: dark;
 
@@ -39,6 +41,7 @@
   --rt-unverified-text: #916018; --rt-invented-text: #ca2b2b;
   --rt-on-accent: #17171c;
   --rt-verified-subtle: rgba(14, 159, 110, .09);
+  --rt-inferred: #4f6fe0;      --rt-inferred-text: #3a5bc7;
   --rt-shadow: 0 1px 2px rgba(23, 23, 28, .06), 0 8px 24px rgba(23, 23, 28, .08);
   color-scheme: light;
 }
@@ -63,6 +66,8 @@
   --color-verified-text: var(--rt-verified-text);
   --color-unverified-text: var(--rt-unverified-text);
   --color-invented-text: var(--rt-invented-text);
+  --color-inferred: var(--rt-inferred);
+  --color-inferred-text: var(--rt-inferred-text);
   --color-on-accent: var(--rt-on-accent);
 
   --font-display: var(--font-instrument-serif), Georgia, serif;
@@ -153,3 +158,7 @@ input { caret-color: var(--rt-accent); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
 }
+
+/* The Reveal Count: the trust bar grows from the left as the counts run. */
+.tally { transform-origin: left; transform: scaleX(0); transition: transform var(--dur-4) var(--ease-out); }
+.tally[data-on] { transform: none; }

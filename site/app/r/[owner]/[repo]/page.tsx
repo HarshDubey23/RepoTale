@@ -65,11 +65,16 @@ export default async function RepoPage({ params }: Props) {
             <p className="mt-4 max-w-[52ch] text-body text-text-2 text-pretty">
               Anyone you send this link to sees this map. It is read again at most once a day, at the latest commit, and every
               citation names the commit it came from. To see what a pull request can break, paste its link on
-              the <Link href="/" className={link}>home page</Link>. The brief, questions and the film are on the current site for now.
+              the <Link href="/" className={link}>home page</Link>. To check an explanation of it, from a model or a doc,
+              against these lines, <Link href={`${page}/verify`} className={link}>verify its citations</Link>. The brief, questions
+              and the film are on the current site for now.
             </p>
-            <a href={`${LIVE}#/${f.repo}`} className={`mt-6 inline-block text-body ${link}`}>
-              Open {f.repo.split('/')[1]} on the current site<ArrowUpRight aria-hidden size={16} className="ml-0.5 inline align-[-3px]" />
-            </a>
+            <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-body">
+              <Link href={`${page}/verify`} className={link}>Check what is said about it</Link>
+              <a href={`${LIVE}#/${f.repo}`} className={link}>
+                Open {f.repo.split('/')[1]} on the current site<ArrowUpRight aria-hidden size={16} className="ml-0.5 inline align-[-3px]" />
+              </a>
+            </div>
           </div>
           <div className="flex flex-col gap-3 lg:justify-end">
             <CopyCommand command={page} share />
