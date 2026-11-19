@@ -7,12 +7,14 @@ import { cache } from 'react';
 import { analyze } from '../../web/analyze.js';
 // @ts-expect-error: plain ES module shared with the static site, the CLI and the MCP server
 import { startHere } from '../../web/insight.js';
+import { archOf } from './arch';
+import { buildFilm } from './film';
 import type { Fixture } from './fixture';
 import { shape, type EngineEdge, type EngineModule, type Reading } from './shape';
 
 interface Model {
-  modules: (EngineModule & { text: string })[]; edges: EngineEdge[];
-  meta: { full: string; description: string; stars: number; ref: string; sha: string; date: string | null; url: string; sampled: number; truncated: boolean };
+  modules: (EngineModule & { text: string; area: string })[]; edges: EngineEdge[];
+  meta: { name: string; full: string; description: string; readme: string | null; readmePath: string | null; stars: number; ref: string; sha: string; date: string | null; url: string; sampled: number; truncated: boolean };
   totals: { files: number };
 }
 
@@ -40,16 +42,22 @@ async function read(owner: string, name: string): Promise<Result> {
   const byFile = new Map(model.modules.map(m => [m.file, m]));
   const reading: Reading = startHere(model);
   const m = model.meta;
+  // The architecture levels and the film's script come from the same read, so a repository costs one.
+  const arch = archOf(model);
   return {
     ok: true,
-    repo: shape(model, reading, f => (byFile.get(f)?.text ?? '').split(/\r?\n/), {
-      repo: m.full, sha: m.sha, url: m.url, builtAt: new Date().toISOString().slice(0, 10),
-      meta: { description: m.description, stars: m.stars, ref: m.ref, date: m.date, read: m.sampled, files: model.totals.files, partial: m.truncated },
-    }),
+    repo: {
+      ...shape(model, reading, f => (byFile.get(f)?.text ?? '').split(/\r?\n/), {
+        repo: m.full, sha: m.sha, url: m.url, builtAt: new Date().toISOString().slice(0, 10),
+        meta: { description: m.description, stars: m.stars, ref: m.ref, date: m.date, read: m.sampled, files: model.totals.files, partial: m.truncated },
+      }),
+      arch,
+      film: buildFilm(model as never, reading as never, arch, { repo: m.full, sha: m.sha, url: m.url, description: m.description, readme: m.readme, readmePath: m.readmePath }),
+    },
   };
 }
 
-const cached = unstable_cache(read, ['repotale-repo-v4'], { revalidate: 86_400 });
+const cached = unstable_cache(read, ['repotale-repo-v9'], { revalidate: 86_400 });
 
 /** A repository's page data. Names are checked before anything is fetched. `cache` makes the page and its
  *  metadata share one read per request, where the data cache alone would let both read a cold repository. */

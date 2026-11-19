@@ -162,3 +162,8 @@ input { caret-color: var(--rt-accent); }
 /* The Reveal Count: the trust bar grows from the left as the counts run. */
 .tally { transform-origin: left; transform: scaleX(0); transition: transform var(--dur-4) var(--ease-out); }
 .tally[data-on] { transform: none; }
+
+/* Architecture: a part is a link; it answers the pointer and the keyboard the same way. */
+.arch-link { cursor: pointer; outline: none; }
+.arch-link:is(:hover, :focus-visible) rect { stroke: var(--rt-accent); }
+.arch-link:focus-visible rect { stroke-width: 2.5; }

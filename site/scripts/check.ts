@@ -104,3 +104,86 @@ import { verifyCitations } from '../../web/insight.js';
   assert.match(s, /\[source\/core\/Ky\.ts:\d+\]/);
 }
 console.log('trust layer: ok');
+
+// The film's script on a small project built by the engine itself. It must explain the project the way its
+// authors do (the README's pitch, features, install line and first example; a file's own doc comment), every beat
+// must point at something its scene draws, and every receipt must name a file that exists and a line inside it.
+// A function's doc comment never stands for a whole part or file. The architecture places every box it draws.
+import { archOf } from '../lib/arch.ts';
+import { readReadme, roleOf, speaksForFile } from '../lib/explain.ts';
+import { buildFilm } from '../lib/film.ts';
+// @ts-expect-error: plain ES module shared with the website, the CLI and the MCP server
+import { buildModel } from '../../web/analyze.js';
+// @ts-expect-error: plain ES module shared with the website, the CLI and the MCP server
+import { startHere } from '../../web/insight.js';
+{
+  const readme = [
+    '<div align="center"><img src="logo.svg"></div>', '', '> Mini is a tiny HTTP client based on [fetch](https://example.com).', '',
+    '[![badge](https://x/b.svg)](https://x)', '', '## Features', '', '- Retries failed requests', '- Method shortcuts (`mini.post()`)', '- Hooks', '',
+    '## Install', '', '```sh', 'npm install mini', '```', '', '## Usage', '', '```js', "import mini from 'mini';", '', "const json = await mini.get('/a').json();", '```', '',
+  ].join('\n');
+  const texts: Record<string, string> = {
+    'src/index.ts': "import { request } from './core/request.ts';\nimport { Options } from './types/options.ts';\nexport default function mini(o: Options) { return request(o); }\n",
+    'src/core/request.ts': "/** Sends one request and hands failures to retry. */\n\nimport { Options } from '../types/options.ts';\nimport { retry } from './retry.ts';\nexport function request(o: Options) { return retry(o); }\n",
+    'src/core/retry.ts': "import { Options } from '../types/options.ts';\nimport { request } from './request.ts';\n/** Retries a request until it gives up. */\nexport function retry(o: Options) { return o.retries ? request(o) : o; }\n",
+    'src/types/options.ts': "// Options\nexport interface Options { retries: number }\nexport type Hook = () => void;\nexport const DEFAULTS = { retries: 2 };\n",
+    'test/retry.test.ts': "import { retry } from '../src/core/retry.ts';\nretry({ retries: 0 });\n",
+  };
+  const files: Record<string, string> = { ...texts, 'README.md': readme };
+  const lines = (f: string) => files[f]!.split('\n');
+
+  const r = readReadme(readme);
+  assert.equal(r.intro?.text, 'Mini is a tiny HTTP client based on fetch.');
+  assert.equal(lines('README.md')[r.intro!.line - 1], '> Mini is a tiny HTTP client based on [fetch](https://example.com).');
+  assert.deepEqual(r.features.map(f => f.text), ['Retries failed requests', 'Method shortcuts (mini.post())', 'Hooks']);
+  assert.equal(r.install?.text, 'npm install mini');
+  assert.equal(lines('README.md')[r.install!.line - 1], 'npm install mini');
+  assert.equal(lines('README.md')[r.example!.line - 1], "import mini from 'mini';");
+
+  // A module comment speaks for its file; a function's comment does not, even when it is the only comment.
+  const req = roleOf(texts['src/core/request.ts']!, 'src/core/request.ts'), ret = roleOf(texts['src/core/retry.ts']!, 'src/core/retry.ts');
+  assert.equal(req?.kind, 'module');
+  assert.ok(speaksForFile(req, 'src/core/request.ts', 'mini'));
+  assert.equal(ret?.kind, 'function');
+  assert.ok(!speaksForFile(ret, 'src/core/retry.ts', 'mini'));
+  assert.ok(speaksForFile({ text: 'Base class for all errors.', line: 1, kind: 'class', name: 'KyError' }, 'source/errors/KyError.ts', 'ky'));
+  assert.ok(!speaksForFile({ text: 'Marker returned by retry.', line: 1, kind: 'class', name: 'RetryMarker' }, 'source/core/constants.ts', 'ky'));
+
+  const model = buildModel({ meta: { name: 'mini', full: 'x/mini', description: '' }, paths: Object.keys(texts), texts, manifests: {} });
+  const reading = startHere(model);
+  const arch = archOf(model);
+  const film = buildFilm(model, reading, arch, { repo: 'x/mini', sha: 'abcdef1', url: 'https://github.com/x/mini', description: '', readme, readmePath: 'README.md' });
+  const kinds = film.scenes.map(s => s.kind);
+  for (const k of ['title', 'features', 'usage', 'flow', 'start', 'reach', 'end'] as const) assert.ok(kinds.includes(k), `the film has a ${k} scene`);
+  const drawn = (s: (typeof film.scenes)[number]): string[] =>
+    s.kind === 'title' ? ['name', 'hook'] : s.kind === 'features' ? s.items.map(i => i.id) : s.kind === 'usage' ? ['install', 'example']
+      : s.kind === 'map' ? [...s.nodes.map(n => n.id), ...s.edges.map(e => e.id)] : s.kind === 'flow' ? s.steps.map(x => x.id)
+        : s.kind === 'start' ? s.items.map(i => i.id) : s.kind === 'reach' ? [...s.bands.map(b => b.id), 'tests'] : ['name'];
+  for (const s of film.scenes) for (const b of s.beats) {
+    for (const f of b.focus) assert.ok(drawn(s).includes(f), `${s.kind}: "${b.say}" focuses ${f}, which the scene does not draw`);
+    if (b.cite) {
+      assert.ok(files[b.cite.file], `${b.cite.file} exists`);
+      if (b.cite.line) assert.ok(b.cite.line >= 1 && (b.cite.end ?? b.cite.line) <= lines(b.cite.file).length, `${b.cite.file}:${b.cite.line} is inside the file`);
+    }
+    assert.doesNotMatch(b.say, /Retries a request until/, 'a function comment is never said as what a file or part is');
+  }
+  const say = (k: string) => film.scenes.find(s => s.kind === k)!.beats.map(b => b.say).join(' ');
+  assert.match(say('title'), /^This is mini\. Mini is a tiny HTTP client based on fetch\.$/);
+  assert.match(say('features'), /retries failed requests, method shortcuts and hooks\.$/);
+  assert.match(say('usage'), /npm install mini/);
+  const usage = film.scenes.find(s => s.kind === 'usage')!;
+  assert.ok(usage.kind === 'usage' && usage.lines[0] === "import mini from 'mini';");
+  // The way in: the front door, then what it imports, each said in the file's own words when it has them.
+  const flow = film.scenes.find(s => s.kind === 'flow')!;
+  assert.ok(flow.kind === 'flow' && flow.steps[0]!.file === 'src/index.ts');
+  const step = flow.beats.find(b => b.say.includes('request.ts'))!;
+  assert.match(step.say, /^index\.ts imports request\.ts\. Sends one request and hands failures to retry\.$/);
+  assert.equal(lines(step.cite!.file)[step.cite!.line! - 1], "import { request } from './core/request.ts';");
+  // The architecture: every box has a place, and a drawn arrow runs forward.
+  for (const v of [arch.overview, ...arch.parts].filter(Boolean)) {
+    const col = new Map(v!.nodes.map(n => [n.id, n.col]));
+    for (const n of v!.nodes) assert.ok(n.row < n.rows && n.col >= 0);
+    for (const e of v!.edges.filter(x => x.drawn)) assert.ok(col.get(e.to)! > col.get(e.from)!, `${e.from} -> ${e.to} runs forward`);
+  }
+}
+console.log('film script: ok');

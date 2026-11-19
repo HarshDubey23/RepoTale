@@ -46,6 +46,25 @@ export function layers(files: string[], edges: { from: string; to: string }[], e
   return layer;
 }
 
+/** Columns and rows for a diagram: each node's column is its layer; within a column, nodes sit near the nodes
+ *  that point at them, so fewer lines cross. Only edges that run forward are drawn; one that closes a cycle
+ *  is returned apart in `back`. Ties break by id, so the same graph always comes out the same. */
+export function place<E extends { from: string; to: string }>(ids: string[], edges: E[], entry: string) {
+  const layer = layers(ids, edges, entry);
+  const forward = edges.filter(e => layer.get(e.to)! > layer.get(e.from)!), back = edges.filter(e => !forward.includes(e));
+  const cols = [...new Set(layer.values())].sort((a, b) => a - b);
+  const pos = new Map<string, number>();
+  const placed = cols.flatMap((l, c) => {
+    const mates = ids.filter(f => layer.get(f) === l).map((f, i) => {
+      const from = forward.filter(e => e.to === f && pos.has(e.from)).map(e => pos.get(e.from)!);
+      return { f, at: from.length ? from.reduce((s, x) => s + x, 0) / from.length : i };
+    }).sort((a, b) => a.at - b.at || a.f.localeCompare(b.f));
+    mates.forEach(({ f }, row) => pos.set(f, (row + 0.5) / mates.length));
+    return mates.map(({ f }, row) => ({ id: f, col: c, row, rows: mates.length }));
+  });
+  return { placed, forward, back };
+}
+
 export function shape(
   model: { modules: EngineModule[]; edges: EngineEdge[] },
   reading: Reading,
@@ -59,25 +78,11 @@ export function shape(
   const picked = [...new Set<string>([...(reading.route ?? []), ...[...code].sort((a, b) => score(b) - score(a) || a.file.localeCompare(b.file)).map(m => m.file)])].slice(0, MAX);
   const inGraph = new Set(picked);
   const entry = reading.route?.[0] ?? picked[0] ?? '';
-  const layer = layers(picked, model.edges.filter(e => inGraph.has(e.from) && inGraph.has(e.to)), entry);
-  // The map draws imports that run forward; one that closes a cycle is left out of it (and of its counts).
-  const edges = model.edges.filter(e => inGraph.has(e.from) && inGraph.has(e.to) && layer.get(e.to)! > layer.get(e.from)!);
-
-  // Columns left to right; within one, files sit near the files that import them, so fewer lines cross.
-  const cols = [...new Set(layer.values())].sort((a, b) => a - b);
-  const pos = new Map<string, number>();
-  const placed = cols.flatMap((l, c) => {
-    const mates = picked.filter(f => layer.get(f) === l).map((f, i) => {
-      const from = edges.filter(e => e.to === f && pos.has(e.from)).map(e => pos.get(e.from)!);
-      return { f, at: from.length ? from.reduce((s, x) => s + x, 0) / from.length : i };
-    }).sort((a, b) => a.at - b.at || a.f.localeCompare(b.f));
-    mates.forEach(({ f }, row) => pos.set(f, (row + 0.5) / mates.length));
-    return mates.map(({ f }, row) => ({ f, col: c, row, rows: mates.length }));
-  });
+  const { placed, forward: edges } = place(picked, model.edges.filter(e => inGraph.has(e.from) && inGraph.has(e.to)), entry);
   // A file is named by its base name; two with the same one (app.py, sansio/app.py) add their folder.
   const base = (f: string) => f.split('/').pop()!.replace(/\.[a-z]+$/, '');
   const label = (f: string) => (picked.filter(g => base(g) === base(f)).length > 1 ? `${f.split('/').at(-2) ?? ''}/${base(f)}` : base(f));
-  const nodes = placed.map(({ f, col, row, rows }) => {
+  const nodes = placed.map(({ id: f, col, row, rows }) => {
     const m = byFile.get(f)!;
     return {
       id: f, label: label(f), col, row, rows,

@@ -10,7 +10,7 @@ export interface Layout { w: number; h: number; boxes: Box[]; wires: Wire[] }
 
 const r = (n: number) => Math.round(n * 10) / 10;
 
-export function layout(nodes: FixtureNode[], edges: Pick<FixtureEdge, 'from' | 'to' | 'verified'>[], o: Orientation): Layout {
+export function layout(nodes: Pick<FixtureNode, 'id' | 'col' | 'row' | 'rows'>[], edges: Pick<FixtureEdge, 'from' | 'to' | 'verified'>[], o: Orientation): Layout {
   const cols = Math.max(...nodes.map(n => n.col)) + 1;
   const most = Math.max(...nodes.map(n => n.rows));
   const pad = o === 'h' ? 24 : 8;

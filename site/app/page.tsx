@@ -2,7 +2,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { CopyCommand } from '@/components/CopyCommand';
 import { RepoForm } from '@/components/RepoForm';
 import { RepoMap, StartHere } from '@/components/RepoSections';
-import { LIVE, SiteFooter, SiteHeader, link } from '@/components/Site';
+import { SiteFooter, SiteHeader, link } from '@/components/Site';
 import { demo as f } from '@/lib/fixture';
 import { LEVELS, TRUST } from '@/lib/trust';
 import Link from 'next/link';
@@ -29,9 +29,9 @@ export default function Home() {
               <span>Or open one:</span>
               {TRY.map(r => <Link key={r} href={`/r/${r}`} prefetch={false} className={`font-mono text-mono-s ${link}`}>{r}</Link>)}
             </p>
-            <a href={`${LIVE}#demo`} className={`mt-2 w-fit text-small text-text-2 ${link}`}>
-              Or watch the one-minute film it made of a real repository<ArrowUpRight aria-hidden size={14} className="ml-0.5 inline align-[-2px]" />
-            </a>
+            <Link href={`/r/${f.repo}/film`} prefetch={false} className={`mt-2 w-fit text-small text-text-2 ${link}`}>
+              Or watch the one-minute film it makes of {f.repo.split('/')[1]}<ArrowUpRight aria-hidden size={14} className="ml-0.5 inline align-[-2px]" />
+            </Link>
           </div>
           <div className="mt-10 md:mt-14">
             <RepoMap f={f} />

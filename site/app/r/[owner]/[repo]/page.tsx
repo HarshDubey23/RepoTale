@@ -66,10 +66,12 @@ export default async function RepoPage({ params }: Props) {
               Anyone you send this link to sees this map. It is read again at most once a day, at the latest commit, and every
               citation names the commit it came from. To see what a pull request can break, paste its link on
               the <Link href="/" className={link}>home page</Link>. To check an explanation of it, from a model or a doc,
-              against these lines, <Link href={`${page}/verify`} className={link}>verify its citations</Link>. The brief, questions
-              and the film are on the current site for now.
+              against these lines, <Link href={`${page}/verify`} className={link}>verify its citations</Link>. The brief and questions
+              are on the current site for now.
             </p>
             <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-body">
+              <Link href={`${page}/film`} className={link}>Watch the one-minute film</Link>
+              <Link href={`${page}/architecture`} className={link}>See how it is built</Link>
               <Link href={`${page}/verify`} className={link}>Check what is said about it</Link>
               <a href={`${LIVE}#/${f.repo}`} className={link}>
                 Open {f.repo.split('/')[1]} on the current site<ArrowUpRight aria-hidden size={16} className="ml-0.5 inline align-[-3px]" />

@@ -8,6 +8,8 @@ The Next.js app that will replace the static site in `../web`. It runs the same 
 | `/` | The landing page, with sindresorhus/ky as a committed demo (`fixtures/ky.json`) |
 | `/r/owner/repo` | Any public repository: its import map, three cited claims, and where to start reading |
 | `/r/owner/repo/pull/123` | A pull request: risk level, how far the change travels through imports, what to review first |
+| `/r/owner/repo/film` | A narrated film for a newcomer: what the project is (its README), how to install and use it, its parts, the way in, where to start reading. Voice made in the browser (Kokoro); every sentence cites its line |
+| `/r/owner/repo/architecture` | What each part does, in its authors' words or from what the code defines, how the parts connect, and the way in; `?part=` opens one part |
 | `/r/owner/repo/verify` | Paste text that cites the code as `[file:line]`: each citation checked at the commit and marked verified, inferred, unverified or invented |
 | `.../opengraph-image` | A share card per page, drawn from the same map |
 

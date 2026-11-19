@@ -1,6 +1,8 @@
 // The committed demo: sindresorhus/ky read by RepoTale's own engine at a pinned commit (see scripts/fixture.ts).
 // Every node, import, line number and code excerpt comes from that clone; nothing here is typed in by hand.
 import ky from '@/fixtures/ky.json';
+import type { ArchData } from './arch';
+import type { Film } from './film';
 
 export interface FixtureNode { id: string; label: string; col: number; row: number; rows: number; lines: number; users: number; entry: boolean; heart: boolean }
 export interface FixtureEdge { from: string; to: string; line: number; end: number; names: string[]; start: number; code: string[]; verified: boolean }
@@ -12,6 +14,8 @@ export interface Fixture {
   entry: string; heart: string;
   nodes: FixtureNode[]; edges: FixtureEdge[];
   startHere: { file: string; why: string; minutes: number; line: number }[];
+  /** Live pages only: the architecture levels and the film's script, made from the same read. */
+  arch?: ArchData; film?: Film;
 }
 
 export const demo = ky as Fixture;
