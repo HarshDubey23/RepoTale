@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+/* One source of truth: every color, size and motion value below is a token. Components use the
+   utilities generated from @theme, never a raw value. Dark is the default; light is complete. */
+:root {
+  --rt-bg: #0a0a0d;            --rt-surface: #121218;
+  --rt-surface-2: #1a1a22;     --rt-border: #26262e;
+  --rt-border-strong: #3a3a44; --rt-text: #f5f5f7;
+  --rt-text-2: #a0a0ac;        --rt-text-3: #6b6b78;
+  --rt-accent: #ff488b;        --rt-accent-hover: #ff66a0;
+  --rt-accent-subtle: rgba(255, 72, 139, .12);
+  --rt-verified: #3ddc97;      --rt-unverified: #ffb224;
+  --rt-invented: #ff5c5c;      --rt-focus: #ff488b;
+  /* Text versions of the semantic colors. Measured: in dark the pinned colors already pass 4.5:1 on every
+     surface, so they are the same; text-3 fails as text (3.1-3.8) and is used only for rules and icons. */
+  --rt-accent-text: #ff488b;   --rt-verified-text: #3ddc97;
+  --rt-unverified-text: #ffb224; --rt-invented-text: #ff5c5c;
+  --rt-on-accent: #0a0a0d;
+  --rt-verified-subtle: rgba(61, 220, 151, .10);
+  --rt-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .28);
+  color-scheme: dark;
+
+  --dur-1: 150ms; --dur-2: 240ms; --dur-3: 420ms; --dur-4: 700ms;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+}
+
+:root[data-theme="light"] {
+  --rt-bg: #fafafc;            --rt-surface: #ffffff;
+  --rt-surface-2: #f2f2f6;     --rt-border: #e4e4ea;
+  --rt-border-strong: #c9c9d4; --rt-text: #17171c;
+  --rt-text-2: #55555f;        --rt-text-3: #8a8a96;
+  --rt-accent: #e83d7d;        --rt-accent-hover: #d13368;
+  --rt-accent-subtle: rgba(232, 61, 125, .10);
+  --rt-verified: #0e9f6e;      --rt-unverified: #b7791f;
+  --rt-invented: #dc2f2f;      --rt-focus: #e83d7d;
+  /* The pinned light colors fail 4.5:1 as text (2.98-4.49); these are the nearest darker shades that pass
+     on bg, surface, surface-2 and the accent-subtle chip (4.62-4.68). Fills, borders and icons keep the pins. */
+  --rt-accent-text: #be3266;   --rt-verified-text: #0b7954;
+  --rt-unverified-text: #916018; --rt-invented-text: #ca2b2b;
+  --rt-on-accent: #17171c;
+  --rt-verified-subtle: rgba(14, 159, 110, .09);
+  --rt-shadow: 0 1px 2px rgba(23, 23, 28, .06), 0 8px 24px rgba(23, 23, 28, .08);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: var(--rt-bg);
+  --color-surface: var(--rt-surface);
+  --color-surface-2: var(--rt-surface-2);
+  --color-border: var(--rt-border);
+  --color-border-strong: var(--rt-border-strong);
+  --color-text: var(--rt-text);
+  --color-text-2: var(--rt-text-2);
+  --color-text-3: var(--rt-text-3);
+  --color-accent: var(--rt-accent);
+  --color-accent-hover: var(--rt-accent-hover);
+  --color-accent-subtle: var(--rt-accent-subtle);
+  --color-verified: var(--rt-verified);
+  --color-unverified: var(--rt-unverified);
+  --color-invented: var(--rt-invented);
+  --color-focus: var(--rt-focus);
+  --color-accent-text: var(--rt-accent-text);
+  --color-verified-text: var(--rt-verified-text);
+  --color-unverified-text: var(--rt-unverified-text);
+  --color-invented-text: var(--rt-invented-text);
+  --color-on-accent: var(--rt-on-accent);
+
+  --font-display: var(--font-instrument-serif), Georgia, serif;
+  --font-sans: var(--font-instrument-sans), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  --text-display: clamp(2.75rem, 6vw + 1rem, 5.5rem);
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.02em;
+  --text-h2: clamp(1.75rem, 3vw + .75rem, 2.75rem);
+  --text-h2--line-height: 1.1;
+  --text-h3: 1.25rem;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+  --text-small: .875rem;
+  --text-small--line-height: 1.45;
+  --text-mono-s: .8125rem;
+  --text-mono-s--line-height: 1.5;
+
+  --spacing: 4px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+  --shadow-rt: var(--rt-shadow);
+  --ease-rt: var(--ease-out);
+}
+
+html { background: var(--rt-bg); color: var(--rt-text); -webkit-text-size-adjust: 100%; }
+body { min-height: 100dvh; font-family: var(--font-sans); font-size: 1rem; line-height: 1.5; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Browser surfaces carry the design too. */
+::selection { background: var(--rt-accent-subtle); color: var(--rt-text); }
+:focus-visible { outline: 2px solid var(--rt-focus); outline-offset: 2px; border-radius: var(--radius-s); }
+* { scrollbar-color: var(--rt-border-strong) transparent; }
+input { caret-color: var(--rt-accent); }
+.tabular { font-variant-numeric: tabular-nums; }
+.hang { hanging-punctuation: first last; }
+
+/* Receipts: Shiki writes both themes' colors as variables; the page's theme picks one. Lines carry their
+   real line numbers, and the cited ones are marked. */
+.receipt pre { margin: 0; background: transparent !important; font-family: var(--font-mono); font-size: var(--text-mono-s); line-height: 1.7; }
+.receipt code { display: grid; min-width: max-content; }
+.receipt span { color: var(--shiki-dark); }
+:root[data-theme="light"] .receipt span { color: var(--shiki-light); }
+.receipt .line { padding-inline: 16px 24px; border-left: 2px solid transparent; }
+.receipt .line::before { content: attr(data-line); display: inline-block; width: 3ch; margin-right: 16px; text-align: right; color: var(--rt-text-2); font-variant-numeric: tabular-nums; }
+.receipt .line.cited { background: var(--rt-verified-subtle); border-left-color: var(--rt-verified); }
+.receipt .line.cited::before { color: var(--rt-verified-text); }
+/* The Receipts moment: the cited lines flash once as the receipt opens. */
+[data-active="true"] .receipt .line.cited { animation: rt-cite var(--dur-3) var(--ease-out); }
+@keyframes rt-cite { from { background: var(--rt-accent-subtle); border-left-color: var(--rt-accent); } }
+
+/* The Assembly. Files land one beat (--dur-3) apart with a spring; each import draws as its second file
+   lands. Delays apply only while building, so later hover and highlight changes are immediate. */
+.asm { --spring: linear(0, .009, .035 2.1%, .141, .281 6.7%, .723 12.9%, .938 16.7%, 1.017, 1.077, 1.121, 1.149 24.3%, 1.159, 1.163, 1.161, 1.154 29.9%, 1.129 32.8%, 1.051 39.6%, 1.017 43.1%, .991, .977 51%, .974 53.8%, .975 57.1%, .997 69.8%, 1.003 76.9%, 1.004 83.8%, 1); }
+.asm-node { opacity: 0; scale: .9; transform-box: fill-box; transform-origin: center; transition: opacity var(--dur-2) var(--ease-out), scale var(--dur-4) var(--spring); }
+.asm-node rect { transition: stroke var(--dur-2) var(--ease-out); }
+.asm-node[data-hot] rect.stroke-border { stroke: var(--rt-text-2); }
+.asm-wire { stroke-width: 1.25; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset var(--dur-3) var(--ease-out); }
+.asm-hot { stroke-width: 2; stroke-dasharray: 1; opacity: 0; }
+.asm-pulse { opacity: 0; }
+.asm[data-built] .asm-node { opacity: 1; scale: 1; }
+.asm[data-built] .asm-wire { stroke-dashoffset: 0; }
+.asm[data-built="done"] .asm-hot { opacity: 1; animation: rt-draw var(--dur-3) var(--ease-out); }
+.asm[data-built="done"] .asm-pulse { animation: rt-pulse var(--dur-4) var(--ease-out); }
+.asm[data-built="building"] :is(.asm-nodes > *, .asm-wires > * > *) { transition-delay: calc(var(--i, 0) * var(--dur-3)); }
+:is(.asm-nodes > *, .asm-wires > *):nth-child(2) { --i: 1; }  :is(.asm-nodes > *, .asm-wires > *):nth-child(3) { --i: 2; }
+:is(.asm-nodes > *, .asm-wires > *):nth-child(4) { --i: 3; }  :is(.asm-nodes > *, .asm-wires > *):nth-child(5) { --i: 4; }
+:is(.asm-nodes > *, .asm-wires > *):nth-child(6) { --i: 5; }  :is(.asm-nodes > *, .asm-wires > *):nth-child(7) { --i: 6; }
+:is(.asm-nodes > *, .asm-wires > *):nth-child(8) { --i: 7; }  :is(.asm-nodes > *, .asm-wires > *):nth-child(9) { --i: 8; }
+:is(.asm-nodes > *, .asm-wires > *):nth-child(10) { --i: 9; } :is(.asm-nodes > *, .asm-wires > *):nth-child(11) { --i: 10; }
+:is(.asm-nodes > *, .asm-wires > *):nth-child(12) { --i: 11; }
+@keyframes rt-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes rt-pulse { 40% { opacity: .9; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
+}

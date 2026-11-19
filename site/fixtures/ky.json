@@ -1,0 +1,584 @@
+{
+ "repo": "sindresorhus/ky",
+ "sha": "3541888878c4d303a8bc2ad61815f4e048f55a5d",
+ "url": "https://github.com/sindresorhus/ky",
+ "builtWith": "RepoTale engine (web/analyze.js, web/insight.js)",
+ "builtAt": "2026-11-18",
+ "stats": {
+  "modules": 31,
+  "tests": 67,
+  "imports": 93
+ },
+ "entry": "source/index.ts",
+ "heart": "source/types/options.ts",
+ "size": {
+  "w": 1100,
+  "h": 236
+ },
+ "nodes": [
+  {
+   "id": "source/index.ts",
+   "label": "index",
+   "col": 0,
+   "row": 0,
+   "rows": 1,
+   "lines": 115,
+   "users": 1,
+   "entry": true,
+   "heart": false,
+   "x": 24,
+   "y": 96,
+   "w": 172,
+   "h": 44
+  },
+  {
+   "id": "source/types/options.ts",
+   "label": "options",
+   "col": 4,
+   "row": 0,
+   "rows": 1,
+   "lines": 556,
+   "users": 13,
+   "entry": false,
+   "heart": true,
+   "x": 904,
+   "y": 96,
+   "w": 172,
+   "h": 44
+  },
+  {
+   "id": "source/core/Ky.ts",
+   "label": "Ky",
+   "col": 1,
+   "row": 0,
+   "rows": 1,
+   "lines": 1377,
+   "users": 1,
+   "entry": false,
+   "heart": false,
+   "x": 244,
+   "y": 96,
+   "w": 172,
+   "h": 44
+  },
+  {
+   "id": "source/core/constants.ts",
+   "label": "constants",
+   "col": 3,
+   "row": 0,
+   "rows": 3,
+   "lines": 308,
+   "users": 9,
+   "entry": false,
+   "heart": false,
+   "x": 684,
+   "y": 24,
+   "w": 172,
+   "h": 44
+  },
+  {
+   "id": "source/errors/KyError.ts",
+   "label": "KyError",
+   "col": 3,
+   "row": 1,
+   "rows": 3,
+   "lines": 15,
+   "users": 7,
+   "entry": false,
+   "heart": false,
+   "x": 684,
+   "y": 96,
+   "w": 172,
+   "h": 44
+  },
+  {
+   "id": "source/utils/is.ts",
+   "label": "is",
+   "col": 3,
+   "row": 2,
+   "rows": 3,
+   "lines": 25,
+   "users": 6,
+   "entry": false,
+   "heart": false,
+   "x": 684,
+   "y": 168,
+   "w": 172,
+   "h": 44
+  },
+  {
+   "id": "source/errors/ForceRetryError.ts",
+   "label": "ForceRetryError",
+   "col": 2,
+   "row": 0,
+   "rows": 3,
+   "lines": 53,
+   "users": 3,
+   "entry": false,
+   "heart": false,
+   "x": 464,
+   "y": 24,
+   "w": 172,
+   "h": 44
+  },
+  {
+   "id": "source/errors/HTTPError.ts",
+   "label": "HTTPError",
+   "col": 2,
+   "row": 1,
+   "rows": 3,
+   "lines": 35,
+   "users": 3,
+   "entry": false,
+   "heart": false,
+   "x": 464,
+   "y": 96,
+   "w": 172,
+   "h": 44
+  },
+  {
+   "id": "source/errors/TimeoutError.ts",
+   "label": "TimeoutError",
+   "col": 2,
+   "row": 2,
+   "rows": 3,
+   "lines": 16,
+   "users": 4,
+   "entry": false,
+   "heart": false,
+   "x": 464,
+   "y": 168,
+   "w": 172,
+   "h": 44
+  }
+ ],
+ "edges": [
+  {
+   "from": "source/core/Ky.ts",
+   "to": "source/errors/HTTPError.ts",
+   "line": 1,
+   "end": 1,
+   "names": [
+    "HTTPError"
+   ],
+   "start": 1,
+   "code": [
+    "import {HTTPError} from '../errors/HTTPError.js';",
+    "import {NetworkError} from '../errors/NetworkError.js';",
+    "import {NonError} from '../errors/NonError.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/core/Ky.ts",
+   "to": "source/errors/ForceRetryError.ts",
+   "line": 4,
+   "end": 4,
+   "names": [
+    "ForceRetryError"
+   ],
+   "start": 2,
+   "code": [
+    "import {NetworkError} from '../errors/NetworkError.js';",
+    "import {NonError} from '../errors/NonError.js';",
+    "import {ForceRetryError} from '../errors/ForceRetryError.js';",
+    "import {SchemaValidationError} from '../errors/SchemaValidationError.js';",
+    "import {TimeoutError} from '../errors/TimeoutError.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/core/Ky.ts",
+   "to": "source/errors/TimeoutError.ts",
+   "line": 6,
+   "end": 6,
+   "names": [
+    "TimeoutError"
+   ],
+   "start": 4,
+   "code": [
+    "import {ForceRetryError} from '../errors/ForceRetryError.js';",
+    "import {SchemaValidationError} from '../errors/SchemaValidationError.js';",
+    "import {TimeoutError} from '../errors/TimeoutError.js';",
+    "import type {",
+    "\tInput,"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/core/Ky.ts",
+   "to": "source/types/options.ts",
+   "line": 7,
+   "end": 15,
+   "names": [
+    "Input",
+    "InitOptions",
+    "InternalOptions",
+    "NormalizedOptions"
+   ],
+   "start": 5,
+   "code": [
+    "import {SchemaValidationError} from '../errors/SchemaValidationError.js';",
+    "import {TimeoutError} from '../errors/TimeoutError.js';",
+    "import type {",
+    "\tInput,",
+    "\tInitOptions,",
+    "\tInternalOptions,",
+    "\tNormalizedOptions,",
+    "\tOptions,",
+    "\tSearchParamsInit,",
+    "\tSearchParamsOption,",
+    "} from '../types/options.js';",
+    "import {type ResponsePromise} from '../types/ResponsePromise.js';",
+    "import type {StandardSchemaV1} from '../types/standard-schema.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/core/Ky.ts",
+   "to": "source/utils/is.ts",
+   "line": 38,
+   "end": 40,
+   "names": [
+    "isError",
+    "isNonArrayObject",
+    "isNonNegativeNumber",
+    "isObject"
+   ],
+   "start": 36,
+   "code": [
+    "import {findUnknownOptions, hasSearchParameters} from '../utils/options.js';",
+    "import isRawNetworkError from '../utils/is-network-error.js';",
+    "import {",
+    "\tisError, isNonArrayObject, isNonNegativeNumber, isObject, isRequest, isResponse,",
+    "} from '../utils/is.js';",
+    "import {",
+    "\tisHTTPError, isNetworkError, isTimeoutError, isResponseSizeError, isForceRetryError,"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/core/Ky.ts",
+   "to": "source/core/constants.ts",
+   "line": 48,
+   "end": 60,
+   "names": [
+    "maxSafeTimeout",
+    "responseTypes",
+    "getSupportedResponseTypes",
+    "stop"
+   ],
+   "start": 46,
+   "code": [
+    "\tgetRetryTimingHeader,",
+    "} from './retry-timing.js';",
+    "import {",
+    "\tmaxSafeTimeout,",
+    "\tresponseTypes,",
+    "\tgetSupportedResponseTypes,",
+    "\tstop,",
+    "\tbeforeRetryOptionKeys,",
+    "\tisRetryMarker,",
+    "\tsupportsAbortController,",
+    "\tsupportsAbortSignal,",
+    "\tsupportsFormData,",
+    "\tsupportsResponseStreams,",
+    "\tsupportsRequestStreams,",
+    "} from './constants.js';",
+    "",
+    "const maxErrorResponseBodySize = 10 * 1024 * 1024;"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/core/constants.ts",
+   "to": "source/types/options.ts",
+   "line": 2,
+   "end": 2,
+   "names": [
+    "KyOptionsRegistry",
+    "RequestHttpMethod"
+   ],
+   "start": 1,
+   "code": [
+    "import type {Expect, Equal} from '@type-challenges/utils';",
+    "import {type KyOptionsRegistry, type RequestHttpMethod} from '../types/options.js';",
+    "",
+    "export const supportsRequestStreams = (() => {"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/errors/ForceRetryError.ts",
+   "to": "source/core/constants.ts",
+   "line": 1,
+   "end": 1,
+   "names": [
+    "ForceRetryOptions"
+   ],
+   "start": 1,
+   "code": [
+    "import type {ForceRetryOptions} from '../core/constants.js';",
+    "import {isNonNegativeNumber, isRequest} from '../utils/is.js';",
+    "import {KyError} from './KyError.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/errors/ForceRetryError.ts",
+   "to": "source/utils/is.ts",
+   "line": 2,
+   "end": 2,
+   "names": [
+    "isNonNegativeNumber",
+    "isRequest"
+   ],
+   "start": 1,
+   "code": [
+    "import type {ForceRetryOptions} from '../core/constants.js';",
+    "import {isNonNegativeNumber, isRequest} from '../utils/is.js';",
+    "import {KyError} from './KyError.js';",
+    "import {NonError} from './NonError.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/errors/ForceRetryError.ts",
+   "to": "source/errors/KyError.ts",
+   "line": 3,
+   "end": 3,
+   "names": [
+    "KyError"
+   ],
+   "start": 1,
+   "code": [
+    "import type {ForceRetryOptions} from '../core/constants.js';",
+    "import {isNonNegativeNumber, isRequest} from '../utils/is.js';",
+    "import {KyError} from './KyError.js';",
+    "import {NonError} from './NonError.js';",
+    ""
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/errors/HTTPError.ts",
+   "to": "source/types/options.ts",
+   "line": 1,
+   "end": 1,
+   "names": [
+    "NormalizedOptions"
+   ],
+   "start": 1,
+   "code": [
+    "import type {NormalizedOptions} from '../types/options.js';",
+    "import type {KyRequest} from '../types/request.js';",
+    "import type {KyResponse} from '../types/response.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/errors/HTTPError.ts",
+   "to": "source/errors/KyError.ts",
+   "line": 4,
+   "end": 4,
+   "names": [
+    "KyError"
+   ],
+   "start": 2,
+   "code": [
+    "import type {KyRequest} from '../types/request.js';",
+    "import type {KyResponse} from '../types/response.js';",
+    "import {KyError} from './KyError.js';",
+    "",
+    "/**"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/errors/TimeoutError.ts",
+   "to": "source/errors/KyError.ts",
+   "line": 2,
+   "end": 2,
+   "names": [
+    "KyError"
+   ],
+   "start": 1,
+   "code": [
+    "import type {KyRequest} from '../types/request.js';",
+    "import {KyError} from './KyError.js';",
+    "",
+    "/**"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/index.ts",
+   "to": "source/core/Ky.ts",
+   "line": 3,
+   "end": 3,
+   "names": [
+    "Ky"
+   ],
+   "start": 1,
+   "code": [
+    "/*! MIT License © Sindre Sorhus */",
+    "",
+    "import {Ky} from './core/Ky.js';",
+    "import {",
+    "\trequestMethods,"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/index.ts",
+   "to": "source/core/constants.ts",
+   "line": 4,
+   "end": 9,
+   "names": [
+    "requestMethods",
+    "getSupportedResponseTypes",
+    "stop",
+    "retry"
+   ],
+   "start": 2,
+   "code": [
+    "",
+    "import {Ky} from './core/Ky.js';",
+    "import {",
+    "\trequestMethods,",
+    "\tgetSupportedResponseTypes,",
+    "\tstop,",
+    "\tretry,",
+    "} from './core/constants.js';",
+    "import type {KyInstance} from './types/ky.js';",
+    "import type {Input, Options} from './types/options.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/index.ts",
+   "to": "source/types/options.ts",
+   "line": 11,
+   "end": 11,
+   "names": [
+    "Input",
+    "Options",
+    "NormalizedOptions",
+    "RetryOptions"
+   ],
+   "start": 9,
+   "code": [
+    "} from './core/constants.js';",
+    "import type {KyInstance} from './types/ky.js';",
+    "import type {Input, Options} from './types/options.js';",
+    "import type {ResponsePromise} from './types/ResponsePromise.js';",
+    "import {cloneDeep, validateAndMerge} from './utils/merge.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/index.ts",
+   "to": "source/errors/KyError.ts",
+   "line": 96,
+   "end": 96,
+   "names": [
+    "KyError"
+   ],
+   "start": 94,
+   "code": [
+    "export type {KyRequest} from './types/request.js';",
+    "export type {KyResponse} from './types/response.js';",
+    "export {KyError} from './errors/KyError.js';",
+    "export {HTTPError} from './errors/HTTPError.js';",
+    "export {SchemaValidationError} from './errors/SchemaValidationError.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/index.ts",
+   "to": "source/errors/HTTPError.ts",
+   "line": 97,
+   "end": 97,
+   "names": [
+    "HTTPError"
+   ],
+   "start": 95,
+   "code": [
+    "export type {KyResponse} from './types/response.js';",
+    "export {KyError} from './errors/KyError.js';",
+    "export {HTTPError} from './errors/HTTPError.js';",
+    "export {SchemaValidationError} from './errors/SchemaValidationError.js';",
+    "export {NetworkError} from './errors/NetworkError.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/index.ts",
+   "to": "source/errors/TimeoutError.ts",
+   "line": 100,
+   "end": 100,
+   "names": [
+    "TimeoutError"
+   ],
+   "start": 98,
+   "code": [
+    "export {SchemaValidationError} from './errors/SchemaValidationError.js';",
+    "export {NetworkError} from './errors/NetworkError.js';",
+    "export {TimeoutError} from './errors/TimeoutError.js';",
+    "export {ResponseSizeError} from './errors/ResponseSizeError.js';",
+    "export {ForceRetryError} from './errors/ForceRetryError.js';"
+   ],
+   "verified": true
+  },
+  {
+   "from": "source/index.ts",
+   "to": "source/errors/ForceRetryError.ts",
+   "line": 102,
+   "end": 102,
+   "names": [
+    "ForceRetryError"
+   ],
+   "start": 100,
+   "code": [
+    "export {TimeoutError} from './errors/TimeoutError.js';",
+    "export {ResponseSizeError} from './errors/ResponseSizeError.js';",
+    "export {ForceRetryError} from './errors/ForceRetryError.js';",
+    "export {",
+    "\tisKyError,"
+   ],
+   "verified": true
+  }
+ ],
+ "startHere": [
+  {
+   "file": "source/index.ts",
+   "why": "Where it starts: the front door, pulling in 19 of its files.",
+   "minutes": 3,
+   "line": 1
+  },
+  {
+   "file": "source/types/options.ts",
+   "why": "The heart: 13 files import it. Most of what you read next leans on this.",
+   "minutes": 14,
+   "line": 6
+  },
+  {
+   "file": "source/errors/KyError.ts",
+   "why": "Used by 7 files; you will meet it everywhere.",
+   "minutes": 1,
+   "line": 8
+  },
+  {
+   "file": "source/utils/is.ts",
+   "why": "Used by 6 files; you will meet it everywhere.",
+   "minutes": 1,
+   "line": 2
+  },
+  {
+   "file": "source/types/request.ts",
+   "why": "Used by 5 files; you will meet it everywhere.",
+   "minutes": 1,
+   "line": 1
+  }
+ ]
+}
