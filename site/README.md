@@ -8,6 +8,7 @@ The Next.js app that will replace the static site in `../web`. It runs the same 
 | `/` | The landing page, with sindresorhus/ky as a committed demo (`fixtures/ky.json`) |
 | `/r/owner/repo` | Any public repository: its import map, three cited claims, and where to start reading |
 | `/r/owner/repo/pull/123` | A pull request: risk level, how far the change travels through imports, what to review first |
+| `/r/owner/repo/verify` | Paste text that cites the code as `[file:line]`: each citation checked at the commit and marked verified, inferred, unverified or invented |
 | `.../opengraph-image` | A share card per page, drawn from the same map |
 
 ## Run it
@@ -43,6 +44,8 @@ Production build, measured with Lighthouse 12.8 on this machine:
 - Initial JavaScript on `/`: 181 KB gzip. No inline `style` attributes on the page.
 - CLS 0 on all pages.
 - Lighthouse desktop `/`: 100 performance, 100 accessibility, 100 best practices, 100 SEO.
-- Lighthouse mobile: 93 performance on `/` and 92 on `/r/pallets/flask`. Accessibility, best practices and SEO
-  are 100 on both. The simulated mobile LCP is 2.6 to 3.1 s, above the 2 s budget. Measure again on the
-  deployed site.
+- Lighthouse mobile: 93 performance on `/` and 92 on `/r/pallets/flask` in an earlier run. Accessibility, best
+  practices and SEO are 100 on both. On 19 November the same build of `/` scored between 65 and 88 across six
+  runs on this machine, with total blocking time between 320 and 1,790 ms, so these numbers are not stable here.
+  The simulated mobile LCP stayed at 2.9 to 3.2 s, above the 2 s budget; the observed LCP in those traces was
+  about 0.9 s. Measure again on the deployed site.

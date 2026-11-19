@@ -24,7 +24,7 @@ export function Demo({ repo, sha, nodes, h, v, receipts }: Props) {
   const reduce = useReducedMotion();
   const stage = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
-  const [step, setStep] = useState(0);
+  const [finished, setFinished] = useState(false);
   const [active, setActive] = useState(receipts[0]?.id ?? '');
   const order = [...nodes].sort((a, b) => a.col - b.col || a.row - b.row).map(n => n.id);
   const count = order.length;
@@ -32,21 +32,28 @@ export function Demo({ repo, sha, nodes, h, v, receipts }: Props) {
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { setInView(true); io.disconnect(); } }, { rootMargin: '0px 0px -10% 0px' }); // starts once its top is on screen, however tall it is
+    let idle = 0;
+    // Starts once its top is on screen, however tall it is, and once the browser is idle, so the build never
+    // competes with hydration on a phone where the map is in the first screen.
+    const io = new IntersectionObserver(([e]) => {
+      if (!e?.isIntersecting) return;
+      io.disconnect();
+      idle = (window.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 200)))(() => setInView(true), { timeout: 1500 });
+    }, { rootMargin: '0px 0px -10% 0px' });
     io.observe(el);
-    return () => io.disconnect();
+    return () => { io.disconnect(); (window.cancelIdleCallback ?? clearTimeout)(idle); };
   }, []);
 
-  // The counter follows the CSS: file n lands n - 1 beats after the build starts.
+  // The last file lands count - 1 beats after the build starts. Only this and the start re-render the demo;
+  // the counter in between is its own component.
   useEffect(() => {
-    if (!inView || reduce || step >= count) return;
-    const t = setTimeout(() => setStep(step + 1), step === 0 ? 0 : STEP);
+    if (!inView || reduce) return;
+    const t = setTimeout(() => setFinished(true), (count - 1) * STEP);
     return () => clearTimeout(t);
-  }, [inView, reduce, step, count]);
+  }, [inView, reduce, count]);
 
-  const shown = reduce ? count : step;
-  const done = shown >= count;
-  const built = reduce || done ? 'done' : inView ? 'building' : undefined;
+  const done = reduce || finished;
+  const built = done ? 'done' : inView ? 'building' : undefined;
   const imports = h.wires.length, verified = h.wires.filter(w => w.verified).length;
   const label = new Map(nodes.map(n => [n.id, n.label]));
   const shared = { nodes, order, active };
@@ -57,7 +64,7 @@ export function Demo({ repo, sha, nodes, h, v, receipts }: Props) {
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border px-4 py-3 md:px-6">
           <span className="font-mono text-mono-s text-text-2">{repo} <span className="text-text-3" aria-hidden>@</span> {sha.slice(0, 7)}</span>
           <span className="tabular font-mono text-mono-s text-text-2" aria-hidden>
-            {done ? <>{n(count, 'module')} <Dot /> {n(imports, 'import')} <Dot /> <span className="text-verified-text">{verified} verified</span></> : `Mapping ${n(count, 'module')}… ${shown}/${count}`}
+            {done ? <>{n(count, 'module')} <Dot /> {n(imports, 'import')} <Dot /> <span className="text-verified-text">{verified} verified</span></> : <Progress count={count} running={inView} />}
           </span>
           <span className="sr-only" aria-live="polite">{done ? `Mapped ${n(count, 'module')} and ${n(imports, 'import')}; ${verified} of ${imports} verified against their lines.` : ''}</span>
         </div>
@@ -134,6 +141,20 @@ export function Demo({ repo, sha, nodes, h, v, receipts }: Props) {
 
 /** A label cut to the characters its box holds; the box's title still names the whole file. */
 const fit = (s: string, chars: number) => (s.length <= chars ? s : `${s.slice(0, Math.max(1, Math.floor(chars) - 1))}…`);
+/** "Mapping 9 modules… 4/9": counts one file per beat from the start of the build, in step with the CSS. */
+function Progress({ count, running }: { count: number; running: boolean }) {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (!running) return;
+    const t0 = performance.now();
+    const tick = () => setStep(Math.min(count, 1 + Math.floor((performance.now() - t0) / STEP)));
+    tick();
+    const t = setInterval(tick, STEP);
+    return () => clearInterval(t);
+  }, [running, count]);
+  return <>{`Mapping ${n(count, 'module')}… ${step}/${count}`}</>;
+}
+
 const Dot = () => <span className="text-text-3" aria-hidden>·</span>;
 
 interface DiagramProps { l: Layout; o: Orientation; nodes: FixtureNode[]; order: string[]; active: string }
