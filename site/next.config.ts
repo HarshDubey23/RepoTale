@@ -8,6 +8,9 @@ const config: NextConfig = {
   // build and the server bundle trace files from the repository root.
   outputFileTracingRoot: join(__dirname, '..'),
   // Share cards read their fonts from disk at request time; make sure the files ship with those functions.
-  outputFileTracingIncludes: { '/r/[owner]/[repo]/opengraph-image': ['./assets/og/*.woff'], '/opengraph-image': ['./assets/og/*.woff'] },
+  outputFileTracingIncludes: Object.fromEntries(
+    ['/opengraph-image', '/r/[owner]/[repo]/opengraph-image', '/r/[owner]/[repo]/pull/[number]/opengraph-image', '/r/[owner]/[repo]/verify/opengraph-image']
+      .map(route => [route, ['./assets/og/*.woff']]),
+  ),
 };
 export default config;

@@ -4,6 +4,7 @@ import { RepoForm } from '@/components/RepoForm';
 import { RepoMap, StartHere } from '@/components/RepoSections';
 import { LIVE, SiteFooter, SiteHeader, link } from '@/components/Site';
 import { demo as f } from '@/lib/fixture';
+import { LEVELS, TRUST } from '@/lib/trust';
 import Link from 'next/link';
 
 // Repositories in different languages and shapes, each read end to end while this page was built.
@@ -38,6 +39,25 @@ export default function Home() {
         </section>
 
         <StartHere f={f} />
+
+        <section aria-labelledby="verify-title" className="mt-24 md:mt-32">
+          <h2 id="verify-title" className="max-w-[24ch] font-display text-h2 text-balance">Check what a model told you about a codebase.</h2>
+          <p className="mt-4 max-w-[60ch] text-body text-text-2 text-pretty">
+            Paste an answer, a doc or a pull request description that cites code as [file:line]. RepoTale opens every cited line at the
+            commit and says which citations hold, and why the others do not.
+          </p>
+          <dl className="mt-8 grid gap-px overflow-hidden rounded-l border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+            {LEVELS.map(l => (
+              <div key={l} className="bg-bg px-4 py-4 md:px-5">
+                <dt className={`flex items-center gap-2 font-mono text-mono-s uppercase tracking-wider ${TRUST[l].tone}`}>
+                  <span className={`size-2 rounded-full ${TRUST[l].fill}`} aria-hidden />{TRUST[l].word}
+                </dt>
+                <dd className="mt-2 text-small text-text-2 text-pretty">{TRUST[l].means}</dd>
+              </div>
+            ))}
+          </dl>
+          <Link href={`/r/${f.repo}/verify`} prefetch={false} className={`mt-6 inline-block text-body ${link}`}>Try it on {f.repo.split('/')[1]}, with a sample that has two mistakes</Link>
+        </section>
 
         <section aria-labelledby="agent-title" className="mt-24 grid gap-8 md:mt-32 lg:grid-cols-2 lg:items-end">
           <div>

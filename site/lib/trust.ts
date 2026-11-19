@@ -7,6 +7,14 @@ export const LEVELS: Level[] = ['verified', 'inferred', 'unverified', 'invented'
 /** The longest explanation checked at once, in characters. */
 export const MAX_TEXT = 20_000;
 
+/** How each level reads and looks. Class names are whole strings so Tailwind finds them. */
+export const TRUST: Record<Level, { word: string; tone: string; fill: string; chip: string; means: string }> = {
+  verified: { word: 'Verified', tone: 'text-verified-text', fill: 'fill-verified bg-verified', chip: 'border-verified/50 bg-verified/10 text-verified-text', means: 'The cited lines hold everything the sentence names.' },
+  inferred: { word: 'Inferred', tone: 'text-inferred-text', fill: 'fill-inferred bg-inferred', chip: 'border-inferred/50 bg-inferred/10 text-inferred-text', means: 'The cited lines hold some of it; the rest is the writer’s reading.' },
+  unverified: { word: 'Unverified', tone: 'text-unverified-text', fill: 'fill-unverified bg-unverified', chip: 'border-unverified/50 bg-unverified/10 text-unverified-text', means: 'The lines exist, but nothing in them confirms the sentence.' },
+  invented: { word: 'Invented', tone: 'text-invented-text', fill: 'fill-invented bg-invented', chip: 'border-invented/50 bg-invented/10 text-invented-text line-through decoration-1', means: 'The file or the lines are not there at this commit.' },
+};
+
 /** What verifyCitations returns for one citation. */
 export interface Check {
   text: string; file: string; start: number | null; end: number | null; ok: boolean;

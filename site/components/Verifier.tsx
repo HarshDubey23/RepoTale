@@ -1,15 +1,9 @@
 'use client';
 import { ArrowUpRight, LoaderCircle } from 'lucide-react';
 import { useActionState, useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { LEVELS, MAX_TEXT, type Level } from '@/lib/trust';
+import { LEVELS, MAX_TEXT, TRUST } from '@/lib/trust';
 import type { Item, Report } from '@/lib/verify';
 
-const TRUST: Record<Level, { word: string; tone: string; fill: string; chip: string; means: string }> = {
-  verified: { word: 'Verified', tone: 'text-verified-text', fill: 'fill-verified bg-verified', chip: 'border-verified/50 bg-verified/10 text-verified-text', means: 'the cited lines hold everything the sentence names' },
-  inferred: { word: 'Inferred', tone: 'text-inferred-text', fill: 'fill-inferred bg-inferred', chip: 'border-inferred/50 bg-inferred/10 text-inferred-text', means: 'they hold some of it, and the rest is the writer’s reading' },
-  unverified: { word: 'Unverified', tone: 'text-unverified-text', fill: 'fill-unverified bg-unverified', chip: 'border-unverified/50 bg-unverified/10 text-unverified-text', means: 'the lines exist, but nothing in them confirms the sentence' },
-  invented: { word: 'Invented', tone: 'text-invented-text', fill: 'fill-invented bg-invented', chip: 'border-invented/50 bg-invented/10 text-invented-text line-through decoration-1', means: 'the file or the lines are not there at this commit' },
-};
 
 type Props = { action: (prev: Report | null, form: FormData) => Promise<Report>; sample: string; name: string };
 
