@@ -6,6 +6,8 @@ export interface FixtureNode { id: string; label: string; col: number; row: numb
 export interface FixtureEdge { from: string; to: string; line: number; end: number; names: string[]; start: number; code: string[]; verified: boolean }
 export interface Fixture {
   repo: string; sha: string; url: string; builtAt: string;
+  /** Live pages only: what GitHub says about the repository, and how much of it was read. */
+  meta?: { description: string; stars: number; ref: string; date: string | null; read: number; files: number; partial: boolean };
   stats: { modules: number; tests: number; imports: number };
   entry: string; heart: string;
   nodes: FixtureNode[]; edges: FixtureEdge[];

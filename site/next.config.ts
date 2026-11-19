@@ -1,8 +1,13 @@
+import { join } from 'node:path';
 import type { NextConfig } from 'next';
 
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  turbopack: { root: __dirname }, // the repository root has its own lockfile; this app builds on its own
+  // The engine lives one level up (web/analyze.js, shared with the static site and the CLI), so the
+  // build and the server bundle trace files from the repository root.
+  outputFileTracingRoot: join(__dirname, '..'),
+  // Share cards read their fonts from disk at request time; make sure the files ship with those functions.
+  outputFileTracingIncludes: { '/r/[owner]/[repo]/opengraph-image': ['./assets/og/*.woff'], '/opengraph-image': ['./assets/og/*.woff'] },
 };
 export default config;

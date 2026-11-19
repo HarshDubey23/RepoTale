@@ -1,10 +1,12 @@
 'use client';
 import { ArrowRight, LoaderCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
 import { target } from '@/lib/target';
 
 export function RepoForm() {
   const id = useId();
+  const router = useRouter();
   const [error, setError] = useState('');
   const [going, setGoing] = useState(false);
 
@@ -16,7 +18,7 @@ export function RepoForm() {
     if (!to) return setError('That is not a GitHub repository. Use owner/name, a github.com link, or a pull request link.');
     setError('');
     setGoing(true);
-    location.assign(to);
+    if (to.startsWith('/')) router.push(to); else location.assign(to);
   };
 
   return (

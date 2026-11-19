@@ -2,8 +2,7 @@
  "repo": "sindresorhus/ky",
  "sha": "3541888878c4d303a8bc2ad61815f4e048f55a5d",
  "url": "https://github.com/sindresorhus/ky",
- "builtWith": "RepoTale engine (web/analyze.js, web/insight.js)",
- "builtAt": "2026-11-18",
+ "builtAt": "2026-11-19",
  "stats": {
   "modules": 31,
   "tests": 67,
@@ -11,10 +10,6 @@
  },
  "entry": "source/index.ts",
  "heart": "source/types/options.ts",
- "size": {
-  "w": 1100,
-  "h": 236
- },
  "nodes": [
   {
    "id": "source/index.ts",
@@ -25,26 +20,7 @@
    "lines": 115,
    "users": 1,
    "entry": true,
-   "heart": false,
-   "x": 24,
-   "y": 96,
-   "w": 172,
-   "h": 44
-  },
-  {
-   "id": "source/types/options.ts",
-   "label": "options",
-   "col": 4,
-   "row": 0,
-   "rows": 1,
-   "lines": 556,
-   "users": 13,
-   "entry": false,
-   "heart": true,
-   "x": 904,
-   "y": 96,
-   "w": 172,
-   "h": 44
+   "heart": false
   },
   {
    "id": "source/core/Ky.ts",
@@ -55,56 +31,7 @@
    "lines": 1377,
    "users": 1,
    "entry": false,
-   "heart": false,
-   "x": 244,
-   "y": 96,
-   "w": 172,
-   "h": 44
-  },
-  {
-   "id": "source/core/constants.ts",
-   "label": "constants",
-   "col": 3,
-   "row": 0,
-   "rows": 3,
-   "lines": 308,
-   "users": 9,
-   "entry": false,
-   "heart": false,
-   "x": 684,
-   "y": 24,
-   "w": 172,
-   "h": 44
-  },
-  {
-   "id": "source/errors/KyError.ts",
-   "label": "KyError",
-   "col": 3,
-   "row": 1,
-   "rows": 3,
-   "lines": 15,
-   "users": 7,
-   "entry": false,
-   "heart": false,
-   "x": 684,
-   "y": 96,
-   "w": 172,
-   "h": 44
-  },
-  {
-   "id": "source/utils/is.ts",
-   "label": "is",
-   "col": 3,
-   "row": 2,
-   "rows": 3,
-   "lines": 25,
-   "users": 6,
-   "entry": false,
-   "heart": false,
-   "x": 684,
-   "y": 168,
-   "w": 172,
-   "h": 44
+   "heart": false
   },
   {
    "id": "source/errors/ForceRetryError.ts",
@@ -115,11 +42,7 @@
    "lines": 53,
    "users": 3,
    "entry": false,
-   "heart": false,
-   "x": 464,
-   "y": 24,
-   "w": 172,
-   "h": 44
+   "heart": false
   },
   {
    "id": "source/errors/HTTPError.ts",
@@ -130,11 +53,7 @@
    "lines": 35,
    "users": 3,
    "entry": false,
-   "heart": false,
-   "x": 464,
-   "y": 96,
-   "w": 172,
-   "h": 44
+   "heart": false
   },
   {
    "id": "source/errors/TimeoutError.ts",
@@ -145,11 +64,51 @@
    "lines": 16,
    "users": 4,
    "entry": false,
-   "heart": false,
-   "x": 464,
-   "y": 168,
-   "w": 172,
-   "h": 44
+   "heart": false
+  },
+  {
+   "id": "source/utils/is.ts",
+   "label": "is",
+   "col": 3,
+   "row": 0,
+   "rows": 3,
+   "lines": 25,
+   "users": 6,
+   "entry": false,
+   "heart": false
+  },
+  {
+   "id": "source/core/constants.ts",
+   "label": "constants",
+   "col": 3,
+   "row": 1,
+   "rows": 3,
+   "lines": 308,
+   "users": 9,
+   "entry": false,
+   "heart": false
+  },
+  {
+   "id": "source/errors/KyError.ts",
+   "label": "KyError",
+   "col": 3,
+   "row": 2,
+   "rows": 3,
+   "lines": 15,
+   "users": 7,
+   "entry": false,
+   "heart": false
+  },
+  {
+   "id": "source/types/options.ts",
+   "label": "options",
+   "col": 4,
+   "row": 0,
+   "rows": 1,
+   "lines": 556,
+   "users": 13,
+   "entry": false,
+   "heart": true
   }
  ],
  "edges": [

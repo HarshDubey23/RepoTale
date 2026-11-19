@@ -15,6 +15,7 @@ const STEP = 420; // --dur-3: one file per beat; the CSS delays use the same tok
 const QUERY = '(prefers-reduced-motion: reduce)';
 const onMotionPref = (f: () => void) => { const q = matchMedia(QUERY); q.addEventListener('change', f); return () => q.removeEventListener('change', f); };
 const useReducedMotion = () => useSyncExternalStore(onMotionPref, () => matchMedia(QUERY).matches, () => false);
+const n = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
 const short = (file: string) => file.replace(/^(src|source|lib)\//, '').replace(/\.[a-z]+$/, '');
 
 interface Props { repo: string; sha: string; nodes: FixtureNode[]; h: Layout; v: Layout; receipts: Receipt[] }
@@ -56,9 +57,9 @@ export function Demo({ repo, sha, nodes, h, v, receipts }: Props) {
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border px-4 py-3 md:px-6">
           <span className="font-mono text-mono-s text-text-2">{repo} <span className="text-text-3" aria-hidden>@</span> {sha.slice(0, 7)}</span>
           <span className="tabular font-mono text-mono-s text-text-2" aria-hidden>
-            {done ? <>{count} modules <Dot /> {imports} imports <Dot /> <span className="text-verified-text">{verified} verified</span></> : `Mapping ${count} modules… ${shown}/${count}`}
+            {done ? <>{n(count, 'module')} <Dot /> {n(imports, 'import')} <Dot /> <span className="text-verified-text">{verified} verified</span></> : `Mapping ${n(count, 'module')}… ${shown}/${count}`}
           </span>
-          <span className="sr-only" aria-live="polite">{done ? `Mapped ${count} modules and ${imports} imports; ${verified} of ${imports} verified against their lines.` : ''}</span>
+          <span className="sr-only" aria-live="polite">{done ? `Mapped ${n(count, 'module')} and ${n(imports, 'import')}; ${verified} of ${imports} verified against their lines.` : ''}</span>
         </div>
         <div ref={stage} data-built={built} className="asm px-2 py-4 md:px-4">
           <Diagram l={h} o="h" {...shared} />
@@ -72,11 +73,13 @@ export function Demo({ repo, sha, nodes, h, v, receipts }: Props) {
         </figcaption>
       </figure>
 
-      <section aria-labelledby="receipts-title" className="mt-24 md:mt-32">
+      {receipts.length > 0 && <section aria-labelledby="receipts-title" className="mt-24 md:mt-32">
         <h2 id="receipts-title" className="font-display text-h2 text-balance">Every claim opens to its line.</h2>
         <p className="mt-4 max-w-[60ch] text-body text-text-2 text-pretty">
           Pick a citation. The code is what RepoTale read at commit {sha.slice(0, 7)}, with the cited lines marked.
-          {' '}{verified === imports ? `All ${imports}` : `${verified} of ${imports}`} imports in the map cite a line that names the file they import.
+          {' '}{imports === 1
+            ? (verified ? 'The one import in the map cites a line that names the file it imports.' : 'The one import in the map does not cite a line that names its file.')
+            : `${verified === imports ? `All ${imports}` : `${verified} of ${imports}`} imports in the map cite a line that names the file they import.`}
         </p>
         <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-8">
           <ul className="flex flex-col gap-2" aria-label="Claims">
@@ -124,11 +127,13 @@ export function Demo({ repo, sha, nodes, h, v, receipts }: Props) {
             })}
           </div>
         </div>
-      </section>
+      </section>}
     </>
   );
 }
 
+/** A label cut to the characters its box holds; the box's title still names the whole file. */
+const fit = (s: string, chars: number) => (s.length <= chars ? s : `${s.slice(0, Math.max(1, Math.floor(chars) - 1))}…`);
 const Dot = () => <span className="text-text-3" aria-hidden>·</span>;
 
 interface DiagramProps { l: Layout; o: Orientation; nodes: FixtureNode[]; order: string[]; active: string }
@@ -168,7 +173,7 @@ function Diagram({ l, o, nodes, order, active }: DiagramProps) {
               <title>{`${n.id}: ${n.lines} lines, imported by ${n.users} file${n.users === 1 ? '' : 's'}`}</title>
               <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={wide ? 8 : 6} strokeWidth={n.entry ? 1.5 : 1}
                 className={`fill-surface-2 ${n.entry ? 'stroke-accent' : 'stroke-border'}`} />
-              <text x={b.x + pad} y={b.y + (wide ? 19 : 17)} className={`fill-text font-sans font-medium ${wide ? 'text-[13px]' : 'text-[11px]'}`}>{n.label}</text>
+              <text x={b.x + pad} y={b.y + (wide ? 19 : 17)} className={`fill-text font-sans font-medium ${wide ? 'text-[13px]' : 'text-[11px]'}`}>{fit(n.label, (b.w - 2 * pad - (n.heart ? 8 : 0)) / (wide ? 6.8 : 5.7))}</text>
               <text x={b.x + pad} y={b.y + (wide ? 34 : 31)} className={`tabular fill-text-2 font-mono ${wide ? 'text-[11px]' : 'text-[9.5px]'}`}>{n.lines} lines</text>
               {n.heart && <circle cx={b.x + b.w - pad} cy={b.y + pad} r={wide ? 3.5 : 3} className="fill-accent" />}
             </g>

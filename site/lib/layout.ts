@@ -14,10 +14,13 @@ export function layout(nodes: FixtureNode[], edges: Pick<FixtureEdge, 'from' | '
   const cols = Math.max(...nodes.map(n => n.col)) + 1;
   const most = Math.max(...nodes.map(n => n.rows));
   const pad = o === 'h' ? 24 : 8;
-  const width = o === 'h' ? 1100 : 340;
+  // Phones: up to three files across fill 340 units; more widen the drawing (it scales down) rather than
+  // squeezing boxes below a readable 92. Wide screens: boxes narrow when there are more than five columns,
+  // keeping a 40-unit gap for the lines.
+  const width = o === 'h' ? 1100 : Math.max(340, 2 * pad + most * 92 + (most - 1) * 12);
   const crossSize = o === 'h' ? 44 : (width - 2 * pad - (most - 1) * 12) / most;
   const crossStep = o === 'h' ? 72 : crossSize + 12;
-  const mainSize = o === 'h' ? 172 : 40;
+  const mainSize = o === 'h' ? Math.min(172, (width - 2 * pad - 40 * (cols - 1)) / cols) : 40;
   const mainStep = o === 'h' ? (width - 2 * pad - mainSize) / Math.max(1, cols - 1) : 76;
   const mainEnd = 2 * pad + (cols - 1) * mainStep + mainSize;
   const crossEnd = 2 * pad + (most - 1) * crossStep + crossSize;
@@ -32,7 +35,7 @@ export function layout(nodes: FixtureNode[], edges: Pick<FixtureEdge, 'from' | '
 
   const boxes = nodes.map(n => {
     const p = at.get(n.id)!;
-    return o === 'h' ? { id: n.id, x: r(p.m), y: r(p.c), w: mainSize, h: r(crossSize) } : { id: n.id, x: r(p.c), y: r(p.m), w: r(crossSize), h: mainSize };
+    return o === 'h' ? { id: n.id, x: r(p.m), y: r(p.c), w: r(mainSize), h: r(crossSize) } : { id: n.id, x: r(p.c), y: r(p.m), w: r(crossSize), h: mainSize };
   });
 
   const wires = edges.flatMap(e => {
