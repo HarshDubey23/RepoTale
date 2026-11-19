@@ -14,7 +14,7 @@ export function RiskWave({ bands, sourceFiles, blob }: { bands: Band[]; sourceFi
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { setOn(true); io.disconnect(); } }, { threshold: 0.3 });
+    const io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { setOn(true); io.disconnect(); } }, { rootMargin: '0px 0px -10% 0px' }); // a fraction-of-height threshold never fires for tall lists on phones
     io.observe(el);
     return () => io.disconnect();
   }, []);

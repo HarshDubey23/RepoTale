@@ -1,5 +1,6 @@
 import { ArrowUpRight, Star } from 'lucide-react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { CopyCommand } from '@/components/CopyCommand';
 import { FailurePage } from '@/components/FailurePage';
 import { RepoMap, StartHere } from '@/components/RepoSections';
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!r.ok) return { title: `${owner}/${repo} | RepoTale`, robots: { index: false } };
   const f = r.repo, first = f.startHere[0]?.file;
   const description = `${num(f.stats.modules)} modules and ${num(f.stats.imports)} imports in ${f.repo}, mapped from the code itself${first ? `. Start reading at ${first}` : ''}. Every claim links to its line.`;
-  return { title: `${f.repo}: map, reading order and receipts | RepoTale`, description, alternates: { canonical: `/r/${f.repo}` }, openGraph: { title: `${f.repo} on RepoTale`, description } };
+  return { title: `${f.repo}: map, reading order and receipts | RepoTale`, description, alternates: { canonical: `/r/${f.repo}` }, openGraph: { title: `${f.repo} on RepoTale`, description }, twitter: { title: `${f.repo} on RepoTale`, description } };
 }
 
 export default async function RepoPage({ params }: Props) {
@@ -62,8 +63,9 @@ export default async function RepoPage({ params }: Props) {
           <div>
             <h2 id="more-title" className="font-display text-h2 text-balance">Share it, or go further.</h2>
             <p className="mt-4 max-w-[52ch] text-body text-text-2 text-pretty">
-              This page keeps its link: anyone you send it to sees the same map, cited at the same commit.
-              The brief, pull request reviews, questions and the film are on the current site for now.
+              Anyone you send this link to sees this map. It is read again at most once a day, at the latest commit, and every
+              citation names the commit it came from. To see what a pull request can break, paste its link on
+              the <Link href="/" className={link}>home page</Link>. The brief, questions and the film are on the current site for now.
             </p>
             <a href={`${LIVE}#/${f.repo}`} className={`mt-6 inline-block text-body ${link}`}>
               Open {f.repo.split('/')[1]} on the current site<ArrowUpRight aria-hidden size={16} className="ml-0.5 inline align-[-3px]" />

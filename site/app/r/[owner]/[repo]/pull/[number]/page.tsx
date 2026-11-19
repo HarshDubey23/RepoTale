@@ -21,8 +21,11 @@ const plural = (n: number, w: string) => `${n.toLocaleString('en')} ${w}${n === 
 function summary(p: PullView) {
   const reached = p.bands.slice(1).reduce((s, b) => s + b.source.length, 0);
   const tests = p.tests.length;
-  return `Changes ${plural(p.changed, 'file')}. Through imports, the change reaches ${plural(reached, 'other source file')} of the ${p.sourceFiles} read`
-    + `${tests ? `, and ${plural(tests, 'test')} exercise it` : ', and no test among the files read reaches it'}.`;
+  // "5 files" next to a band of "2 source files" reads as a contradiction unless the rest are named.
+  const parts = [plural(p.bands[0]?.source.length ?? 0, 'source file'), p.bands[0]?.tests.length ? plural(p.bands[0].tests.length, 'test') : '',
+    p.notRead.length ? `${p.notRead.length} other` : ''].filter(Boolean);
+  return `Changes ${plural(p.changed, 'file')}${parts.length > 1 ? ` (${parts.join(', ')})` : ''}. Through imports, the change reaches `
+    + `${plural(reached, 'other source file')} of the ${p.sourceFiles} read${tests ? `, and ${plural(tests, 'test')} reach it` : ', and no test among the files read reaches it'}.`;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -30,7 +33,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const r = await pullRequest(owner, repo, number);
   if (!r.ok) return { title: `${owner}/${repo}#${number} | RepoTale`, robots: { index: false } };
   const p = r.pull;
-  return { title: `#${p.number} ${p.title} (${p.repo}) | RepoTale`, description: `${LEVEL[p.level].word}. ${summary(p)}`, alternates: { canonical: `/r/${p.repo}/pull/${p.number}` } };
+  const title = `#${p.number} ${p.title} (${p.repo})`, description = `${LEVEL[p.level].word}. ${summary(p)}`;
+  return { title: `${title} | RepoTale`, description, alternates: { canonical: `/r/${p.repo}/pull/${p.number}` }, openGraph: { title, description }, twitter: { title, description } };
 }
 
 export default async function PullPage({ params }: Props) {

@@ -32,7 +32,7 @@ export function Demo({ repo, sha, nodes, h, v, receipts }: Props) {
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { setInView(true); io.disconnect(); } }, { threshold: 0.35 });
+    const io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { setInView(true); io.disconnect(); } }, { rootMargin: '0px 0px -10% 0px' }); // starts once its top is on screen, however tall it is
     io.observe(el);
     return () => io.disconnect();
   }, []);
