@@ -378,8 +378,10 @@ export async function fetchPull(pr, token) {
   };
 }
 
-/** Fetch and analyse. `progress(stage, done, total)` is called as work proceeds. */
-export async function analyze(input, { token, progress = () => {}, include = [] } = {}) {
+/** Fetch and analyse. `progress(stage, done, total)` is called as work proceeds. `publicFiles` reads file
+ *  contents from raw.githubusercontent.com even with a token, so a server that only reads public
+ *  repositories spends 3 API calls per repository instead of one per file. */
+export async function analyze(input, { token, progress = () => {}, include = [], publicFiles = false } = {}) {
   const repo = parseRepo(input);
   if (!repo) throw new RepoError('Paste a GitHub repository, like owner/name or a github.com link.');
   const api = `https://api.github.com/repos/${repo.owner}/${repo.name}`;
@@ -403,7 +405,7 @@ export async function analyze(input, { token, progress = () => {}, include = [] 
   // through the contents API instead, which honours it and answers raw bytes.
   const get = async p => {
     try {
-      const r = token
+      const r = token && !publicFiles
         ? await fetch(`${api}/contents/${p.split('/').map(encodeURIComponent).join('/')}?ref=${commit.sha}`, { headers: { Accept: 'application/vnd.github.raw', Authorization: `Bearer ${token}` } })
         : await fetch(raw(p));
       return r.ok ? await r.text() : null;

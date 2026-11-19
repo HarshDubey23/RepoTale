@@ -12,9 +12,11 @@ export const size = { width: 1200, height: 630 };
 const font = (f: string) => readFile(join(process.cwd(), 'assets', 'og', f));
 const fit = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1).trimEnd()}…`);
 
-interface Card { kicker: string; title: string; italic?: string; description?: string; f?: Fixture; foot: string }
+interface Card { kicker: string; title: string; italic?: string; description?: string; f?: Fixture; foot: string; badge?: { text: string; tone: 'high' | 'medium' | 'low' } }
 
-export async function card({ kicker, title, italic, description, f, foot }: Card) {
+const TONE = { high: c.invented, medium: c.unverified, low: c.verified } as const;
+
+export async function card({ kicker, title, italic, description, f, foot, badge }: Card) {
   const [serif, serifItalic, sans, mono] = await Promise.all([
     font('instrument-serif-latin-400-normal.woff'), font('instrument-serif-latin-400-italic.woff'),
     font('instrument-sans-latin-400-normal.woff'), font('jetbrains-mono-latin-400-normal.woff'),
@@ -31,9 +33,9 @@ export async function card({ kicker, title, italic, description, f, foot }: Card
           <div style={{ fontFamily: 'Serif', fontSize: 36, letterSpacing: -0.5 }}>RepoTale</div>
           <div style={{ fontFamily: 'Mono', fontSize: 20, color: c.text2 }}>{kicker}</div>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', marginTop: 34, fontFamily: 'Serif', fontSize: map ? 84 : 96, lineHeight: 1, letterSpacing: -1.5 }}>
+        <div style={{ display: 'flex', flexDirection: italic ? 'column' : 'row', marginTop: 34, fontFamily: 'Serif', fontSize: map ? 84 : 96, lineHeight: 1, letterSpacing: -1.5 }}>
           <span>{fit(title, 34)}</span>
-          {italic && <span style={{ fontStyle: 'italic', color: c.accent, marginLeft: 20 }}>{italic}</span>}
+          {italic && <span style={{ fontStyle: 'italic', color: c.accent }}>{italic}</span>}
         </div>
         {description && <div style={{ marginTop: 18, fontSize: 26, lineHeight: 1.35, color: c.text2, maxWidth: 1000 }}>{fit(description, 120)}</div>}
         <div style={{ flex: 1 }} />
@@ -56,6 +58,7 @@ export async function card({ kicker, title, italic, description, f, foot }: Card
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${c.border}`, paddingTop: 20, fontFamily: 'Mono', fontSize: 20, color: c.text2 }}>
           <div style={{ display: 'flex' }}>{foot}</div>
           {f && <div style={{ display: 'flex', color: c.verified }}>{f.edges.filter(e => e.verified).length} of {f.edges.length} imports verified</div>}
+          {badge && <div style={{ display: 'flex', alignItems: 'center', color: TONE[badge.tone] }}><div style={{ width: 12, height: 12, borderRadius: 6, background: TONE[badge.tone], marginRight: 12 }} />{badge.text}</div>}
         </div>
       </div>
     ),

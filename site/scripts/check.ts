@@ -18,6 +18,23 @@ import { layers, statementEnd } from '../lib/shape.ts';
   assert.equal(a.get('init'), 0); // nothing in the map reaches it: it starts a column of its own
 }
 import { target } from '../lib/target.ts';
+import { bands, importLine } from '../lib/wave.ts';
+// @ts-expect-error: plain ES module shared with the website, the CLI and the MCP server
+import { blastRadius } from '../../web/analyze.js';
+
+// The Risk Wave: each reached file in the band of its shortest path, tests apart, the change itself in band 0.
+{
+  const modules = ['core.ts', 'a.ts', 'b.ts', 'c.ts', 'd.ts', 'x.ts', 'test/core.test.ts', 'test/a.test.ts'].map(file => ({ file, test: file.startsWith('test/') }));
+  const e = (from: string, to: string, line = 1) => ({ from, to, line });
+  const edges = [e('a.ts', 'core.ts', 3), e('x.ts', 'core.ts', 7), e('x.ts', 'b.ts'), e('b.ts', 'a.ts'), e('c.ts', 'b.ts'), e('d.ts', 'c.ts'),
+    e('test/core.test.ts', 'core.ts'), e('test/a.test.ts', 'a.ts')];
+  const w = bands(['core.ts'], [], modules, edges, blastRadius);
+  assert.deepEqual(w.map(b => [b.hops, b.source, b.tests]), [
+    [0, ['core.ts'], []], [1, ['a.ts', 'x.ts'], ['test/core.test.ts']], [2, ['b.ts'], ['test/a.test.ts']], [3, ['c.ts', 'd.ts'], []],
+  ]);
+  assert.deepEqual(importLine('core.ts', modules, edges), { file: 'a.ts', line: 3 }); // first importer by name, never a test
+  assert.equal(importLine('d.ts', modules, edges), null);
+}
 
 // A citation covers exactly its import statement, in each language the engine reads.
 const src = (s: string) => s.split('\n');
@@ -29,11 +46,10 @@ assert.equal(statementEnd(src('from .helpers import (\n    a,\n    b,\n)\nx = 1'
 assert.equal(statementEnd(src('import (\n\t"fmt"\n\t"example.com/m/x"\n)'), 3, 'main.go'), 3);
 assert.equal(statementEnd(src(`import {\n${'  a,\n'.repeat(50)}`), 1, 'a.ts'), 1); // no end in sight: one line, not a guess
 
-const LIVE = 'https://harshdubey23.github.io/RepoTale/';
 assert.equal(target("sindresorhus/ky"), "/r/sindresorhus/ky");
 assert.equal(target(" https://github.com/sindresorhus/ky.git "), "/r/sindresorhus/ky");
 assert.equal(target("github.com/sindresorhus/ky/tree/main/source?x=1#y"), "/r/sindresorhus/ky");
-assert.equal(target('https://github.com/vercel/next.js/pull/123/files'), `${LIVE}#pr=${encodeURIComponent('https://github.com/vercel/next.js/pull/123')}`);
+assert.equal(target('https://github.com/vercel/next.js/pull/123/files'), '/r/vercel/next.js/pull/123');
 for (const bad of ['', 'ky', 'not a repo', 'https://gitlab.com/a/b', 'a/b/c']) assert.equal(target(bad), null, bad);
 
 // Every import is drawn, and no line passes through a box it does not connect.

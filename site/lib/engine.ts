@@ -2,6 +2,7 @@ import 'server-only';
 // Live pages: RepoTale's engine (the same web/analyze.js the static site runs in the browser) read on the
 // server, reduced by lib/shape.ts, and cached by repository so each one is read once a day, not per visit.
 import { unstable_cache } from 'next/cache';
+import { cache } from 'react';
 // @ts-expect-error: plain ES module shared with the static site, the CLI and the MCP server
 import { analyze } from '../../web/analyze.js';
 // @ts-expect-error: plain ES module shared with the static site, the CLI and the MCP server
@@ -16,7 +17,11 @@ interface Model {
 }
 
 /** Why a page could not be built, in words a reader can act on. `kind` picks the page's state. */
-export type Failure = { kind: 'missing' | 'empty'; message: string };
+export type Failure = { kind: 'missing' | 'empty' | 'limited'; message: string };
+
+/** GitHub's hourly limit, told apart here because production hides thrown messages from error pages. */
+export const LIMITED: Failure = { kind: 'limited', message: 'GitHub allows RepoTale a limited number of reads an hour, and they are used up. Try again in a few minutes; nothing on your side needs to change.' };
+export const isLimited = (e: unknown) => /rate limit/i.test(e instanceof Error ? e.message : String(e));
 export type Result = { ok: true; repo: Fixture } | { ok: false; failure: Failure };
 
 const NAME = /^[\w.-]{1,100}$/;
@@ -24,12 +29,11 @@ const NAME = /^[\w.-]{1,100}$/;
 async function read(owner: string, name: string): Promise<Result> {
   let model: Model;
   try {
-    model = await analyze(`${owner}/${name}`, { token: process.env.GITHUB_TOKEN || undefined });
+    model = await analyze(`${owner}/${name}`, { token: process.env.GITHUB_TOKEN || undefined, publicFiles: true });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (/does not exist|private/i.test(message)) return { ok: false, failure: { kind: 'missing', message: `${owner}/${name} is not a public GitHub repository, or it does not exist.` } };
-    if (/rate limit/i.test(message)) throw new Error('GitHub rate limit reached. Try again in a few minutes.'); // not cached: the next visit retries
-    throw e;
+    throw e; // a rate limit or an outage: thrown, so it is not cached and the next visit reads again
   }
   if (!model.modules.some(m => !m.test)) return { ok: false, failure: { kind: 'empty', message: 'It has no JavaScript, TypeScript, Python or Go source files for RepoTale to map.' } };
 
@@ -47,8 +51,14 @@ async function read(owner: string, name: string): Promise<Result> {
 
 const cached = unstable_cache(read, ['repotale-repo-v4'], { revalidate: 86_400 });
 
-/** A repository's page data. Names are checked before anything is fetched. */
-export async function repository(owner: string, name: string): Promise<Result> {
+/** A repository's page data. Names are checked before anything is fetched. `cache` makes the page and its
+ *  metadata share one read per request, where the data cache alone would let both read a cold repository. */
+export const repository = cache(async (owner: string, name: string): Promise<Result> => {
   if (!NAME.test(owner) || !NAME.test(name)) return { ok: false, failure: { kind: 'missing', message: 'That is not a GitHub repository name.' } };
-  return cached(owner.toLowerCase(), name.toLowerCase());
-}
+  try {
+    return await cached(owner.toLowerCase(), name.toLowerCase());
+  } catch (e) {
+    if (isLimited(e)) return { ok: false, failure: LIMITED };
+    throw e;
+  }
+});

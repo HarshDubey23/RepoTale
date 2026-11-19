@@ -135,6 +135,15 @@ input { caret-color: var(--rt-accent); }
 :is(.asm-nodes > *, .asm-wires > *):nth-child(8) { --i: 7; }  :is(.asm-nodes > *, .asm-wires > *):nth-child(9) { --i: 8; }
 :is(.asm-nodes > *, .asm-wires > *):nth-child(10) { --i: 9; } :is(.asm-nodes > *, .asm-wires > *):nth-child(11) { --i: 10; }
 :is(.asm-nodes > *, .asm-wires > *):nth-child(12) { --i: 11; }
+/* The Risk Wave: bands arrive a beat apart, left to right, each wavefront sweeping across as it lands. */
+.wave > li { opacity: 0; translate: 0 8px; transition: opacity var(--dur-2) var(--ease-out), translate var(--dur-3) var(--ease-out); }
+.wave .wave-front { scale: 0 1; transform-origin: left; transition: scale var(--dur-3) var(--ease-out); }
+.wave[data-on] > li { opacity: 1; translate: 0 0; }
+.wave[data-on] .wave-front { scale: 1 1; }
+.wave > li:nth-child(2), .wave > li:nth-child(2) .wave-front { transition-delay: calc(1 * var(--dur-3)); }
+.wave > li:nth-child(3), .wave > li:nth-child(3) .wave-front { transition-delay: calc(2 * var(--dur-3)); }
+.wave > li:nth-child(4), .wave > li:nth-child(4) .wave-front { transition-delay: calc(3 * var(--dur-3)); }
+
 /* Loading: a slow sheen across the page's real shapes. */
 .skeleton { background: linear-gradient(90deg, var(--rt-surface-2) 30%, var(--rt-border) 50%, var(--rt-surface-2) 70%) 0 0 / 300% 100%; animation: rt-sheen 1.6s linear infinite; }
 @keyframes rt-sheen { from { background-position: 100% 0; } to { background-position: 0 0; } }

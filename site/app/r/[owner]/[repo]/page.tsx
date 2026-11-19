@@ -1,7 +1,7 @@
 import { ArrowUpRight, Star } from 'lucide-react';
 import type { Metadata } from 'next';
 import { CopyCommand } from '@/components/CopyCommand';
-import { RepoForm } from '@/components/RepoForm';
+import { FailurePage } from '@/components/FailurePage';
 import { RepoMap, StartHere } from '@/components/RepoSections';
 import { LIVE, SiteFooter, SiteHeader, link } from '@/components/Site';
 import { repository } from '@/lib/engine';
@@ -26,21 +26,7 @@ export default async function RepoPage({ params }: Props) {
   const { owner, repo } = await params;
   const r = await repository(owner, repo);
 
-  if (!r.ok) {
-    return (
-      <>
-        <SiteHeader />
-        <main id="main" className="mx-auto max-w-[1200px] px-4 pb-32 pt-10 md:px-8 md:pt-14">
-          <p className="font-mono text-mono-s text-text-2">{owner}/{repo}</p>
-          <h1 className="mt-4 max-w-[20ch] font-display text-h2 text-balance">
-            {r.failure.kind === 'empty' ? 'Nothing here for RepoTale to map.' : 'No repository to read here.'}
-          </h1>
-          <p className="mt-4 max-w-[56ch] text-body text-text-2 text-pretty">{r.failure.message} Try another one:</p>
-          <div className="mt-8"><RepoForm /></div>
-        </main>
-      </>
-    );
-  }
+  if (!r.ok) return <FailurePage name={`${owner}/${repo}`} failure={r.failure} path={`/r/${owner}/${repo}`} />;
 
   const f = r.repo, m = f.meta;
   const page = `/r/${f.repo}`;

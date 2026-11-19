@@ -4,6 +4,10 @@ import { RepoForm } from '@/components/RepoForm';
 import { RepoMap, StartHere } from '@/components/RepoSections';
 import { LIVE, SiteFooter, SiteHeader, link } from '@/components/Site';
 import { demo as f } from '@/lib/fixture';
+import Link from 'next/link';
+
+// Repositories in different languages and shapes, each read end to end while this page was built.
+const TRY = ['pallets/flask', 'expressjs/express', 'tj/commander.js'];
 
 export default function Home() {
   return (
@@ -20,7 +24,11 @@ export default function Home() {
           </p>
           <div className="mt-8 flex flex-col gap-1">
             <RepoForm />
-            <a href={`${LIVE}#demo`} className={`w-fit text-small text-text-2 ${link}`}>
+            <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-small text-text-2">
+              <span>Or open one:</span>
+              {TRY.map(r => <Link key={r} href={`/r/${r}`} prefetch={false} className={`font-mono text-mono-s ${link}`}>{r}</Link>)}
+            </p>
+            <a href={`${LIVE}#demo`} className={`mt-2 w-fit text-small text-text-2 ${link}`}>
               Or watch the one-minute film it made of a real repository<ArrowUpRight aria-hidden size={14} className="ml-0.5 inline align-[-2px]" />
             </a>
           </div>
